@@ -1,0 +1,2881 @@
+# stm32g4_reference_manual.pdf
+
+**Title:** STM32G4 series advanced Arm<Sup>®</Sup>-based 32-bit MCUs - Reference manual
+**Pages:** 2140
+
+Page numbers are 1-based PDF pages (pass directly to the Read tool's `pages` parameter).
+
+---
+
+- p74: 1 Documentation conventions
+  - p74: 1.1 General information
+  - p74: 1.2 List of abbreviations for registers
+  - p75: 1.3 Register reset value
+  - p75: 1.4 Glossary
+  - p75: 1.5 Product category definition
+    - p75: Table 1. STM32G4 series memory density
+  - p76: 1.6 Availability of peripherals
+    - p76: Table 2. Product specific features (continued)
+- p79: 2 System and memory overview
+  - p79: 2.1 System architecture
+    - p80: 2.1.1 I-bus
+    - p80: 2.1.2 D-bus
+    - p81: 2.1.3 S-bus
+    - p81: 2.1.4 DMA-bus
+    - p81: 2.1.5 BusMatrix
+      - p81: AHB/APB bridges
+  - p82: 2.2 Memory organization
+    - p82: 2.2.1 Introduction
+    - p83: 2.2.2 Memory map and register boundary addresses
+      - p84: Table 3. Memory map and peripheral register boundary addresses (continued)
+  - p87: 2.3 Bit banding
+    - p88: Example
+  - p88: 2.4 Embedded SRAM
+    - p89: 2.4.1 Parity check
+    - p89: 2.4.2 CCM SRAM write protection
+      - p89: Table 4. CCM SRAM organization (continued)
+    - p90: 2.4.3 CCM SRAM read protection
+    - p90: 2.4.4 CCM SRAM erase
+  - p91: 2.5 Flash memory overview
+  - p91: 2.6 Boot configuration
+    - p91: 2.6.1 Boot configuration
+      - p91: Table 5. Boot modes
+      - p92: Forcing boot from user flash memory
+      - p92: Physical remap
+      - p93: Table 6. Memory mapping versus boot mode/physical remap
+      - p93: Embedded boot loader
+- p94: 3 Embedded flash memory (FLASH) for category 3 devices
+  - p94: 3.1 Introduction
+  - p94: 3.2 FLASH main features
+  - p95: 3.3 FLASH functional description
+    - p95: 3.3.1 Flash memory organization
+      - p96: Table 7. Flash module - 512/256/128 KB dual bank organization (64 bits read width)
+      - p96: Table 8. Flash module - 512/256/128 KB single bank organization (128 bits read width)
+    - p97: 3.3.2 Error code correction (ECC)
+      - p97: Dual bank mode (DBANK = 1, 64-bit data width)
+      - p97: Single bank mode (DBANK = 0, 128-bit data width)
+    - p98: 3.3.3 Read access latency
+      - p98: Table 9. Number of wait states according to CPU clock (HCLK) frequency
+      - p99: Increasing the CPU frequency
+      - p99: Decreasing the CPU frequency
+    - p99: 3.3.4 Adaptive real-time memory accelerator (ART Accelerator)
+      - p100: Instruction prefetch
+      - p102: Instruction cache memory (I-Cache)
+      - p102: Data cache memory (D-Cache)
+    - p102: 3.3.5 Flash program and erase operations
+      - p103: Unlocking the flash memory
+    - p103: 3.3.6 Flash main memory erase sequences
+      - p103: Page erase
+      - p104: Bank 1, Bank 2 mass erase (available only in dual bank mode when DBANK = 1)
+      - p104: Mass erase
+    - p104: 3.3.7 Flash main memory programming sequences
+      - p105: Standard programming
+      - p105: Fast programming for a row (64 double words if DBANK = 1) or for half row (64 double words if DBANK = 0)
+      - p107: Programming errors
+      - p108: Programming and caches
+    - p108: 3.3.8 Read-while-write (RWW) available only in dual bank mode (DBANK = 1)
+      - p108: Read from bank 1 while page erasing in bank 2 (or vice versa)
+      - p109: Read from bank 1 while mass erasing bank 2 (or vice versa)
+      - p109: Read from bank 1 while programming bank 2 (or vice versa)
+  - p110: 3.4 FLASH option bytes
+    - p110: 3.4.1 Option bytes description
+      - p110: Table 10. Option byte format
+      - p110: Table 11. Option byte organization (continued)
+      - p111: User and read protection option bytes
+      - p113: PCROP1 Start address option bytes
+      - p113: PCROP1 End address option bytes
+      - p114: WRP1 Area A address option bytes
+      - p114: WRP1 Area B address option bytes
+      - p115: Securable memory area Bank 1 option bytes
+      - p115: PCROP2 Start address option bytes
+      - p116: PCROP2 End address option bytes
+      - p116: WRP2 Area A address option bytes
+      - p117: WRP2 Area B address option bytes
+      - p117: Securable memory area Bank 2 option bytes
+    - p118: 3.4.2 Option bytes programming
+      - p118: Modifying user options
+      - p119: Option byte loading
+      - p119: Activating dual bank mode (switching from DBANK = 0 to DBANK = 1)
+      - p120: De-activating dual bank mode (switching from DBANK = 1 to DBANK = 0)
+  - p121: 3.5 FLASH memory protection
+    - p121: 3.5.1 Read protection (RDP)
+      - p121: Table 12. Flash memory read protection status
+      - p121: Level 0: no protection
+      - p122: Level 1: Read protection
+      - p122: Level 2: No debug
+      - p122: Changing the Read protection level
+      - p123: Table 13. Access status versus protection level and execution modes (continued)
+    - p124: 3.5.2 Proprietary code readout protection (PCROP)
+      - p125: Table 14. PCROP protection
+    - p126: 3.5.3 Write protection (WRP)
+      - p126: Single Bank mode (DBANK = 0)
+      - p126: Dual bank mode (DBANK = 1)
+      - p127: Table 15. WRP protection
+    - p127: 3.5.4 Securable memory area
+    - p128: 3.5.5 Disabling core debug access
+    - p128: 3.5.6 Forcing boot from flash memory
+  - p129: 3.6 FLASH interrupts
+    - p129: Table 16. Flash interrupt request
+  - p130: 3.7 FLASH registers
+    - p130: 3.7.1 Flash access control register (FLASH_ACR)
+    - p131: 3.7.2 Flash power-down key register (FLASH_PDKEYR)
+    - p132: 3.7.3 Flash key register (FLASH_KEYR)
+    - p132: 3.7.4 Flash option key register (FLASH_OPTKEYR)
+    - p132: 3.7.5 Flash status register (FLASH_SR)
+    - p134: 3.7.6 Flash control register (FLASH_CR)
+    - p136: 3.7.7 Flash ECC register (FLASH_ECCR)
+    - p138: 3.7.8 Flash option register (FLASH_OPTR)
+    - p140: 3.7.9 Flash PCROP1 Start address register (FLASH_PCROP1SR)
+    - p141: 3.7.10 Flash PCROP1 End address register (FLASH_PCROP1ER)
+    - p141: 3.7.11 Flash Bank 1 WRP area A address register (FLASH_WRP1AR)
+    - p142: 3.7.12 Flash Bank 1 WRP area B address register (FLASH_WRP1BR)
+    - p142: 3.7.13 Flash PCROP2 Start address register (FLASH_PCROP2SR)
+    - p143: 3.7.14 Flash PCROP2 End address register (FLASH_PCROP2ER)
+    - p143: 3.7.15 Flash Bank 2 WRP area A address register (FLASH_WRP2AR)
+    - p144: 3.7.16 Flash Bank 2 WRP area B address register (FLASH_WRP2BR)
+    - p145: 3.7.17 Flash securable area bank1 register (FLASH_SEC1R)
+    - p145: 3.7.18 Flash securable area bank2 register (FLASH_SEC2R)
+    - p147: 3.7.19 FLASH register map
+      - p147: Table 17. Flash interface - register map and reset values (continued)
+- p149: 4 Embedded flash memory (FLASH) for category 4 devices
+  - p149: 4.1 Introduction
+  - p149: 4.2 FLASH main features
+  - p150: 4.3 FLASH functional description
+    - p150: 4.3.1 Flash memory organization
+      - p150: Table 18. Flash module - 256/512 Kbytes organization (64 bits read width)
+    - p151: 4.3.2 Error code correction (ECC)
+    - p151: 4.3.3 Read access latency
+      - p151: Table 19. Number of wait states according to CPU clock (HCLK) frequency
+      - p152: Increasing the CPU frequency:
+      - p152: Decreasing the CPU frequency:
+    - p152: 4.3.4 Adaptive real-time memory accelerator (ART Accelerator)
+      - p153: Instruction prefetch
+      - p155: Instruction cache memory (I-Cache)
+      - p155: Data cache memory (D-Cache)
+    - p155: 4.3.5 Flash program and erase operations
+      - p156: Unlocking the flash memory
+    - p156: 4.3.6 Flash main memory erase sequences
+      - p156: Page erase
+      - p156: Mass erase
+    - p157: 4.3.7 Flash main memory programming sequences
+      - p157: Standard programming
+      - p158: Fast programming
+      - p159: Programming errors
+      - p160: Programming and caches
+  - p161: 4.4 FLASH option bytes
+    - p161: 4.4.1 Option bytes description
+      - p161: Table 20. Option byte format
+      - p161: Table 21. Option byte organization
+      - p162: User and read protection option bytes
+      - p163: PCROP1 Start address option bytes
+      - p164: PCROP1 End address option bytes
+      - p164: WRP1 Area A address option bytes
+      - p165: WRP1 Area B address option bytes
+      - p165: Securable memory area option bytes
+    - p165: 4.4.2 Option bytes programming
+      - p166: Modifying user options
+      - p166: Option byte loading
+  - p167: 4.5 FLASH memory protection
+    - p167: 4.5.1 Read protection (RDP)
+      - p167: Table 22. Flash memory read protection status
+      - p168: Level 0: no protection
+      - p168: Level 1: Read protection
+      - p168: Level 2: No debug
+      - p168: Changing the Read protection level
+      - p169: Table 23. Access status versus protection level and execution modes (continued)
+    - p170: 4.5.2 Proprietary code readout protection (PCROP)
+      - p171: Table 24. PCROP protection
+    - p171: 4.5.3 Write protection (WRP)
+      - p172: Table 25. WRP protection
+    - p172: 4.5.4 Securable memory area
+    - p173: 4.5.5 Disabling core debug access
+    - p173: 4.5.6 Forcing boot from flash memory
+  - p173: 4.6 FLASH interrupts
+    - p173: Table 26. Flash interrupt request
+  - p174: 4.7 FLASH registers
+    - p174: 4.7.1 Flash access control register (FLASH_ACR)
+    - p175: 4.7.2 Flash power-down key register (FLASH_PDKEYR)
+    - p175: 4.7.3 Flash key register (FLASH_KEYR)
+    - p176: 4.7.4 Flash option key register (FLASH_OPTKEYR)
+    - p176: 4.7.5 Flash status register (FLASH_SR)
+    - p178: 4.7.6 Flash control register (FLASH_CR)
+    - p180: 4.7.7 Flash ECC register (FLASH_ECCR)
+    - p181: 4.7.8 Flash option register (FLASH_OPTR)
+    - p183: 4.7.9 Flash PCROP1 Start address register (FLASH_PCROP1SR)
+    - p183: 4.7.10 Flash PCROP1 End address register (FLASH_PCROP1ER)
+    - p184: 4.7.11 Flash WRP area A address register (FLASH_WRP1AR)
+    - p184: 4.7.12 Flash WRP area B address register (FLASH_WRP1BR)
+    - p185: 4.7.13 Flash securable area register (FLASH_SEC1R)
+    - p186: 4.7.14 FLASH register map
+      - p186: Table 27. Flash interface - register map and reset values (continued)
+- p188: 5 Embedded flash memory (FLASH) for category 2 devices
+  - p188: 5.1 Introduction
+  - p188: 5.2 FLASH main features
+  - p189: 5.3 FLASH functional description
+    - p189: 5.3.1 Flash memory organization
+      - p189: Table 28. Flash module - 32/64/128 Kbytes organization (64-bit read width)
+    - p190: 5.3.2 Error code correction (ECC)
+    - p190: 5.3.3 Read access latency
+      - p190: Table 29. Number of wait states according to CPU clock (HCLK) frequency
+      - p191: Increasing the CPU frequency:
+      - p191: Decreasing the CPU frequency:
+    - p191: 5.3.4 Adaptive real-time memory accelerator (ART Accelerator)
+      - p192: Instruction prefetch
+      - p194: Instruction cache memory (I-Cache)
+      - p194: Data cache memory (D-Cache)
+    - p194: 5.3.5 Flash program and erase operations
+      - p195: Unlocking the flash memory
+    - p195: 5.3.6 Flash main memory erase sequences
+      - p195: Page erase
+      - p195: Mass erase
+    - p196: 5.3.7 Flash main memory programming sequences
+      - p196: Standard programming
+      - p197: Fast programming
+      - p198: Programming errors
+      - p199: Programming and caches
+  - p200: 5.4 FLASH option bytes
+    - p200: 5.4.1 Option bytes description
+      - p200: Table 30. Option byte format
+      - p200: Table 31. Option byte organization
+      - p200: User and read protection option bytes
+      - p202: PCROP1 Start address option bytes
+      - p203: PCROP1 End address option bytes
+      - p203: WRP1 Area A address option bytes
+      - p204: WRP1 Area B address option bytes
+      - p204: Securable memory area option bytes
+    - p205: 5.4.2 Option bytes programming
+      - p205: Modifying user options
+      - p205: Option byte loading
+  - p206: 5.5 FLASH memory protection
+    - p206: 5.5.1 Read protection (RDP)
+      - p206: Table 32. Flash memory read protection status
+      - p207: Level 0: no protection
+      - p207: Level 1: Read protection
+      - p207: Level 2: No debug
+      - p207: Changing the Read protection level
+      - p208: Table 33. Access status versus protection level and execution modes (continued)
+    - p209: 5.5.2 Proprietary code readout protection (PCROP)
+      - p210: Table 34. PCROP protection
+    - p210: 5.5.3 Write protection (WRP)
+      - p211: Table 35. WRP protection
+    - p211: 5.5.4 Securable memory area
+    - p212: 5.5.5 Disabling core debug access
+    - p212: 5.5.6 Forcing boot from flash memory
+  - p213: 5.6 FLASH interrupts
+    - p213: Table 36. Flash interrupt request
+  - p214: 5.7 FLASH registers
+    - p214: 5.7.1 Flash access control register (FLASH_ACR)
+    - p215: 5.7.2 Flash Power-down key register (FLASH_PDKEYR)
+    - p216: 5.7.3 Flash key register (FLASH_KEYR)
+    - p216: 5.7.4 Flash option key register (FLASH_OPTKEYR)
+    - p216: 5.7.5 Flash status register (FLASH_SR)
+    - p218: 5.7.6 Flash control register (FLASH_CR)
+    - p220: 5.7.7 Flash ECC register (FLASH_ECCR)
+    - p221: 5.7.8 Flash option register (FLASH_OPTR)
+    - p223: 5.7.9 Flash PCROP1 Start address register (FLASH_PCROP1SR)
+    - p223: 5.7.10 Flash PCROP1 End address register (FLASH_PCROP1ER)
+    - p224: 5.7.11 Flash WRP area A address register (FLASH_WRP1AR)
+    - p224: 5.7.12 Flash WRP area B address register (FLASH_WRP1BR)
+    - p225: 5.7.13 Flash securable area register (FLASH_SEC1R)
+    - p226: 5.7.14 FLASH register map
+      - p226: Table 37. Flash interface - Register map and reset values (continued)
+- p228: 6 Power control (PWR)
+  - p228: 6.1 Power supplies
+    - p229: 6.1.1 Independent analog peripherals supply
+      - p230: ADC and DAC reference voltage
+    - p230: 6.1.2 USB transceivers supply
+    - p230: 6.1.3 Battery backup domain
+      - p231: Backup domain access
+      - p231: VBAT battery charging
+    - p231: 6.1.4 Voltage regulator
+    - p232: 6.1.5 Dynamic voltage scaling management
+      - p232: Table 38. Range 1 boost mode configuration
+  - p234: 6.2 Power supply supervisor
+    - p234: 6.2.1 Power-on reset (POR) / power-down reset (PDR) / brown-out reset (BOR)
+    - p234: 6.2.2 Programmable voltage detector (PVD)
+    - p235: 6.2.3 Peripheral Voltage Monitoring (PVM)
+      - p235: Table 39. PVM features
+  - p236: 6.3 Low-power modes
+    - p238: Table 40. Low-power mode summary
+    - p239: Table 41. Functionalities depending on the working mode (continued)
+    - p241: Debug mode
+    - p241: 6.3.1 Run mode
+      - p241: Slowing down system clocks
+      - p241: Peripheral clock gating
+    - p241: 6.3.2 Low-power run mode (LP run)
+      - p242: I/O states in Low-power run mode
+      - p242: Entering the Low-power run mode
+      - p242: Exiting the Low-power run mode
+      - p242: Table 42. Low-power run
+    - p242: 6.3.3 Low power modes
+      - p242: Entering low power mode
+      - p242: Exiting low power mode
+    - p243: 6.3.4 Sleep mode
+      - p243: I/O states in Sleep mode
+      - p243: Entering the Sleep mode
+      - p243: Exiting the Sleep mode
+      - p244: Table 43. Sleep
+    - p244: 6.3.5 Low-power sleep mode (LP sleep)
+      - p244: I/O states in Low-power sleep mode
+      - p244: Entering the Low-power sleep mode
+      - p244: Exiting the Low-power sleep mode
+      - p245: Table 44. Low-power sleep
+    - p245: 6.3.6 Stop 0 mode
+      - p245: I/O states in Stop 0 mode
+      - p245: Entering the Stop 0 mode
+      - p246: Exiting the Stop 0 mode
+      - p247: Table 45. Stop 0 mode
+    - p247: 6.3.7 Stop 1 mode
+      - p248: Table 46. Stop 1 mode
+    - p248: 6.3.8 Standby mode
+      - p249: I/O states in Standby mode
+      - p249: Entering Standby mode
+      - p249: Exiting Standby mode
+      - p250: Table 47. Standby mode
+    - p251: 6.3.9 Shutdown mode
+      - p251: I/O states in Shutdown mode
+      - p251: Entering Shutdown mode
+      - p251: Exiting Shutdown mode
+      - p252: Table 48. Shutdown mode
+    - p252: 6.3.10 Auto-wakeup from low-power mode
+  - p253: 6.4 PWR registers
+    - p253: 6.4.1 Power control register 1 (PWR_CR1)
+    - p254: 6.4.2 Power control register 2 (PWR_CR2)
+    - p254: 6.4.3 Power control register 3 (PWR_CR3)
+    - p256: 6.4.4 Power control register 4 (PWR_CR4)
+    - p257: 6.4.5 Power status register 1 (PWR_SR1)
+    - p258: 6.4.6 Power status register 2 (PWR_SR2)
+    - p259: 6.4.7 Power status clear register (PWR_SCR)
+    - p260: 6.4.8 Power Port A pull-up control register (PWR_PUCRA)
+    - p260: 6.4.9 Power Port A pull-down control register (PWR_PDCRA)
+    - p261: 6.4.10 Power Port B pull-up control register (PWR_PUCRB)
+    - p261: 6.4.11 Power Port B pull-down control register (PWR_PDCRB)
+    - p262: 6.4.12 Power Port C pull-up control register (PWR_PUCRC)
+    - p262: 6.4.13 Power Port C pull-down control register (PWR_PDCRC)
+    - p263: 6.4.14 Power Port D pull-up control register (PWR_PUCRD)
+    - p263: 6.4.15 Power Port D pull-down control register (PWR_PDCRD)
+    - p264: 6.4.16 Power Port E pull-up control register (PWR_PUCRE)
+    - p264: 6.4.17 Power Port E pull-down control register (PWR_PDCRE)
+    - p265: 6.4.18 Power Port F pull-up control register (PWR_PUCRF)
+    - p265: 6.4.19 Power Port F pull-down control register (PWR_PDCRF)
+    - p266: 6.4.20 Power Port G pull-up control register (PWR_PUCRG)
+    - p266: 6.4.21 Power Port G pull-down control register (PWR_PDCRG)
+    - p267: 6.4.22 Power control register (PWR_CR5)
+    - p268: 6.4.23 PWR register map and reset value table
+      - p268: Table 49. PWR register map (continued)
+- p270: 7 Reset and clock control (RCC)
+  - p270: 7.1 Reset
+    - p270: 7.1.1 Power reset
+    - p270: 7.1.2 System reset
+      - p270: NRST pin (external reset)
+      - p271: Software reset
+      - p271: Low-power mode security reset
+      - p272: Option byte loader reset
+    - p272: 7.1.3 RTC domain reset
+  - p272: 7.2 Clocks
+    - p276: 7.2.1 HSE clock
+      - p277: External crystal/ceramic resonator (HSE crystal)
+      - p277: External source (HSE bypass)
+    - p277: 7.2.2 HSI16 clock
+      - p277: Calibration
+    - p278: 7.2.3 HSI48 clock
+    - p278: 7.2.4 PLL
+    - p278: 7.2.5 LSE clock
+      - p279: External source (LSE bypass)
+    - p279: 7.2.6 LSI clock
+    - p279: 7.2.7 System clock (SYSCLK) selection
+    - p280: 7.2.8 Clock source frequency versus voltage scaling
+      - p280: Table 50. Clock source frequency
+    - p280: 7.2.9 Clock security system (CSS)
+    - p280: 7.2.10 Clock security system on LSE
+    - p281: 7.2.11 ADC clock
+    - p281: 7.2.12 RTC clock
+    - p281: 7.2.13 Timer clock
+    - p282: 7.2.14 Watchdog clock
+    - p282: 7.2.15 Clock-out capability
+    - p282: 7.2.16 Internal/external clock measurement with TIM5/TIM15/TIM16/TIM17
+      - p285: Calibration of the HSI16
+      - p285: Calibration of the LSI
+    - p285: 7.2.17 Peripheral clock enable register (RCC_AHBxENR, RCC_APBxENRy)
+  - p286: 7.3 Low-power modes
+  - p287: 7.4 RCC registers
+    - p287: 7.4.1 Clock control register (RCC_CR)
+    - p288: 7.4.2 Internal clock sources calibration register (RCC_ICSCR)
+    - p289: 7.4.3 Clock configuration register (RCC_CFGR)
+    - p291: 7.4.4 PLL configuration register (RCC_PLLCFGR)
+    - p294: 7.4.5 Clock interrupt enable register (RCC_CIER)
+    - p295: 7.4.6 Clock interrupt flag register (RCC_CIFR)
+    - p296: 7.4.7 Clock interrupt clear register (RCC_CICR)
+    - p297: 7.4.8 AHB1 peripheral reset register (RCC_AHB1RSTR)
+    - p298: 7.4.9 AHB2 peripheral reset register (RCC_AHB2RSTR)
+    - p300: 7.4.10 AHB3 peripheral reset register (RCC_AHB3RSTR)
+    - p301: 7.4.11 APB1 peripheral reset register 1 (RCC_APB1RSTR1)
+    - p303: 7.4.12 APB1 peripheral reset register 2 (RCC_APB1RSTR2)
+    - p303: 7.4.13 APB2 peripheral reset register (RCC_APB2RSTR)
+    - p305: 7.4.14 AHB1 peripheral clock enable register (RCC_AHB1ENR)
+    - p306: 7.4.15 AHB2 peripheral clock enable register (RCC_AHB2ENR)
+    - p308: 7.4.16 AHB3 peripheral clock enable register(RCC_AHB3ENR)
+    - p309: 7.4.17 APB1 peripheral clock enable register 1 (RCC_APB1ENR1)
+    - p311: 7.4.18 APB1 peripheral clock enable register 2 (RCC_APB1ENR2)
+    - p312: 7.4.19 APB2 peripheral clock enable register (RCC_APB2ENR)
+    - p313: 7.4.20 AHB1 peripheral clocks enable in Sleep and Stop modes register (RCC_AHB1SMENR)
+    - p315: 7.4.21 AHB2 peripheral clocks enable in Sleep and Stop modes register (RCC_AHB2SMENR)
+    - p317: 7.4.22 AHB3 peripheral clocks enable in Sleep and Stop modes register (RCC_AHB3SMENR)
+    - p317: 7.4.23 APB1 peripheral clocks enable in Sleep and Stop modes register 1 (RCC_APB1SMENR1)
+    - p320: 7.4.24 APB1 peripheral clocks enable in Sleep and Stop modes register 2 (RCC_APB1SMENR2)
+    - p321: 7.4.25 APB2 peripheral clocks enable in Sleep and Stop modes register (RCC_APB2SMENR)
+    - p322: 7.4.26 Peripherals independent clock configuration register (RCC_CCIPR)
+    - p325: 7.4.27 RTC domain control register (RCC_BDCR)
+    - p327: 7.4.28 Control/status register (RCC_CSR)
+    - p328: 7.4.29 Clock recovery RC register (RCC_CRRCR)
+    - p329: 7.4.30 Peripherals independent clock configuration register (RCC_CCIPR2)
+    - p330: 7.4.31 RCC register map
+      - p330: Table 51. RCC register map and reset values (continued)
+- p334: 8 Clock recovery system (CRS)
+  - p334: 8.1 CRS introduction
+  - p334: 8.2 CRS main features
+  - p334: 8.3 CRS implementation
+    - p334: Table 52. CRS features
+  - p335: 8.4 CRS functional description
+    - p335: 8.4.1 CRS block diagram
+    - p335: 8.4.2 CRS internal signals
+      - p335: Table 53. CRS internal input/output signals (continued)
+      - p336: Table 54. CRS interconnection
+    - p336: 8.4.3 Synchronization input
+    - p336: 8.4.4 Frequency error measurement
+    - p337: 8.4.5 Frequency error evaluation and automatic trimming
+    - p338: 8.4.6 CRS initialization and configuration
+      - p338: RELOAD value
+      - p338: FELIM value
+  - p339: 8.5 CRS in low-power modes
+    - p339: Table 55. Effect of low-power modes on CRS
+  - p339: 8.6 CRS interrupts
+    - p339: Table 56. Interrupt control bits
+  - p339: 8.7 CRS registers
+    - p339: 8.7.1 CRS control register (CRS_CR)
+    - p340: 8.7.2 CRS configuration register (CRS_CFGR)
+    - p341: 8.7.3 CRS interrupt and status register (CRS_ISR)
+    - p343: 8.7.4 CRS interrupt flag clear register (CRS_ICR)
+    - p344: 8.7.5 CRS register map
+      - p344: Table 57. CRS register map and reset values
+- p345: 9 General-purpose I/Os (GPIO)
+  - p345: 9.1 Introduction
+  - p345: 9.2 GPIO main features
+  - p345: 9.3 GPIO functional description
+    - p347: Table 58. Port bit configuration table
+    - p348: 9.3.1 General-purpose I/O (GPIO)
+    - p348: 9.3.2 I/O pin alternate function multiplexer and mapping
+    - p349: 9.3.3 I/O port control registers
+    - p349: 9.3.4 I/O port data registers
+    - p349: 9.3.5 I/O data bitwise handling
+    - p350: 9.3.6 GPIO locking mechanism
+    - p350: 9.3.7 I/O alternate function input/output
+    - p350: 9.3.8 External interrupt/wakeup lines
+    - p351: 9.3.9 Input configuration
+    - p351: 9.3.10 Output configuration
+    - p352: 9.3.11 Alternate function configuration
+    - p353: 9.3.12 Analog configuration
+    - p353: 9.3.13 Using the HSE or LSE oscillator pins as GPIOs
+    - p353: 9.3.14 Using the GPIO pins in the RTC supply domain
+    - p354: 9.3.15 Using PB8 as GPIO
+    - p354: 9.3.16 Using PG10 as GPIO
+  - p355: 9.4 GPIO registers
+    - p355: 9.4.1 GPIO port mode register (GPIOx_MODER) (x =A to G)
+    - p355: 9.4.2 GPIO port output type register (GPIOx_OTYPER) (x = A to G)
+    - p356: 9.4.3 GPIO port output speed register (GPIOx_OSPEEDR) (x = A to G)
+    - p356: 9.4.4 GPIO port pull-up/pull-down register (GPIOx_PUPDR) (x = A to G)
+    - p357: 9.4.5 GPIO port input data register (GPIOx_IDR) (x = A to G)
+    - p357: 9.4.6 GPIO port output data register (GPIOx_ODR) (x = A to G)
+    - p357: 9.4.7 GPIO port bit set/reset register (GPIOx_BSRR) (x = A to G)
+    - p358: 9.4.8 GPIO port configuration lock register (GPIOx_LCKR) (x = A to G)
+    - p359: 9.4.9 GPIO alternate function low register (GPIOx_AFRL) (x = A to G)
+    - p360: 9.4.10 GPIO alternate function high register (GPIOx_AFRH) (x = A to G)
+    - p361: 9.4.11 GPIO port bit reset register (GPIOx_BRR) (x = A to G)
+    - p362: 9.4.12 GPIO register map
+      - p362: Table 59. GPIO register map and reset values (continued)
+- p364: 10 System configuration controller (SYSCFG)
+  - p364: 10.1 SYSCFG main features
+  - p364: 10.2 SYSCFG registers
+    - p364: 10.2.1 SYSCFG memory remap register (SYSCFG_MEMRMP)
+    - p365: 10.2.2 SYSCFG configuration register 1 (SYSCFG_CFGR1)
+      - p367: Table 60. BOOSTEN and ANASWVDD set/reset
+    - p367: 10.2.3 SYSCFG external interrupt configuration register 1 (SYSCFG_EXTICR1)
+    - p368: 10.2.4 SYSCFG external interrupt configuration register 2 (SYSCFG_EXTICR2)
+    - p369: 10.2.5 SYSCFG external interrupt configuration register 3 (SYSCFG_EXTICR3)
+    - p371: 10.2.6 SYSCFG external interrupt configuration register 4 (SYSCFG_EXTICR4)
+    - p372: 10.2.7 SYSCFG CCM SRAM control and status register (SYSCFG_SCSR)
+    - p373: 10.2.8 SYSCFG configuration register 2 (SYSCFG_CFGR2)
+    - p374: 10.2.9 SYSCFG CCM SRAM write protection register (SYSCFG_SWPR)
+    - p374: 10.2.10 SYSCFG CCM SRAM key register (SYSCFG_SKR)
+    - p375: 10.2.11 SYSCFG register map
+      - p375: Table 61. SYSCFG register map and reset values
+- p376: 11 Peripherals interconnect matrix
+  - p376: 11.1 Introduction
+  - p377: 11.2 Connection summary
+    - p377: Table 62. STM32G4 series peripherals interconnect matrix (continued)
+  - p379: 11.3 Interconnection details
+    - p379: 11.3.1 From timer (TIMx, HRTIM) to timer (TIMx)
+      - p379: Table 63. Interconnect 1
+      - p380: Table 64. Interconnect 12
+      - p380: Table 65. Interconnect 13
+      - p380: Table 66. Interconnect 14
+      - p381: Triggering signals
+      - p381: Active power mode
+    - p381: 11.3.2 From timer (TIMx, HRTIM) and EXTI to ADC (ADCx)
+      - p381: Table 67. Interconnect 19 (continued)
+      - p382: Triggering signals
+      - p382: Active power mode
+    - p383: 11.3.3 From ADC (ADCx) to timer (TIMx, HRTIM)
+      - p383: Triggering signals
+      - p383: Active power mode
+    - p383: 11.3.4 From timer (TIMx, HRTIM) and EXTI to DAC (DACx)
+      - p383: Table 68. Interconnect 20 (continued)
+      - p384: Triggering signals
+      - p384: Active power mode
+    - p384: 11.3.5 From HSE, LSE, LSI, HSI16, MCO, RTC to timer (TIMx)
+      - p384: Active power mode
+    - p385: 11.3.6 From RTC, COMPx to low-power timer (LPTIM1)
+      - p385: Table 69. Interconnect 17
+      - p385: Triggering signals
+      - p385: Active power mode
+    - p386: 11.3.7 From timer (TIMx) to comparators (COMPx)
+      - p386: Table 70. Interconnect 15
+      - p386: Triggering signals
+      - p386: Active power mode
+    - p386: 11.3.8 From internal analog source to ADC (ADCx), comparator (COMPx) and OPAMP (OPAMPx)
+      - p386: Table 71. Interconnect 21 (continued)
+      - p387: Table 72. Interconnect 22 (continued)
+      - p388: Table 73. Interconnect 23 (continued)
+      - p389: Table 74. Interconnect 24 (continued)
+      - p390: Active power mode
+    - p390: 11.3.9 From comparators (COMPx) to timers (TIMx, HRTIM)
+      - p390: Table 75. Interconnect 2 (continued)
+      - p391: Table 76. Interconnect 3
+      - p392: Table 77. Interconnect 4
+      - p393: Table 78. Interconnect 5
+      - p393: Table 79. Interconnect 6
+      - p393: Table 80. Interconnect 7
+      - p394: Table 81. Interconnect 8
+      - p394: Table 82. Interconnect 9
+      - p395: Table 83. Interconnect 10
+      - p395: Table 84. Interconnect 11
+      - p395: Active power mode
+    - p396: 11.3.10 From system errors to timers (TIMx) and HRTIM
+      - p396: Active power mode
+      - p396: Table 85. Interconnect 18
+    - p396: 11.3.11 From timers (TIM16/TIM17) to IRTIM
+      - p396: Table 86. Interconnect 16
+      - p396: Active power mode
+- p397: 12 Direct memory access controller (DMA)
+  - p397: 12.1 Introduction
+  - p397: 12.2 DMA main features
+  - p398: 12.3 DMA implementation
+    - p398: 12.3.1 DMA1 and DMA2
+      - p398: Table 87. DMA1 and DMA2 implementation
+    - p398: 12.3.2 DMA request mapping
+  - p399: 12.4 DMA functional description
+    - p399: 12.4.1 DMA block diagram
+    - p400: 12.4.2 DMA pins and internal signals
+      - p400: Table 88. DMA internal input/output signals
+    - p400: 12.4.3 DMA transfers
+    - p401: 12.4.4 DMA arbitration
+    - p401: 12.4.5 DMA channels
+      - p402: Programmable data sizes
+      - p402: Pointer incrementation
+      - p402: Channel configuration procedure
+      - p403: Channel state and disabling a channel
+      - p403: Circular mode (in memory-to-peripheral/peripheral-to-memory transfers)
+      - p404: Memory-to-memory mode
+      - p404: Peripheral-to-peripheral mode
+      - p404: Programming transfer direction, assigning source/destination
+    - p405: 12.4.6 DMA data width, alignment, and endianness
+      - p405: Table 89. Programmable data width and endian behavior (when PINC = MINC = 1)
+      - p406: Addressing AHB peripherals not supporting byte/half-word write transfers
+    - p406: 12.4.7 DMA error management
+  - p407: 12.5 DMA interrupts
+    - p407: Table 90. DMA interrupt requests
+  - p407: 12.6 DMA registers
+    - p407: 12.6.1 DMA interrupt status register (DMA_ISR)
+    - p409: 12.6.2 DMA interrupt flag clear register (DMA_IFCR)
+    - p411: 12.6.3 DMA channel x configuration register (DMA_CCRx)
+    - p413: 12.6.4 DMA channel x number of data to transfer register (DMA_CNDTRx)
+    - p414: 12.6.5 DMA channel x peripheral address register (DMA_CPARx)
+    - p415: 12.6.6 DMA channel x memory address register (DMA_CMARx)
+    - p415: 12.6.7 DMA register map
+      - p415: Table 91. DMA register map and reset values (continued)
+- p418: 13 DMA request multiplexer (DMAMUX)
+  - p418: 13.1 Introduction
+  - p419: 13.2 DMAMUX main features
+  - p419: 13.3 DMAMUX implementation
+    - p419: 13.3.1 DMAMUX instantiation
+      - p419: Table 92. DMAMUX instantiation
+    - p419: 13.3.2 DMAMUX mapping
+      - p420: Table 93. DMAMUX: assignment of multiplexer inputs to resources (continued)
+      - p421: Table 94. DMAMUX: assignment of trigger inputs to resources
+      - p421: Table 95. DMAMUX: assignment of synchronization inputs to resources (continued)
+  - p423: 13.4 DMAMUX functional description
+    - p423: 13.4.1 DMAMUX block diagram
+    - p424: 13.4.2 DMAMUX signals
+      - p424: Table 96. DMAMUX signals
+    - p424: 13.4.3 DMAMUX channels
+      - p424: Channel configuration procedure
+    - p424: 13.4.4 DMAMUX request line multiplexer
+      - p425: Synchronization mode and channel event generation
+      - p427: Synchronization overrun and interrupt
+    - p427: 13.4.5 DMAMUX request generator
+      - p428: Trigger overrun and interrupt
+  - p428: 13.5 DMAMUX interrupts
+    - p428: Table 97. DMAMUX interrupts
+  - p429: 13.6 DMAMUX registers
+    - p429: 13.6.1 DMAMUX request line multiplexer channel x configuration register (DMAMUX_CxCR)
+    - p430: 13.6.2 DMAMUX request line multiplexer interrupt channel status register (DMAMUX_CSR)
+    - p430: 13.6.3 DMAMUX request line multiplexer interrupt clear flag register (DMAMUX_CFR)
+    - p431: 13.6.4 DMAMUX request generator channel x configuration register (DMAMUX_RGxCR)
+    - p432: 13.6.5 DMAMUX request generator interrupt status register (DMAMUX_RGSR)
+    - p432: 13.6.6 DMAMUX request generator interrupt clear flag register (DMAMUX_RGCFR)
+    - p433: 13.6.7 DMAMUX register map
+      - p433: Table 98. DMAMUX register map and reset values for category 2 devices (continued)
+      - p434: Table 99. DMAMUX register map and reset values for category 3 and 4 devices (continued)
+- p436: 14 Nested vectored interrupt controller (NVIC)
+  - p436: 14.1 NVIC main features
+  - p436: 14.2 SysTick calibration value register
+  - p437: 14.3 Interrupt and exception vectors
+    - p437: Table 100. STM32G4 series vector table (continued)
+- p441: 15 Extended interrupts and events controller (EXTI)
+  - p441: 15.1 Introduction
+  - p441: 15.2 EXTI main features
+  - p441: 15.3 EXTI functional description
+    - p442: 15.3.1 EXTI block diagram
+    - p442: 15.3.2 Wake-up event management
+    - p443: 15.3.3 Peripherals asynchronous Interrupts
+    - p443: 15.3.4 Hardware interrupt selection
+    - p443: 15.3.5 Hardware event selection
+    - p443: 15.3.6 Software interrupt/event selection
+  - p443: 15.4 EXTI interrupt/event line mapping
+    - p444: Table 101. EXTI lines connections (continued)
+  - p446: 15.5 EXTI registers
+    - p446: 15.5.1 Interrupt mask register 1 (EXTI_IMR1)
+    - p446: 15.5.2 Event mask register 1 (EXTI_EMR1)
+    - p446: 15.5.3 Rising trigger selection register 1 (EXTI_RTSR1)
+    - p447: 15.5.4 Falling trigger selection register 1 (EXTI_FTSR1)
+    - p448: 15.5.5 Software interrupt event register 1 (EXTI_SWIER1)
+    - p449: 15.5.6 Pending register 1 (EXTI_PR1)
+    - p449: 15.5.7 Interrupt mask register 2 (EXTI_IMR2)
+    - p450: 15.5.8 Event mask register 2 (EXTI_EMR2)
+    - p450: 15.5.9 Rising trigger selection register 2 (EXTI_RTSR2)
+    - p451: 15.5.10 Falling trigger selection register 2 (EXTI_FTSR2)
+    - p451: 15.5.11 Software interrupt event register 2 (EXTI_SWIER2)
+    - p452: 15.5.12 Pending register 2 (EXTI_PR2)
+    - p453: 15.5.13 EXTI register map
+      - p453: Table 102. Extended interrupt/event controller register map and reset values
+- p454: 16 Cyclic redundancy check calculation unit (CRC)
+  - p454: 16.1 Introduction
+  - p454: 16.2 CRC main features
+  - p455: 16.3 CRC functional description
+    - p455: 16.3.1 CRC block diagram
+    - p455: 16.3.2 CRC internal signals
+      - p455: Table 103. CRC internal input/output signals
+    - p455: 16.3.3 CRC operation
+      - p456: Polynomial programmability
+  - p457: 16.4 CRC registers
+    - p457: 16.4.1 CRC data register (CRC_DR)
+    - p457: 16.4.2 CRC independent data register (CRC_IDR)
+    - p458: 16.4.3 CRC control register (CRC_CR)
+    - p459: 16.4.4 CRC initial value (CRC_INIT)
+    - p459: 16.4.5 CRC polynomial (CRC_POL)
+    - p460: 16.4.6 CRC register map
+      - p460: Table 104. CRC register map and reset values
+- p461: 17 CORDIC coprocessor (CORDIC)
+  - p461: 17.1 CORDIC introduction
+  - p461: 17.2 CORDIC main features
+  - p461: 17.3 CORDIC functional description
+    - p461: 17.3.1 General description
+    - p461: 17.3.2 CORDIC functions
+      - p462: Table 105. CORDIC functions
+      - p462: Cosine
+      - p462: Table 106. Cosine parameters (continued)
+      - p463: Sine
+      - p463: Table 107. Sine parameters
+      - p463: Phase
+      - p463: Table 108. Phase parameters (continued)
+      - p464: Modulus
+      - p464: Table 109. Modulus parameters
+      - p465: Arctangent
+      - p465: Table 110. Arctangent parameters
+      - p465: Hyperbolic cosine
+      - p465: Table 111. Hyperbolic cosine parameters
+      - p466: Hyperbolic sine
+      - p466: Table 112. Hyperbolic sine parameters
+      - p466: Hyperbolic arctangent
+      - p466: Table 113. Hyperbolic arctangent parameters
+      - p467: Natural logarithm
+      - p467: Table 114. Natural logarithm parameters
+      - p467: Table 115. Natural log scaling factors and corresponding ranges
+      - p468: Square root
+      - p468: Table 116. Square root parameters
+      - p468: Table 117. Square root scaling factors and corresponding ranges
+    - p468: 17.3.3 Fixed point representation
+    - p468: 17.3.4 Scaling factor
+    - p469: 17.3.5 Precision
+      - p471: Table 118. Precision vs. number of iterations (continued)
+    - p472: 17.3.6 Zero-overhead mode
+    - p473: 17.3.7 Polling mode
+    - p474: 17.3.8 Interrupt mode
+    - p474: 17.3.9 DMA mode
+  - p475: 17.4 CORDIC registers
+    - p475: 17.4.1 CORDIC control/status register (CORDIC_CSR)
+    - p477: 17.4.2 CORDIC argument register (CORDIC_WDATA)
+    - p478: 17.4.3 CORDIC result register (CORDIC_RDATA)
+    - p478: 17.4.4 CORDIC register map
+      - p478: Table 119. CORDIC register map and reset value
+- p479: 18 Filter math accelerator (FMAC)
+  - p479: 18.1 FMAC introduction
+  - p479: 18.2 FMAC main features
+  - p480: 18.3 FMAC functional description
+    - p480: 18.3.1 General description
+    - p481: 18.3.2 Local memory and buffers
+      - p481: Buffer configuration
+    - p481: 18.3.3 Input buffers
+    - p484: 18.3.4 Output buffer
+    - p486: 18.3.5 Initialization functions
+      - p486: Load X1 buffer
+      - p487: Load X2 buffer
+      - p487: Load Y buffer
+    - p487: 18.3.6 Filter functions
+      - p487: Convolution (FIR filter)
+      - p489: IIR filter
+      - p490: Input:
+      - p490: Output:
+      - p490: Parameters
+    - p491: 18.3.7 Fixed point representation
+    - p491: 18.3.8 Implementing FIR filters with the FMAC
+      - p492: Table 120. Valid combinations for read and write methods
+    - p493: 18.3.9 Implementing IIR filters with the FMAC
+    - p495: 18.3.10 Examples of filter initialization
+    - p496: 18.3.11 Examples of filter operation
+    - p498: 18.3.12 Filter design tips
+  - p499: 18.4 FMAC registers
+    - p499: 18.4.1 FMAC X1 buffer configuration register (FMAC_X1BUFCFG)
+    - p499: 18.4.2 FMAC X2 buffer configuration register (FMAC_X2BUFCFG)
+    - p500: 18.4.3 FMAC Y buffer configuration register (FMAC_YBUFCFG)
+    - p501: 18.4.4 FMAC parameter register (FMAC_PARAM)
+    - p502: 18.4.5 FMAC control register (FMAC_CR)
+    - p503: 18.4.6 FMAC status register (FMAC_SR)
+    - p504: 18.4.7 FMAC write data register (FMAC_WDATA)
+    - p505: 18.4.8 FMAC read data register (FMAC_RDATA)
+    - p505: 18.4.9 FMAC register map
+      - p505: Table 121. FMAC register map and reset values
+- p507: 19 Flexible static memory controller (FSMC)
+  - p507: 19.1 Introduction
+  - p507: 19.2 FMC main features
+  - p508: 19.3 FMC block diagram
+  - p508: 19.4 AHB interface
+    - p509: 19.4.1 Supported memories and transactions
+      - p509: General transaction rules
+      - p509: Wrap support for NOR flash/PSRAM
+      - p509: Configuration registers
+  - p510: 19.5 External device address mapping
+    - p510: 19.5.1 NOR/PSRAM address mapping
+      - p510: Table 122. NOR/PSRAM bank selection (continued)
+      - p511: Table 123. NOR/PSRAM External memory address
+    - p511: 19.5.2 NAND flash memory address mapping
+      - p511: Table 124. NAND memory mapping and timing registers
+      - p511: Table 125. NAND bank selection
+  - p512: 19.6 NOR flash/PSRAM controller
+    - p513: Table 126. Programmable NOR/PSRAM access parameters
+    - p513: 19.6.1 External memory interface signals
+      - p513: NOR flash memory, non-multiplexed I/Os
+      - p513: Table 127. Non-multiplexed I/O NOR flash memory (continued)
+      - p514: NOR flash memory, 16-bit multiplexed I/Os
+      - p514: Table 128. 16-bit multiplexed I/O NOR flash memory
+      - p514: PSRAM/FRAM/SRAM, non-multiplexed I/Os
+      - p514: Table 129. Non-multiplexed I/Os PSRAM/SRAM (continued)
+      - p515: PSRAM, 16-bit multiplexed I/Os
+      - p515: Table 130. 16-Bit multiplexed I/O PSRAM
+    - p515: 19.6.2 Supported memories and transactions
+      - p516: Table 131. NOR flash/PSRAM: example of supported memories and transactions
+    - p517: 19.6.3 General timing rules
+      - p517: Signals synchronization
+    - p517: 19.6.4 NOR flash/PSRAM controller asynchronous transactions
+      - p517: Asynchronous static memories (NOR flash, PSRAM, SRAM, FRAM)
+      - p518: Mode 1 - SRAM/FRAM/PSRAM (CRAM)
+      - p519: Table 132. FMC_BCRx bitfields (mode 1)
+      - p519: Table 133. FMC_BTRx bitfields (mode 1)
+      - p520: Mode A - SRAM/FRAM/PSRAM (CRAM) OE toggling
+      - p521: Table 134. FMC_BCRx bitfields (mode A)
+      - p521: Table 135. FMC_BTRx bitfields (mode A)
+      - p522: Table 136. FMC_BWTRx bitfields (mode A)
+      - p522: Mode 2/B - NOR flash
+      - p524: Table 137. FMC_BCRx bitfields (mode 2/B)
+      - p524: Table 138. FMC_BTRx bitfields (mode 2/B)
+      - p525: Table 139. FMC_BWTRx bitfields (mode 2/B)
+      - p525: Mode C - NOR flash - OE toggling
+      - p526: Table 140. FMC_BCRx bitfields (mode C) (continued)
+      - p527: Table 141. FMC_BTRx bitfields (mode C)
+      - p527: Table 142. FMC_BWTRx bitfields (mode C)
+      - p528: Mode D - asynchronous access with extended address
+      - p529: Table 143. FMC_BCRx bitfields (mode D) (continued)
+      - p530: Table 144. FMC_BTRx bitfields (mode D)
+      - p530: Table 145. FMC_BWTRx bitfields (mode D)
+      - p531: Muxed mode - multiplexed asynchronous access to NOR flash memory
+      - p532: Table 146. FMC_BCRx bitfields (Muxed mode) (continued)
+      - p533: Table 147. FMC_BTRx bitfields (Muxed mode)
+      - p533: WAIT management in asynchronous accesses
+      - p535: CellularRAM™ (PSRAM) refresh management
+    - p535: 19.6.5 Synchronous transactions
+      - p535: Data latency versus NOR memory latency
+      - p536: Single-burst transfer
+      - p536: Cross boundary page for CellularRAM™ 1.5
+      - p536: Wait management
+      - p538: Table 148. FMC_BCRx bitfields (Synchronous multiplexed read mode) (continued)
+      - p539: Table 149. FMC_BTRx bitfields (Synchronous multiplexed read mode)
+      - p540: Table 150. FMC_BCRx bitfields (Synchronous multiplexed write mode) (continued)
+      - p541: Table 151. FMC_BTRx bitfields (Synchronous multiplexed write mode)
+    - p542: 19.6.6 NOR/PSRAM controller registers
+      - p542: SRAM/NOR-flash chip-select control register for bank x (FMC_BCRx)
+      - p544: SRAM/NOR-flash chip-select timing register for bank x (FMC_BTRx)
+      - p547: SRAM/NOR-flash write timing registers x (FMC_BWTRx)
+      - p549: PSRAM chip select counter register (FMC_PCSCNTR)
+  - p550: 19.7 NAND flash controller
+    - p550: Table 152. Programmable NAND flash access parameters
+    - p550: 19.7.1 External memory interface signals
+      - p550: 8-bit NAND flash memory
+      - p550: Table 153. 8-bit NAND flash
+      - p551: 16-bit NAND flash memory
+      - p551: Table 154. 16-bit NAND flash
+    - p551: 19.7.2 NAND flash supported memories and transactions
+      - p551: Table 155. Supported memories and transactions
+    - p552: 19.7.3 Timing diagrams for NAND flash memory
+    - p552: 19.7.4 NAND flash operations
+    - p553: 19.7.5 NAND flash prewait functionality
+    - p554: 19.7.6 Computation of the error correction code (ECC) in NAND flash memory
+    - p555: 19.7.7 NAND flash controller registers
+      - p555: NAND flash control registers (FMC_PCR)
+      - p557: FIFO status and interrupt register (FMC_SR)
+      - p558: Common memory space timing register (FMC_PMEM)
+      - p559: Attribute memory space timing register (FMC_PATT)
+      - p560: ECC result registers (FMC_ECCR)
+      - p560: Table 156. ECC result relevant bits
+    - p561: 19.7.8 FMC register map
+      - p561: Table 157. FMC register map and reset values (continued)
+- p563: 20 Quad-SPI interface (QUADSPI)
+  - p563: 20.1 Introduction
+  - p563: 20.2 QUADSPI main features
+  - p563: 20.3 QUADSPI functional description
+    - p563: 20.3.1 QUADSPI block diagram
+    - p564: 20.3.2 QUADSPI pins
+      - p564: Table 158. QUADSPI pins
+    - p564: 20.3.3 QUADSPI command sequence
+      - p565: Instruction phase
+      - p565: Address phase
+      - p565: Alternate-byte phase
+      - p566: Dummy-cycle phase
+      - p566: Data phase
+    - p567: 20.3.4 QUADSPI signal interface protocol modes
+      - p567: Single-SPI mode
+      - p567: Dual-SPI mode
+      - p567: Quad-SPI mode
+      - p567: SDR mode
+      - p568: DDR mode
+      - p568: Dual-flash mode
+    - p569: 20.3.5 QUADSPI indirect mode
+      - p570: Triggering the start of a command
+      - p570: FIFO and data management
+    - p570: 20.3.6 QUADSPI automatic status-polling mode
+    - p571: 20.3.7 QUADSPI memory-mapped mode
+    - p572: 20.3.8 QUADSPI flash memory configuration
+    - p572: 20.3.9 QUADSPI delayed data sampling
+    - p572: 20.3.10 QUADSPI configuration
+      - p572: QUADSPI configuration
+      - p573: QUADSPI flash memory configuration
+    - p573: 20.3.11 QUADSPI use
+      - p573: Indirect mode
+      - p574: Automatic status-polling mode
+      - p574: Memory-mapped mode
+    - p575: 20.3.12 Sending the instruction only once
+    - p575: 20.3.13 QUADSPI error management
+    - p575: 20.3.14 QUADSPI busy bit and abort functionality
+    - p576: 20.3.15 NCS behavior
+  - p578: 20.4 QUADSPI interrupts
+    - p578: Table 159. QUADSPI interrupt requests
+  - p578: 20.5 QUADSPI registers
+    - p578: 20.5.1 QUADSPI control register (QUADSPI_CR)
+    - p581: 20.5.2 QUADSPI device configuration register (QUADSPI_DCR)
+    - p582: 20.5.3 QUADSPI status register (QUADSPI_SR)
+    - p583: 20.5.4 QUADSPI flag clear register (QUADSPI_FCR)
+    - p583: 20.5.5 QUADSPI data length register (QUADSPI_DLR)
+    - p584: 20.5.6 QUADSPI communication configuration register (QUADSPI_CCR)
+    - p586: 20.5.7 QUADSPI address register (QUADSPI_AR)
+    - p586: 20.5.8 QUADSPI alternate-byte register (QUADSPI_ABR)
+    - p587: 20.5.9 QUADSPI data register (QUADSPI_DR)
+    - p587: 20.5.10 QUADSPI polling status mask register (QUADSPI_PSMKR)
+    - p588: 20.5.11 QUADSPI polling status match register (QUADSPI_PSMAR)
+    - p588: 20.5.12 QUADSPI polling interval register (QUADSPI_PIR)
+    - p589: 20.5.13 QUADSPI low-power timeout register (QUADSPI_LPTR)
+    - p589: 20.5.14 QUADSPI register map
+      - p589: Table 160. QUADSPI register map and reset values (continued)
+- p591: 21 Analog-to-digital converters (ADC)
+  - p591: 21.1 Introduction
+  - p592: 21.2 ADC main features
+  - p593: 21.3 ADC implementation
+    - p593: Table 161. ADC features
+  - p594: 21.4 ADC functional description
+    - p594: 21.4.1 ADC block diagram
+    - p595: 21.4.2 ADC pins and internal signals
+      - p595: Table 162. ADC internal input/output signals
+      - p595: Table 163. ADC input/output pins (continued)
+    - p596: 21.4.3 ADC clocks
+      - p596: Dual clock domain architecture
+      - p597: Clock ratio constraint between ADC clock and AHB clock
+    - p598: 21.4.4 ADC1/2/3/4/5 connectivity
+    - p603: 21.4.5 Slave AHB interface
+    - p603: 21.4.6 ADC Deep-power-down mode (DEEPPWD) and ADC voltage regulator (ADVREGEN)
+    - p604: 21.4.7 Single-ended and differential input channels
+    - p604: 21.4.8 Calibration (ADCAL, ADCALDIF, ADC_CALFACT)
+      - p605: Software procedure to calibrate the ADC
+      - p606: Software procedure to re-inject a calibration factor into the ADC
+      - p606: Converting single-ended and differential analog inputs with a single ADC
+    - p607: 21.4.9 ADC on-off control (ADEN, ADDIS, ADRDY)
+      - p607: Software procedure to enable the ADC
+      - p608: Software procedure to disable the ADC
+    - p608: 21.4.10 Constraints when writing the ADC control bits
+    - p609: 21.4.11 Channel selection (ADC_SQRy, ADC_JSQR)
+    - p610: 21.4.12 Channel-wise programmable sampling time (SMPR1, SMPR2)
+      - p610: Constraints on the sampling time
+      - p610: Bulb sampling mode
+      - p611: Sampling time control trigger mode
+      - p611: I/O analog switch voltage booster
+      - p611: SMPPLUS control bit
+    - p612: 21.4.13 Single conversion mode (CONT = 0)
+    - p612: 21.4.14 Continuous conversion mode (CONT = 1)
+    - p613: 21.4.15 Starting conversions (ADSTART, JADSTART)
+    - p614: 21.4.16 ADC timing
+    - p614: 21.4.17 Stopping an ongoing conversion (ADSTP, JADSTP)
+    - p616: 21.4.18 Conversion on external trigger and trigger polarity (EXTSEL, EXTEN, JEXTSEL, JEXTEN)
+      - p616: Table 164. Configuring the trigger polarity for regular external triggers
+      - p616: Table 165. Configuring the trigger polarity for injected external triggers
+      - p617: Table 166. ADC1/2 - External triggers for regular channels (continued)
+      - p618: Table 167. ADC1/2 - External trigger for injected channels (continued)
+      - p619: Table 168. ADC3/4/5 - External triggers for regular channels (continued)
+      - p620: Table 169. ADC3/4/5 - External triggers for injected channels (continued)
+    - p621: 21.4.19 Injected channel management
+      - p621: Triggered injection mode
+      - p622: Auto-injection mode
+    - p623: 21.4.20 Discontinuous mode (DISCEN, DISCNUM, JDISCEN)
+      - p623: Regular group mode
+      - p624: Injected group mode
+    - p624: 21.4.21 Queue of context for injected conversions
+      - p626: Behavior when changing the trigger or sequence context
+      - p627: Queue of context: Behavior when a queue overflow occurs
+      - p628: Queue of context: Behavior when the queue becomes empty
+      - p629: Flushing the queue of context
+      - p632: Queue of context: Starting the ADC with an empty queue
+      - p632: Disabling the queue
+    - p632: 21.4.22 Programmable resolution (RES) - Fast conversion mode
+      - p633: Table 170. TSAR timings depending on resolution
+    - p633: 21.4.23 End of conversion, end of sampling phase (EOC, JEOC, EOSMP)
+    - p633: 21.4.24 End of conversion sequence (EOS, JEOS)
+    - p634: 21.4.25 Timing diagrams example (single/continuous modes, hardware/software triggers)
+    - p636: 21.4.26 Data management
+      - p636: Data register, data alignment and offset (ADC_DR, OFFSETy, OFFSETy_CH, ALIGN)
+      - p636: Data and alignment
+      - p636: Offset
+      - p636: Table 171. Offset computation versus data resolution (continued)
+      - p639: Gain compensation
+      - p639: Offset compensation
+      - p640: ADC overrun (OVR, OVRMOD)
+      - p640: Managing a sequence of conversions without using the DMA
+      - p641: Managing conversions without using the DMA and without overrun
+      - p641: Managing conversions using the DMA
+      - p641: DMA one shot mode (DMACFG = 0)
+      - p642: DMA circular mode (DMACFG = 1)
+    - p642: 21.4.27 Dynamic low-power features
+      - p642: Auto-delayed conversion mode (AUTDLY)
+    - p647: 21.4.28 Analog window watchdog (AWD1EN, JAWD1EN, AWD1SGL, AWD1CH, AWD2CH, AWD3CH, AWD_HTx, AWD_LTx, AWDx)
+      - p647: AWDx flag and interrupt
+      - p647: Table 172. Analog watchdog channel selection
+      - p648: Table 173. Analog watchdog 1 comparison
+      - p648: Analog watchdog filter for watchdog 1
+      - p648: Description of analog watchdog 2 and 3
+      - p649: Table 174. Analog watchdog 2 and 3 comparison
+      - p649: ADCy_AWDx_OUT signal output generation
+      - p651: Analog watchdog threshold control
+      - p651: Analog watchdog with gain and offset compensation
+    - p651: 21.4.29 Oversampler
+      - p652: Table 175. Maximum output results versus N and M (gray cells indicate truncation)
+      - p653: ADC operating modes supported when oversampling (single ADC mode)
+      - p653: Analog watchdog
+      - p653: Triggered mode
+      - p654: Injected and regular sequencer management when oversampling
+      - p654: Oversampling regular channels only
+      - p655: Oversampling Injected channels only
+      - p655: Oversampling regular and Injected channels
+      - p656: Triggered regular oversampling with injected conversions
+      - p656: Auto-injected mode
+      - p656: Dual ADC modes supported when oversampling
+      - p657: Combined modes summary
+      - p657: Table 176. Oversampler operating modes summary
+    - p657: 21.4.30 Dual ADC modes
+      - p660: Injected simultaneous mode
+      - p661: Regular simultaneous mode with independent injected
+      - p662: Interleaved mode with independent injected
+      - p664: Alternate trigger mode
+      - p666: Combined regular/injected simultaneous mode
+      - p666: Combined regular simultaneous + alternate trigger mode
+      - p667: Combined injected simultaneous plus interleaved
+      - p669: DMA requests in dual ADC mode
+      - p671: Overrun detection
+      - p671: DMA one shot mode/ DMA circular mode when MDMA mode is selected
+      - p671: Stopping the conversions in dual ADC modes
+    - p671: 21.4.31 Temperature sensor
+      - p672: Reading the temperature
+    - p673: 21.4.32 VBAT supply monitoring
+    - p674: 21.4.33 Monitoring the internal voltage reference
+      - p674: Calculating the actual VREF+ voltage using the internal reference voltage
+      - p674: Converting a supply-relative ADC measurement to an absolute voltage value
+  - p675: 21.5 ADC in low-power mode
+    - p675: Table 177. Effect of low-power modes on the ADC
+  - p676: 21.6 ADC interrupts
+    - p676: Table 178. ADC interrupts per each ADC
+  - p677: 21.7 ADC registers (for each ADC)
+    - p677: 21.7.1 ADC interrupt and status register (ADC_ISR)
+    - p679: 21.7.2 ADC interrupt enable register (ADC_IER)
+    - p681: 21.7.3 ADC control register (ADC_CR)
+    - p684: 21.7.4 ADC configuration register (ADC_CFGR)
+    - p688: 21.7.5 ADC configuration register 2 (ADC_CFGR2)
+    - p691: 21.7.6 ADC sample time register 1 (ADC_SMPR1)
+    - p691: 21.7.7 ADC sample time register 2 (ADC_SMPR2)
+    - p692: 21.7.8 ADC watchdog threshold register 1 (ADC_TR1)
+    - p693: 21.7.9 ADC watchdog threshold register 2 (ADC_TR2)
+    - p694: 21.7.10 ADC watchdog threshold register 3 (ADC_TR3)
+    - p694: 21.7.11 ADC regular sequence register 1 (ADC_SQR1)
+    - p695: 21.7.12 ADC regular sequence register 2 (ADC_SQR2)
+    - p696: 21.7.13 ADC regular sequence register 3 (ADC_SQR3)
+    - p697: 21.7.14 ADC regular sequence register 4 (ADC_SQR4)
+    - p698: 21.7.15 ADC regular data register (ADC_DR)
+    - p698: 21.7.16 ADC injected sequence register (ADC_JSQR)
+    - p700: 21.7.17 ADC offset y register (ADC_OFRy)
+    - p701: 21.7.18 ADC injected channel y data register (ADC_JDRy)
+    - p702: 21.7.19 ADC analog watchdog 2 configuration register (ADC_AWD2CR)
+    - p702: 21.7.20 ADC analog watchdog 3 configuration register (ADC_AWD3CR)
+    - p703: 21.7.21 ADC differential mode selection register (ADC_DIFSEL)
+    - p703: 21.7.22 ADC calibration factors (ADC_CALFACT)
+    - p704: 21.7.23 ADC Gain compensation Register (ADC_GCOMP)
+  - p705: 21.8 ADC common registers
+    - p705: 21.8.1 ADCx common status register (ADCx_CSR) (x = 12 or 345)
+    - p706: 21.8.2 ADCx common control register (ADCx_CCR) (x = 12 or 345)
+      - p708: Table 179. DELAY bits versus ADC resolution (continued)
+    - p710: 21.8.3 ADCx common regular data register for dual mode (ADCx_CDR) (x = 12 or 345)
+  - p710: 21.9 ADC register map
+    - p710: Table 180. ADC global register map
+    - p711: Table 181. ADC register map and reset values for each ADC (offset = 0x000 for master ADC, 0x100 for slave ADC) (continued)
+    - p713: Table 182. ADC register map and reset values (master and slave ADC common registers) offset = 0x300
+- p714: 22 Digital-to-analog converter (DAC)
+  - p714: 22.1 Introduction
+  - p714: 22.2 DAC main features
+  - p715: 22.3 DAC implementation
+    - p715: Table 183. DAC features
+  - p716: 22.4 DAC functional description
+    - p716: 22.4.1 DAC block diagram
+    - p717: 22.4.2 DAC pins and internal signals
+      - p717: Table 184. DAC input/output pins
+      - p717: Table 185. DAC input/output signals (continued)
+      - p718: Table 186. DAC1 interconnection (continued)
+      - p719: Table 187. DAC2 interconnection (continued)
+      - p720: Table 188. DAC3 interconnection (continued)
+      - p721: Table 189. DAC4 interconnection (continued)
+    - p723: 22.4.3 DAC channel enable
+    - p723: 22.4.4 DAC data format
+      - p724: Signed/unsigned data
+      - p724: Table 190. Data format (case of 12-bit data) (continued)
+    - p725: 22.4.5 DAC conversion
+      - p725: Table 191. HFSEL description
+    - p726: 22.4.6 DAC output voltage
+    - p726: 22.4.7 DAC trigger selection
+    - p727: 22.4.8 DMA requests
+      - p727: DMA underrun
+      - p727: DMA double data mode
+    - p728: 22.4.9 Noise generation
+    - p729: 22.4.10 Triangle-wave generation
+    - p730: 22.4.11 DAC sawtooth wave generation
+    - p731: 22.4.12 DAC channel modes
+      - p731: Normal mode
+      - p732: Sample and hold mode
+      - p732: Table 192. Sample and refresh timings
+      - p733: Example of the sample and refresh time calculation with output buffer on
+      - p734: Table 193. Channel output modes summary
+    - p734: 22.4.13 DAC channel buffer calibration
+    - p735: 22.4.14 DAC channel conversion modes
+      - p735: Independent trigger without wave generation
+      - p736: Independent trigger with single LFSR generation
+      - p736: Independent trigger with single triangle generation
+      - p736: Independent trigger with single sawtooth generation
+    - p737: 22.4.15 Dual DAC channel conversion modes (if dual channels are available)
+      - p737: Independent trigger without wave generation
+      - p737: Independent trigger with single LFSR generation
+      - p738: Independent trigger with different LFSR generation
+      - p738: Independent trigger with single triangle generation
+      - p738: Independent trigger with different triangle generation
+      - p739: Independent trigger with single sawtooth generation
+      - p739: Independent trigger with different sawtooth wave generation
+      - p739: Simultaneous software start
+      - p739: Simultaneous trigger without wave generation
+      - p740: Simultaneous trigger with single LFSR generation
+      - p740: Simultaneous trigger with different LFSR generation
+      - p740: Simultaneous trigger with single triangle generation
+      - p741: Simultaneous trigger with different triangle generation
+      - p741: Simultaneous trigger with single sawtooth wave generation
+      - p741: Simultaneous trigger with different sawtooth wave generation
+  - p742: 22.5 DAC in low-power modes
+    - p742: Table 194. Effect of low-power modes on DAC
+  - p742: 22.6 DAC interrupts
+    - p742: Table 195. DAC interrupts
+  - p742: 22.7 DAC registers
+    - p742: 22.7.1 DAC control register (DAC_CR)
+    - p746: 22.7.2 DAC software trigger register (DAC_SWTRGR)
+    - p747: 22.7.3 DAC channel1 12-bit right-aligned data holding register (DAC_DHR12R1)
+    - p747: 22.7.4 DAC channel1 12-bit left aligned data holding register (DAC_DHR12L1)
+    - p748: 22.7.5 DAC channel1 8-bit right aligned data holding register (DAC_DHR8R1)
+    - p748: 22.7.6 DAC channel2 12-bit right aligned data holding register (DAC_DHR12R2)
+    - p749: 22.7.7 DAC channel2 12-bit left aligned data holding register (DAC_DHR12L2)
+    - p749: 22.7.8 DAC channel2 8-bit right-aligned data holding register (DAC_DHR8R2)
+    - p750: 22.7.9 Dual DAC 12-bit right-aligned data holding register (DAC_DHR12RD)
+    - p750: 22.7.10 Dual DAC 12-bit left aligned data holding register (DAC_DHR12LD)
+    - p751: 22.7.11 Dual DAC 8-bit right aligned data holding register (DAC_DHR8RD)
+    - p751: 22.7.12 DAC channel1 data output register (DAC_DOR1)
+    - p752: 22.7.13 DAC channel2 data output register (DAC_DOR2)
+    - p752: 22.7.14 DAC status register (DAC_SR)
+    - p754: 22.7.15 DAC calibration control register (DAC_CCR)
+    - p755: 22.7.16 DAC mode control register (DAC_MCR)
+    - p756: 22.7.17 DAC channel1 sample and hold sample time register (DAC_SHSR1)
+    - p757: 22.7.18 DAC channel2 sample and hold sample time register (DAC_SHSR2)
+    - p757: 22.7.19 DAC sample and hold time register (DAC_SHHR)
+    - p758: 22.7.20 DAC sample and hold refresh time register (DAC_SHRR)
+    - p759: 22.7.21 DAC channel1 sawtooth register (DAC_STR1)
+    - p759: 22.7.22 DAC channel2 sawtooth register (DAC_STR2)
+    - p760: 22.7.23 DAC sawtooth mode register (DAC_STMODR)
+    - p761: 22.7.24 DAC register map
+      - p761: Table 196. DAC register map and reset values (continued)
+- p764: 23 Voltage reference buffer (VREFBUF)
+  - p764: 23.1 Introduction
+  - p764: 23.2 VREFBUF functional description
+    - p764: Table 197. VREF buffer modes
+  - p765: 23.3 VREFBUF trimming
+  - p766: 23.4 VREFBUF registers
+    - p766: 23.4.1 VREFBUF control and status register (VREFBUF_CSR)
+    - p767: 23.4.2 VREFBUF calibration control register (VREFBUF_CCR)
+    - p767: 23.4.3 VREFBUF register map
+      - p767: Table 198. VREFBUF register map and reset values
+- p768: 24 Comparator (COMP)
+  - p768: 24.1 COMP introduction
+  - p768: 24.2 COMP main features
+  - p768: 24.3 COMP functional description
+    - p768: 24.3.1 COMP block diagram
+    - p769: 24.3.2 COMP pins and internal signals
+      - p769: Table 199. COMPx non-inverting input assignment
+      - p769: Table 200. COMPx inverting input assignment
+    - p769: 24.3.3 COMP reset and clocks
+    - p770: 24.3.4 COMP LOCK mechanism
+    - p770: 24.3.5 COMP hysteresis
+    - p770: 24.3.6 COMP output blanking
+      - p771: Table 201. Blanking sources
+  - p771: 24.4 COMP low-power modes
+    - p771: Table 202. Comparator behavior in low-power modes (continued)
+  - p772: 24.5 COMP interrupts
+  - p772: 24.6 COMP registers
+    - p772: 24.6.1 Comparator x control and status register (COMP_CxCSR)
+    - p774: 24.6.2 COMP register map
+      - p774: Table 203. COMP register map and reset values (continued)
+- p776: 25 Operational amplifiers (OPAMP)
+  - p776: 25.1 Introduction
+  - p776: 25.2 OPAMP main features
+  - p776: 25.3 OPAMP functional description
+    - p776: 25.3.1 OPAMP output redirection to internal ADC channels
+    - p776: 25.3.2 OPAMP reset and clocks
+    - p777: 25.3.3 Initial configuration
+    - p777: 25.3.4 Signal routing
+      - p777: Table 204. Operational amplifier possible connection (continued)
+    - p779: 25.3.5 OPAMP modes
+      - p779: Standalone mode (external gain setting mode)
+      - p780: Follower configuration mode
+      - p781: Programmable gain amplifier mode
+      - p782: Programmable gain amplifier mode with external filtering
+      - p783: Programmable gain amplifier, non-inverting with external bias or inverting mode
+      - p783: Programmable gain amplifier, non-inverting with external bias or inverting mode with filtering
+    - p784: 25.3.6 OPAMP PGA gain
+    - p785: 25.3.7 Calibration
+      - p785: Table 205. Operating modes and calibration
+      - p786: Calibration procedure
+    - p786: 25.3.8 Timer controlled Multiplexer mode
+  - p787: 25.4 OPAMP low-power modes
+    - p787: Table 206. Effect of low-power modes on the OPAMP
+  - p788: 25.5 OPAMP registers
+    - p788: 25.5.1 OPAMP1 control/status register (OPAMP1_CSR)
+    - p791: 25.5.2 OPAMP2 control/status register (OPAMP2_CSR)
+    - p794: 25.5.3 OPAMP3 control/status register (OPAMP3_CSR)
+    - p797: 25.5.4 OPAMP4 control/status register (OPAMP4_CSR)
+    - p800: 25.5.5 OPAMP5 control/status register (OPAMP5_CSR)
+    - p803: 25.5.6 OPAMP6 control/status register (OPAMP6_CSR)
+    - p806: 25.5.7 OPAMP1 timer controlled mode register (OPAMPx_TCMR) (x = 1...6)
+    - p808: 25.5.8 OPAMP2 timer controlled mode register (OPAMPx_TCMR) (x = 1...6)
+    - p810: 25.5.9 OPAMP3 timer controlled mode register (OPAMPx_TCMR) (x = 1...6)
+    - p812: 25.5.10 OPAMP4 timer controlled mode register (OPAMPx_TCMR) (x = 1...6)
+    - p814: 25.5.11 OPAMP5 timer controlled mode register (OPAMPx_TCMR) (x = 1...6)
+    - p816: 25.5.12 OPAMP6 timer controlled mode register (OPAMPx_TCMR) (x = 1...6)
+    - p818: 25.5.13 OPAMP register map
+      - p818: Table 207. OPAMP register map and reset values (continued)
+- p820: 26 True random number generator (RNG)
+  - p820: 26.1 Introduction
+  - p820: 26.2 RNG main features
+  - p821: 26.3 RNG functional description
+    - p821: 26.3.1 RNG block diagram
+    - p821: 26.3.2 RNG internal signals
+      - p821: Table 208. RNG internal input/output signals
+    - p822: 26.3.3 Random number generation
+      - p822: Noise source
+      - p822: Post processing
+      - p823: Conditioning
+      - p823: Output buffer
+      - p823: Health checks
+    - p824: 26.3.4 RNG initialization
+    - p825: 26.3.5 RNG operation
+      - p825: Normal operation
+      - p825: Low-power operation
+      - p825: Software post-processing
+    - p826: 26.3.6 RNG clocking
+    - p826: 26.3.7 Error management
+      - p826: Clock error detection
+      - p826: Noise source error detection
+    - p827: 26.3.8 RNG low-power use
+  - p827: 26.4 RNG interrupts
+    - p827: Table 209. RNG interrupt requests
+  - p827: 26.5 RNG processing time
+  - p828: 26.6 RNG entropy source validation
+    - p828: 26.6.1 Introduction
+    - p828: 26.6.2 Validation conditions
+      - p828: Table 210. RNG configurations
+    - p828: 26.6.3 Data collection
+  - p829: 26.7 RNG registers
+    - p829: 26.7.1 RNG control register (RNG_CR)
+    - p829: 26.7.2 RNG status register (RNG_SR)
+    - p830: 26.7.3 RNG data register (RNG_DR)
+    - p831: 26.7.4 RNG register map
+      - p831: Table 211. RNG register map and reset map
+- p832: 27 AES hardware accelerator (AES)
+  - p832: 27.1 Introduction
+  - p832: 27.2 AES main features
+  - p832: 27.3 AES implementation
+  - p833: 27.4 AES functional description
+    - p833: 27.4.1 AES block diagram
+    - p833: 27.4.2 AES internal signals
+      - p833: Table 212. AES internal input/output signals
+    - p833: 27.4.3 AES cryptographic core
+      - p833: Overview
+      - p834: Typical data processing
+      - p834: Chaining modes
+      - p835: Electronic codebook (ECB) mode
+      - p836: Cipher block chaining (CBC) mode
+      - p837: Counter (CTR) mode
+      - p838: Galois/counter mode (GCM)
+      - p838: Galois message authentication code (GMAC) principle
+      - p839: Counter with CBC-MAC (CCM) principle
+    - p839: 27.4.4 AES procedure to perform a cipher operation
+      - p839: Introduction
+      - p840: Initialization of AES
+      - p840: Data append
+    - p842: 27.4.5 AES decryption round key preparation
+    - p843: 27.4.6 AES ciphertext stealing and data padding
+    - p843: 27.4.7 AES task suspend and resume
+    - p844: 27.4.8 AES basic chaining modes (ECB, CBC)
+      - p844: Overview
+      - p846: ECB/CBC encryption sequence
+      - p847: ECB/CBC decryption sequence
+      - p847: Suspend/resume operations in ECB/CBC modes
+      - p848: Alternative single ECB/CBC decryption using Mode 4
+    - p849: 27.4.9 AES counter (CTR) mode
+      - p849: Overview
+      - p849: CTR encryption and decryption
+      - p850: Table 213. CTR mode initialization vector definition
+      - p851: Suspend/resume operations in CTR mode
+    - p851: 27.4.10 AES Galois/counter mode (GCM)
+      - p851: Overview
+      - p852: Table 214. GCM last block definition
+      - p853: GCM processing
+      - p853: Table 215. Initialization of AES_IVRx registers in GCM mode
+      - p856: Suspend/resume operations in GCM mode
+    - p856: 27.4.11 AES Galois message authentication code (GMAC)
+      - p856: Overview
+      - p857: AES GMAC processing
+      - p858: Suspend/resume operations in GMAC
+    - p858: 27.4.12 AES counter with CBC-MAC (CCM)
+      - p858: Overview
+      - p860: CCM processing
+      - p860: Table 216. Initialization of AES_IVRx registers in CCM mode
+      - p862: Suspend/resume operations in CCM mode
+    - p863: 27.4.13 AES data registers and data swapping
+      - p863: Data input and output
+      - p864: Data swapping
+      - p865: Data padding
+    - p865: 27.4.14 AES key registers
+      - p865: Table 217. Key endianness in AES_KEYRx registers (128- or 256-bit key length)
+    - p865: 27.4.15 AES initialization vector registers
+    - p866: 27.4.16 AES DMA interface
+      - p866: Data input using DMA
+      - p866: Data output using DMA
+      - p867: DMA operation in different operating modes
+    - p867: 27.4.17 AES error management
+      - p867: Read error flag (RDERR)
+      - p867: Write error flag (WDERR)
+  - p868: 27.5 AES interrupts
+    - p868: Table 218. AES interrupt requests
+  - p868: 27.6 AES processing latency
+    - p868: Table 219. Processing latency for ECB, CBC and CTR (continued)
+    - p869: Table 220. Processing latency for GCM and CCM (in clock cycles)
+  - p869: 27.7 AES registers
+    - p869: 27.7.1 AES control register (AES_CR)
+    - p872: 27.7.2 AES status register (AES_SR)
+    - p873: 27.7.3 AES data input register (AES_DINR)
+    - p873: 27.7.4 AES data output register (AES_DOUTR)
+    - p874: 27.7.5 AES key register 0 (AES_KEYR0)
+    - p875: 27.7.6 AES key register 1 (AES_KEYR1)
+    - p875: 27.7.7 AES key register 2 (AES_KEYR2)
+    - p875: 27.7.8 AES key register 3 (AES_KEYR3)
+    - p876: 27.7.9 AES initialization vector register 0 (AES_IVR0)
+    - p876: 27.7.10 AES initialization vector register 1 (AES_IVR1)
+    - p876: 27.7.11 AES initialization vector register 2 (AES_IVR2)
+    - p877: 27.7.12 AES initialization vector register 3 (AES_IVR3)
+    - p877: 27.7.13 AES key register 4 (AES_KEYR4)
+    - p877: 27.7.14 AES key register 5 (AES_KEYR5)
+    - p878: 27.7.15 AES key register 6 (AES_KEYR6)
+    - p878: 27.7.16 AES key register 7 (AES_KEYR7)
+    - p878: 27.7.17 AES suspend registers (AES_SUSPxR)
+    - p879: 27.7.18 AES register map
+      - p879: Table 221. AES register map and reset values (continued)
+- p881: 28 High-resolution timer (HRTIM)
+  - p881: 28.1 Introduction
+  - p882: 28.2 Main features
+  - p883: 28.3 Functional description
+    - p883: 28.3.1 General description
+    - p885: 28.3.2 HRTIM pins and internal signals
+      - p885: Table 222. HRTIM inputs/outputs summary (continued)
+      - p887: Table 223. External events mapping and associated features
+      - p887: Table 224. Update enable inputs and sources
+      - p887: Table 225. Burst mode clock sources
+      - p888: Table 226. Burst mode trigger source
+      - p888: Table 227. Internal synchronization source
+      - p888: Table 228. Fault inputs
+      - p888: Table 229. HRTIM DAC triggers connections
+      - p889: Table 230. System fault connected to hrtim_sys_flt input
+    - p889: 28.3.3 Clocks
+      - p889: Definition of terms
+      - p889: Timer clock and prescaler
+      - p889: Table 231. Timer resolution and min. PWM frequency for fHRTIM = 170 MHz (continued)
+      - p890: Initialization
+      - p891: Deadtime generator clock
+      - p891: Chopper stage clock
+      - p891: Burst mode prescaler
+      - p891: Fault input sampling clock
+      - p891: External event input sampling clock
+    - p892: 28.3.4 Timer A..F timing units
+      - p893: Table 232. Period and compare registers min and max values
+      - p893: Counter operating mode
+      - p893: Table 233. Timer operating modes
+      - p895: Roll-over event
+      - p895: Timer reset
+      - p896: Repetition counter
+      - p898: Set / reset crossbar
+      - p899: Table 234. Events mapping across timer A to F
+      - p899: Set / reset on update events
+      - p899: Half mode
+      - p900: Interleaved mode
+      - p900: Table 235. Interleaved mode selection
+      - p901: Table 236. Compare 1..3 values in interleaved mode
+      - p901: Null duty cycle exception case
+      - p901: Swap mode
+      - p902: Capture
+      - p903: Auto-delayed mode
+      - p906: Triggered-half mode
+      - p908: Push-pull mode
+      - p910: Deadtime
+      - p912: Table 237. Deadtime resolution and max absolute values
+    - p913: 28.3.5 Master timer
+    - p915: 28.3.6 Up-down counting mode
+      - p919: Table 238. Roll-over event destination and mode programming
+      - p921: Table 239. EExFLTR[3:0] codes depending on UDM bit setting
+    - p922: 28.3.7 Set / reset events priorities and narrow pulses management
+      - p922: Case 1: clock prescaler CKPSC[2:0] < 5
+      - p924: Case 2: clock prescaler CKPSC[2:0] ≥ 5
+    - p925: 28.3.8 External events global conditioning
+      - p927: Table 240. External events features
+      - p927: Latency to external events
+      - p928: Table 241. Output set/reset latency and jitter versus external event operating mode
+    - p929: 28.3.9 External event filtering in timing units
+      - p930: Blanking mode
+      - p931: Table 242. Filtering signals mapping per timer
+      - p932: Windowing mode
+      - p933: Table 243. Windowing signals mapping per timer (EEFLTR[3:0] = 1111)
+      - p934: External event counter
+    - p935: 28.3.10 Delayed protection
+      - p935: Delayed idle
+      - p939: Balanced idle
+      - p942: Balanced idle automatic resuming
+    - p942: 28.3.11 Register preload and update management
+      - p943: Table 244. HRTIM preloadable control registers and associated update sources
+    - p946: 28.3.12 PWM mode with “greater than” comparison
+    - p947: 28.3.13 Events propagation within or across multiple timers
+      - p948: TIMx update triggered by the master timer update
+      - p948: Table 245. Master timer update event propagation
+      - p948: TIMx update triggered by the TIMy update
+      - p948: Table 246. TIMx update event propagation (continued)
+      - p950: TIMx counter reset causing a TIMx update
+      - p950: Table 247. Reset events able to generate an update
+      - p950: TIMx update causing a TIMx counter reset
+      - p950: Table 248. Update event propagation for a timer reset (continued)
+    - p952: 28.3.14 Output management
+      - p952: Table 249. Output state programming, x= A..F, y = 1 or 2
+    - p954: 28.3.15 Burst mode controller
+      - p955: Table 250. Timer output programming for burst mode
+      - p955: Operating mode
+      - p956: Burst mode clock
+      - p956: Burst mode triggers
+      - p957: Burst mode delayed entry
+      - p959: Burst mode exit
+      - p960: Burst mode registers preloading and update
+    - p962: 28.3.16 Chopper
+    - p963: 28.3.17 Fault protection
+      - p965: Table 251. Sampling rate and filter length vs FLTFxF[3:0] and clock setting
+      - p965: Fault blanking and event counting
+      - p966: Table 252. Fault input blanking events
+      - p967: Table 253. Fault 1..6 counter reset source
+    - p967: 28.3.18 Auxiliary outputs
+    - p970: 28.3.19 Synchronizing the HRTIM with other timers or HRTIM instances
+      - p970: Synchronization output
+      - p971: Synchronization input
+      - p971: Table 254. Effect of sync event versus timer operating modes (continued)
+    - p973: 28.3.20 ADC triggers
+      - p975: ADC post-scaler
+    - p977: 28.3.21 DAC triggers
+      - p978: Dual channel DAC trigger
+      - p979: Table 255. DAC dual channel trigger example
+    - p981: 28.3.22 Interrupts
+      - p982: Table 256. HRTIM interrupt summary (continued)
+    - p983: 28.3.23 DMA
+      - p984: Table 257. HRTIM DMA request summary
+      - p984: Burst DMA transfers
+    - p987: 28.3.24 HRTIM initialization
+    - p988: 28.3.25 Debug
+      - p988: Timer behavior during MCU halt when DBG_HRTIM_STOP = 1
+  - p989: 28.4 Application use cases
+    - p989: 28.4.1 Buck converter
+    - p990: 28.4.2 Buck converter with synchronous rectification
+    - p991: 28.4.3 Multiphase converters
+    - p992: 28.4.4 Transition mode power factor correction
+  - p995: 28.5 HRTIM registers
+    - p995: 28.5.1 HRTIM master timer control register (HRTIM_MCR)
+    - p998: 28.5.2 HRTIM master timer interrupt status register (HRTIM_MISR)
+    - p999: 28.5.3 HRTIM master timer interrupt clear register (HRTIM_MICR)
+    - p1000: 28.5.4 HRTIM master timer DMA interrupt enable register (HRTIM_MDIER)
+    - p1002: 28.5.5 HRTIM master timer counter register (HRTIM_MCNTR)
+    - p1002: 28.5.6 HRTIM master timer period register (HRTIM_MPER)
+    - p1003: 28.5.7 HRTIM master timer repetition register (HRTIM_MREP)
+    - p1003: 28.5.8 HRTIM master timer compare 1 register (HRTIM_MCMP1R)
+    - p1004: 28.5.9 HRTIM master timer compare 2 register (HRTIM_MCMP2R)
+    - p1004: 28.5.10 HRTIM master timer compare 3 register (HRTIM_MCMP3R)
+    - p1005: 28.5.11 HRTIM master timer compare 4 register (HRTIM_MCMP4R)
+    - p1006: 28.5.12 HRTIM timer x control register (HRTIM_TIMxCR) (x = A to F)
+    - p1010: 28.5.13 HRTIM timer x interrupt status register (HRTIM_TIMxISR) (x = A to F)
+    - p1012: 28.5.14 HRTIM timer x interrupt clear register (HRTIM_TIMxICR) (x = A to F)
+    - p1013: 28.5.15 HRTIM timer x DMA interrupt enable register (HRTIM_TIMxDIER) (x = A to F)
+    - p1017: 28.5.16 HRTIM timer x counter register (HRTIM_CNTxR) (x = A to F)
+    - p1017: 28.5.17 HRTIM timer x period register (HRTIM_PERxR) (x = A to F)
+    - p1019: 28.5.18 HRTIM timer x repetition register (HRTIM_REPxR) (x = A to F)
+    - p1019: 28.5.19 HRTIM timer x compare 1 register (HRTIM_CMP1xR) (x = A to F)
+    - p1021: 28.5.20 HRTIM timer x compare 1 compound register (HRTIM_CMP1CxR) (x = A to F)
+    - p1021: 28.5.21 HRTIM timer x compare 2 register (HRTIM_CMP2xR) (x = A to F)
+    - p1023: 28.5.22 HRTIM timer x compare 3 register (HRTIM_CMP3xR) (x = A to F)
+    - p1024: 28.5.23 HRTIM timer x compare 4 register (HRTIM_CMP4xR) (x = A to F)
+    - p1025: 28.5.24 HRTIM timer x capture 1 register (HRTIM_CPT1xR) (x = A to F)
+    - p1026: 28.5.25 HRTIM timer x capture 2 register (HRTIM_CPT2xR) (x = A to F)
+    - p1027: 28.5.26 HRTIM timer x deadtime register (HRTIM_DTxR) (x = A to F)
+    - p1029: 28.5.27 HRTIM timer x output 1 set register (HRTIM_SETx1R) (x = A to F)
+    - p1032: 28.5.28 HRTIM timer x output 1 reset register (HRTIM_RSTx1R) (x = A to F)
+    - p1034: 28.5.29 HRTIM timer x output 2 set register (HRTIM_SETx2R) (x = A to F)
+    - p1037: 28.5.30 HRTIM timer x output 2 reset register (HRTIM_RSTx2R) (x = A to F)
+    - p1040: 28.5.31 HRTIM timer x external event filtering register 1 (HRTIM_EEFxR1) (x = A to F)
+    - p1042: 28.5.32 HRTIM timer x external event filtering register 2 (HRTIM_EEFxR2) (x = A to F)
+    - p1043: 28.5.33 HRTIM timer A reset register (HRTIM_RSTAR)
+    - p1045: 28.5.34 HRTIM timer B reset register (HRTIM_RSTBR)
+    - p1047: 28.5.35 HRTIM timer C reset register (HRTIM_RSTCR)
+    - p1049: 28.5.36 HRTIM timer D reset register (HRTIM_RSTDR)
+    - p1051: 28.5.37 HRTIM timer E reset register (HRTIM_RSTER)
+    - p1053: 28.5.38 HRTIM timer F reset register (HRTIM_RSTFR)
+    - p1055: 28.5.39 HRTIM timer x chopper register (HRTIM_CHPxR) (x = A to F)
+    - p1056: 28.5.40 HRTIM timer A capture 1 control register (HRTIM_CPT1ACR)
+    - p1058: 28.5.41 HRTIM timer B capture 1 control register (HRTIM_CPT1BCR)
+    - p1060: 28.5.42 HRTIM timer C capture 1 control register (HRTIM_CPT1CCR)
+    - p1062: 28.5.43 HRTIM timer D capture 1 control register (HRTIM_CPT1DCR)
+    - p1064: 28.5.44 HRTIM timer E capture 1 control register (HRTIM_CPT1ECR)
+    - p1066: 28.5.45 HRTIM timer F capture 1 control register (HRTIM_CPT1FCR)
+    - p1068: 28.5.46 HRTIM timer A capture 2 control register (HRTIM_CPT2ACR)
+    - p1070: 28.5.47 HRTIM timer B capture 2 control register (HRTIM_CPT2BCR)
+    - p1072: 28.5.48 HRTIM timer C capture 2 control register (HRTIM_CPT2CCR)
+    - p1074: 28.5.49 HRTIM timer D capture 2 control register (HRTIM_CPT2DCR)
+    - p1076: 28.5.50 HRTIM timer E capture 2 control register (HRTIM_CPT2ECR)
+    - p1078: 28.5.51 HRTIM timer F capture 2 control register (HRTIM_CPT2FCR)
+    - p1080: 28.5.52 HRTIM timer x output register (HRTIM_OUTxR) (x = A to F)
+    - p1083: 28.5.53 HRTIM timer x fault register (HRTIM_FLTxR) (x = A to F)
+    - p1084: 28.5.54 HRTIM timer x control register 2 (HRTIM_TIMxCR2) (x = A to F)
+    - p1087: 28.5.55 HRTIM timer x external event filtering register 3 (HRTIM_TIMxEEFR3) (x = A to F)
+    - p1088: 28.5.56 HRTIM control register 1 (HRTIM_CR1)
+    - p1090: 28.5.57 HRTIM control register 2 (HRTIM_CR2)
+    - p1091: 28.5.58 HRTIM interrupt status register (HRTIM_ISR)
+    - p1093: 28.5.59 HRTIM interrupt clear register (HRTIM_ICR)
+    - p1094: 28.5.60 HRTIM interrupt enable register (HRTIM_IER)
+    - p1095: 28.5.61 HRTIM output enable register (HRTIM_OENR)
+    - p1096: 28.5.62 HRTIM output disable register (HRTIM_ODISR)
+    - p1097: 28.5.63 HRTIM output disable status register (HRTIM_ODSR)
+    - p1098: 28.5.64 HRTIM burst mode control register (HRTIM_BMCR)
+    - p1100: 28.5.65 HRTIM burst mode trigger register (HRTIM_BMTRGR)
+    - p1102: 28.5.66 HRTIM burst mode compare register (HRTIM_BMCMPR)
+    - p1102: 28.5.67 HRTIM burst mode period register (HRTIM_BMPER)
+    - p1103: 28.5.68 HRTIM timer external event control register 1 (HRTIM_EECR1)
+    - p1105: 28.5.69 HRTIM timer external event control register 2 (HRTIM_EECR2)
+    - p1106: 28.5.70 HRTIM timer external event control register 3 (HRTIM_EECR3)
+    - p1107: 28.5.71 HRTIM ADC trigger 1 register (HRTIM_ADC1R)
+    - p1110: 28.5.72 HRTIM ADC trigger 2 register (HRTIM_ADC2R)
+    - p1112: 28.5.73 HRTIM ADC trigger 3 register (HRTIM_ADC3R)
+    - p1114: 28.5.74 HRTIM ADC trigger 4 register (HRTIM_ADC4R)
+    - p1116: 28.5.75 HRTIM DLL control register (HRTIM_DLLCR)
+    - p1117: 28.5.76 HRTIM fault input register 1 (HRTIM_FLTINR1)
+    - p1119: 28.5.77 HRTIM fault input register 2 (HRTIM_FLTINR2)
+    - p1121: 28.5.78 HRTIM burst DMA master timer update register (HRTIM_BDMUPR)
+    - p1122: 28.5.79 HRTIM burst DMA timer x update register (HRTIM_BDTxUPR) (x = A to F)
+    - p1123: 28.5.80 HRTIM burst DMA data register (HRTIM_BDMADR)
+    - p1124: 28.5.81 HRTIM ADC extended trigger register (HRTIM_ADCER)
+    - p1127: 28.5.82 HRTIM ADC trigger update register (HRTIM_ADCUR)
+    - p1128: 28.5.83 HRTIM ADC post scaler register 1 (HRTIM_ADCPS1)
+    - p1129: 28.5.84 HRTIM ADC post scaler register 2 (HRTIM_ADCPS2)
+    - p1130: 28.5.85 HRTIM fault input register 3 (HRTIM_FLTINR3)
+    - p1132: 28.5.86 HRTIM fault input register 4 (HRTIM_FLTINR4)
+    - p1134: 28.5.87 HRTIM register map
+      - p1134: Table 258. HRTIM Register map and reset values – master timer
+      - p1135: Table 259. HRTIM register map and reset values – TIMx (x= A..F) (continued)
+      - p1140: Table 260. HRTIM register map and reset values – common functions (continued)
+- p1144: 29 Advanced-control timers (TIM1/TIM8/TIM20)
+  - p1144: 29.1 TIM1/TIM8/TIM20 introduction
+  - p1144: 29.2 TIM1/TIM8/TIM20 main features
+  - p1145: 29.3 TIM1/TIM8/TIM20 functional description
+    - p1145: 29.3.1 Block diagram
+    - p1146: 29.3.2 TIM1/TIM8/TIM20 pins and internal signals
+      - p1146: Table 261. TIM input/output pins
+      - p1146: Table 262. TIM internal input/output signals (continued)
+      - p1147: Table 263. Interconnect to the tim_ti1 input multiplexer
+      - p1148: Table 264. Interconnect to the tim_ti2 input multiplexer
+      - p1148: Table 265. Interconnect to the tim_ti3 input multiplexer
+      - p1148: Table 266. Interconnect to the tim_ti4 input multiplexer
+      - p1148: Table 267. Internal trigger connection
+      - p1149: Table 268. Interconnect to the tim_etr input multiplexer
+      - p1149: Table 269. Timer break interconnect
+      - p1150: Table 270. Timer break2 interconnect
+      - p1150: Table 271. System break interconnect
+      - p1150: Table 272. Interconnect to the ocref_clr input multiplexer
+    - p1151: 29.3.3 Time-base unit
+      - p1151: Prescaler description
+    - p1153: 29.3.4 Counter modes
+      - p1153: Upcounting mode
+      - p1157: Downcounting mode
+      - p1160: Center-aligned mode (up/down counting)
+    - p1165: 29.3.5 Repetition counter
+    - p1166: 29.3.6 External trigger input
+    - p1167: 29.3.7 Clock selection
+      - p1167: Internal clock source (tim_ker_ck)
+      - p1168: External clock source mode 1
+      - p1169: External clock source mode 2
+    - p1171: 29.3.8 Capture/compare channels
+    - p1174: 29.3.9 Input capture mode
+    - p1175: 29.3.10 PWM input mode
+    - p1176: 29.3.11 Forced output mode
+    - p1176: 29.3.12 Output compare mode
+      - p1177: Procedure
+    - p1178: 29.3.13 PWM mode
+      - p1179: PWM edge-aligned mode
+      - p1179: PWM center-aligned mode
+      - p1181: Dithering mode
+      - p1184: Table 273. CCR and ARR register change dithering pattern (continued)
+      - p1185: Table 274. CCR register change dithering pattern in center-aligned PWM mode (continued)
+    - p1186: 29.3.14 Asymmetric PWM mode
+    - p1187: 29.3.15 Combined PWM mode
+    - p1188: 29.3.16 Combined 3-phase PWM mode
+    - p1189: 29.3.17 Complementary outputs and dead-time insertion
+      - p1192: Redirecting tim_ocxref to tim_ocx or tim_ocxn
+    - p1192: 29.3.18 Using the break function
+      - p1197: Table 275. Behavior of timer outputs versus tim_brk/tim_brk2 inputs
+    - p1198: 29.3.19 Bidirectional break inputs
+      - p1199: Table 276. Break protection disarming conditions
+      - p1199: Arming and rearming break circuitry
+    - p1199: 29.3.20 Clearing the tim_ocxref signal on an external event
+    - p1201: 29.3.21 6-step PWM generation
+    - p1202: 29.3.22 One-pulse mode
+    - p1204: 29.3.23 Retriggerable One-pulse mode
+    - p1205: 29.3.24 Pulse on compare mode
+    - p1207: 29.3.25 Encoder interface mode
+      - p1207: Quadrature encoder
+      - p1208: Table 277. Counting direction versus encoder signals (CC1P = CC2P = 0)
+      - p1210: Clock plus direction encoder mode
+      - p1211: Directional clock encoder mode
+      - p1212: Table 278. Counting direction versus encoder signals and polarity settings
+      - p1212: Index input
+      - p1218: Directional index sensitivity
+      - p1219: Special first index event management
+      - p1219: Index management in nonquadrature mode
+      - p1220: Encoder error management
+      - p1223: Functional encoder interrupts
+      - p1224: Slave mode selection preload for run-time encoder mode update
+      - p1224: Encoder clock output
+    - p1224: 29.3.26 Direction bit output
+    - p1225: 29.3.27 UIF bit remapping
+    - p1225: 29.3.28 Timer input XOR function
+    - p1225: 29.3.29 Interfacing with Hall sensors
+    - p1227: 29.3.30 Timer synchronization
+      - p1227: Slave mode: Reset mode
+      - p1228: Slave mode: Gated mode
+      - p1229: Slave mode: Trigger mode
+      - p1230: Slave mode: Combined reset + trigger mode
+      - p1230: Slave mode: Combined gated + reset mode
+      - p1230: Slave mode: external clock mode 2 + trigger mode
+    - p1232: 29.3.31 ADC triggers
+    - p1232: 29.3.32 DMA burst mode
+    - p1233: 29.3.33 TIM1/TIM8/TIM20 DMA requests
+      - p1233: Table 279. DMA request
+    - p1233: 29.3.34 Debug mode
+  - p1234: 29.4 TIM1/TIM8/TIM20 low-power modes
+    - p1234: Table 280. Effect of low-power modes on TIM1/TIM8/TIM20
+  - p1234: 29.5 TIM1/TIM8/TIM20 interrupts
+    - p1234: Table 281. Interrupt requests
+  - p1235: 29.6 TIM1/TIM8/TIM20 registers
+    - p1235: 29.6.1 TIMx control register 1 (TIMx_CR1)(x = 1, 8, 20)
+    - p1236: 29.6.2 TIMx control register 2 (TIMx_CR2)(x = 1, 8, 20)
+    - p1240: 29.6.3 TIMx slave mode control register (TIMx_SMCR)(x = 1, 8, 20)
+    - p1244: 29.6.4 TIMx DMA/interrupt enable register (TIMx_DIER)(x = 1, 8, 20)
+    - p1245: 29.6.5 TIMx status register (TIMx_SR)(x = 1, 8, 20)
+    - p1248: 29.6.6 TIMx event generation register (TIMx_EGR)(x = 1, 8, 20)
+    - p1249: 29.6.7 TIMx capture/compare mode register 1 (TIMx_CCMR1) (x = 1, 8, 20)
+    - p1251: 29.6.8 TIMx capture/compare mode register 1 [alternate] (TIMx_CCMR1)(x = 1, 8, 20)
+    - p1254: 29.6.9 TIMx capture/compare mode register 2 (TIMx_CCMR2) (x = 1, 8, 20)
+    - p1255: 29.6.10 TIMx capture/compare mode register 2 [alternate] (TIMx_CCMR2)(x = 1, 8, 20)
+    - p1258: 29.6.11 TIMx capture/compare enable register (TIMx_CCER)(x = 1, 8, 20)
+      - p1261: Table 282. Output control bits for complementary tim_ocx and tim_ocxn channels with break feature
+    - p1262: 29.6.12 TIMx counter (TIMx_CNT)(x = 1, 8, 20)
+    - p1262: 29.6.13 TIMx prescaler (TIMx_PSC)(x = 1, 8, 20)
+    - p1263: 29.6.14 TIMx autoreload register (TIMx_ARR)(x = 1, 8, 20)
+    - p1263: 29.6.15 TIMx repetition counter register (TIMx_RCR)(x = 1, 8, 20)
+    - p1264: 29.6.16 TIMx capture/compare register 1 (TIMx_CCR1)(x = 1, 8, 20)
+    - p1264: 29.6.17 TIMx capture/compare register 2 (TIMx_CCR2)(x = 1, 8, 20)
+    - p1265: 29.6.18 TIMx capture/compare register 3 (TIMx_CCR3)(x = 1, 8, 20)
+    - p1266: 29.6.19 TIMx capture/compare register 4 (TIMx_CCR4)(x = 1, 8, 20)
+    - p1267: 29.6.20 TIMx break and dead-time register (TIMx_BDTR)(x = 1, 8, 20)
+    - p1271: 29.6.21 TIMx capture/compare register 5 (TIMx_CCR5)(x = 1, 8, 20)
+    - p1272: 29.6.22 TIMx capture/compare register 6 (TIMx_CCR6)(x = 1, 8, 20)
+    - p1273: 29.6.23 TIMx capture/compare mode register 3 (TIMx_CCMR3) (x = 1, 8, 20)
+    - p1274: 29.6.24 TIMx timer deadtime register 2 (TIMx_DTR2)(x = 1, 8, 20)
+    - p1275: 29.6.25 TIMx timer encoder control register (TIMx_ECR)(x = 1, 8, 20)
+    - p1276: 29.6.26 TIMx timer input selection register (TIMx_TISEL)(x = 1, 8, 20)
+    - p1277: 29.6.27 TIMx alternate function option register 1 (TIMx_AF1)(x = 1, 8, 20)
+    - p1280: 29.6.28 TIMx alternate function register 2 (TIMx_AF2)(x = 1, 8, 20)
+    - p1282: 29.6.29 TIMx DMA control register (TIMx_DCR)(x = 1, 8, 20)
+    - p1283: 29.6.30 TIMx DMA address for full transfer (TIMx_DMAR)(x = 1, 8, 20)
+    - p1284: 29.6.31 TIMx register map
+      - p1284: Table 283. TIMx register map and reset values (continued)
+- p1287: 30 General-purpose timers (TIM2/TIM3/TIM4/TIM5)
+  - p1287: 30.1 TIM2/TIM3/TIM4/TIM5 introduction
+  - p1287: 30.2 TIM2/TIM3/TIM4/TIM5 main features
+  - p1288: 30.3 TIM2/TIM3/TIM4/TIM5 implementation
+    - p1288: Table 284. STM32G4 series general purpose timers
+  - p1289: 30.4 TIM2/TIM3/TIM4/TIM5 functional description
+    - p1289: 30.4.1 Block diagram
+    - p1290: 30.4.2 TIM2/TIM3/TIM4/TIM5 pins and internal signals
+      - p1290: Table 285. TIM input/output pins
+      - p1290: Table 286. TIM internal input/output signals (continued)
+      - p1291: Table 287. Interconnect to the tim_ti1 input multiplexer
+      - p1291: Table 288. Interconnect to the tim_ti2 input multiplexer (continued)
+      - p1292: Table 289. Interconnect to the tim_ti3 input multiplexer
+      - p1292: Table 290. Interconnect to the tim_ti4 input multiplexer
+      - p1292: Table 291. TIMx internal trigger connection (continued)
+      - p1293: Table 292. Interconnect to the tim_etr input multiplexer
+      - p1294: Table 293. Interconnect to the tim_ocref_clr input multiplexer
+    - p1294: 30.4.3 Time-base unit
+      - p1294: Prescaler description
+    - p1296: 30.4.4 Counter modes
+      - p1296: Up-counting mode
+      - p1300: Down-counting mode
+      - p1303: Center-aligned mode (up/down-counting)
+    - p1308: 30.4.5 Clock selection
+      - p1308: Internal clock source (tim_ker_ck)
+      - p1309: External clock source mode 1
+      - p1310: External clock source mode 2
+    - p1312: 30.4.6 Capture/compare channels
+    - p1314: 30.4.7 Input capture mode
+    - p1315: 30.4.8 PWM input mode
+    - p1316: 30.4.9 Forced output mode
+    - p1316: 30.4.10 Output compare mode
+      - p1317: Procedure
+    - p1318: 30.4.11 PWM mode
+      - p1319: PWM edge-aligned mode
+      - p1319: Down-counting configuration
+      - p1319: PWM center-aligned mode
+      - p1321: Dithering mode
+      - p1325: Table 294. CCR and ARR register change dithering pattern
+      - p1326: Table 295. CCR register change dithering pattern in center-aligned PWM mode
+    - p1326: 30.4.12 Asymmetric PWM mode
+    - p1327: 30.4.13 Combined PWM mode
+    - p1328: 30.4.14 Clearing the tim_ocxref signal on an external event
+    - p1330: 30.4.15 One-pulse mode
+      - p1331: Particular case: tim_ocx fast enable:
+    - p1331: 30.4.16 Retriggerable one-pulse mode
+    - p1332: 30.4.17 Pulse on compare mode
+    - p1334: 30.4.18 Encoder interface mode
+      - p1334: Quadrature encoder
+      - p1335: Table 296. Counting direction versus encoder signals(CC1P = CC2P = 0)
+      - p1337: Clock plus direction encoder mode
+      - p1338: Directional clock encoder mode
+      - p1340: Table 297. Counting direction versus encoder signals and polarity settings
+      - p1340: Index input
+      - p1346: Directional index sensitivity
+      - p1347: Special first index event management
+      - p1347: Index management in nonquadrature mode
+      - p1348: Encoder error management
+      - p1351: Functional encoder interrupts
+      - p1352: Slave mode selection preload for run-time encoder mode update
+      - p1352: Encoder clock output
+    - p1352: 30.4.19 Direction bit output
+    - p1353: 30.4.20 UIF bit remapping
+    - p1353: 30.4.21 Timer input XOR function
+    - p1353: 30.4.22 Timers and external trigger synchronization
+      - p1353: Slave mode: Reset mode
+      - p1354: Slave mode: Gated mode
+      - p1355: Slave mode: Trigger mode
+      - p1356: Slave mode selection preload for run-time encoder mode update
+      - p1356: Slave mode – combined reset + trigger mode
+      - p1356: Slave mode – combined gated + reset mode
+      - p1356: Slave mode – external clock mode 2 + trigger mode
+    - p1357: 30.4.23 Timer synchronization
+      - p1358: Using one timer as prescaler for another timer
+      - p1358: Using one timer to enable another timer
+      - p1360: Using one timer to start another timer
+      - p1362: Starting two timers synchronously in response to an external trigger
+    - p1362: 30.4.24 ADC triggers
+    - p1363: 30.4.25 DMA burst mode
+    - p1364: 30.4.26 TIM2/TIM3/TIM4/TIM5 DMA requests
+      - p1364: Table 298. DMA request
+    - p1364: 30.4.27 Debug mode
+    - p1364: 30.4.28 TIM2/TIM3/TIM4/TIM5 low-power modes
+      - p1364: Table 299. Effect of low-power modes on TIM2/TIM3/TIM4/TIM5
+    - p1365: 30.4.29 TIM2/TIM3/TIM4/TIM5 interrupts
+      - p1365: Table 300. Interrupt requests
+  - p1366: 30.5 TIM2/TIM3/TIM4/TIM5 registers
+    - p1366: 30.5.1 TIMx control register 1 (TIMx_CR1)(x = 2 to 5)
+    - p1367: 30.5.2 TIMx control register 2 (TIMx_CR2)(x = 2 to 5)
+    - p1369: 30.5.3 TIMx slave mode control register (TIMx_SMCR)(x = 2 to 5)
+    - p1373: 30.5.4 TIMx DMA/Interrupt enable register (TIMx_DIER)(x = 2 to 5)
+    - p1374: 30.5.5 TIMx status register (TIMx_SR)(x = 2 to 5)
+    - p1376: 30.5.6 TIMx event generation register (TIMx_EGR)(x = 2 to 5)
+    - p1377: 30.5.7 TIMx capture/compare mode register 1 (TIMx_CCMR1)(x = 2 to 5)
+    - p1379: 30.5.8 TIMx capture/compare mode register 1 [alternate] (TIMx_CCMR1)(x = 2 to 5)
+    - p1381: 30.5.9 TIMx capture/compare mode register 2 (TIMx_CCMR2)(x = 2 to 5)
+    - p1382: 30.5.10 TIMx capture/compare mode register 2 [alternate] (TIMx_CCMR2)(x = 2 to 5)
+    - p1385: 30.5.11 TIMx capture/compare enable register (TIMx_CCER)(x = 2 to 5)
+      - p1386: Table 301. Output control bit for standard tim_ocx channels
+    - p1386: 30.5.12 TIMx counter (TIMx_CNT)(x = 3, 4)
+    - p1387: 30.5.13 TIMx counter (TIMx_CNT)(x = 2, 5)
+    - p1387: 30.5.14 TIMx prescaler (TIMx_PSC)(x = 2 to 5)
+    - p1388: 30.5.15 TIMx autoreload register (TIMx_ARR)(x = 3, 4)
+    - p1388: 30.5.16 TIMx autoreload register (TIMx_ARR)(x = 2, 5)
+    - p1389: 30.5.17 TIMx capture/compare register 1 (TIMx_CCR1)(x = 3, 4)
+    - p1390: 30.5.18 TIMx capture/compare register 1 (TIMx_CCR1)(x = 2, 5)
+    - p1390: 30.5.19 TIMx capture/compare register 2 (TIMx_CCR2)(x = 3, 4)
+    - p1391: 30.5.20 TIMx capture/compare register 2 (TIMx_CCR2)(x = 2, 5)
+    - p1392: 30.5.21 TIMx capture/compare register 3 (TIMx_CCR3)(x = 3, 4)
+    - p1393: 30.5.22 TIMx capture/compare register 3 (TIMx_CCR3)(x = 2, 5)
+    - p1394: 30.5.23 TIMx capture/compare register 4 (TIMx_CCR4)(x = 3, 4)
+    - p1395: 30.5.24 TIMx capture/compare register 4 (TIMx_CCR4)(x = 2, 5)
+    - p1396: 30.5.25 TIMx timer encoder control register (TIMx_ECR)(x = 2 to 5)
+    - p1397: 30.5.26 TIMx timer input selection register (TIMx_TISEL)(x = 2 to 5)
+    - p1398: 30.5.27 TIMx alternate function register 1 (TIMx_AF1)(x = 2 to 5)
+    - p1399: 30.5.28 TIMx alternate function register 2 (TIMx_AF2)(x = 2 to 5)
+    - p1400: 30.5.29 TIMx DMA control register (TIMx_DCR)(x = 2 to 5)
+    - p1401: 30.5.30 TIMx DMA address for full transfer (TIMx_DMAR)(x = 2 to 5)
+    - p1401: 30.5.31 TIMx register map
+      - p1401: Table 302. TIM2/TIM3/TIM4/TIM5 register map and reset values (continued)
+- p1404: 31 General purpose timers (TIM15/TIM16/TIM17)
+  - p1404: 31.1 TIM15/TIM16/TIM17 introduction
+  - p1404: 31.2 TIM15 main features
+  - p1405: 31.3 TIM16/TIM17 main features
+  - p1406: 31.4 TIM15/TIM16/TIM17 functional description
+    - p1406: 31.4.1 Block diagram
+    - p1407: 31.4.2 TIM15/TIM16/TIM17 pins and internal signals
+      - p1407: Table 303. TIM input/output pins
+      - p1408: Table 304. TIM internal input/output signals
+      - p1408: Table 305. Interconnect to the tim_ti1 input multiplexer (continued)
+      - p1409: Table 306. Interconnect to the tim_ti2 input multiplexer
+      - p1409: Table 307. TIMx internal trigger connection
+      - p1410: Table 308. Timer break interconnect
+      - p1410: Table 309. System break interconnect
+      - p1410: Table 310. Interconnect to the ocref_clr input multiplexer
+    - p1411: 31.4.3 Time-base unit
+      - p1411: Prescaler description
+    - p1413: 31.4.4 Counter modes
+      - p1413: Upcounting mode
+    - p1417: 31.4.5 Repetition counter
+    - p1418: 31.4.6 Clock selection
+      - p1418: Internal clock source (tim_ker_ck)
+      - p1419: External clock source mode 1
+    - p1420: 31.4.7 Capture/compare channels
+    - p1422: 31.4.8 Input capture mode
+    - p1424: 31.4.9 PWM input mode (only for TIM15)
+    - p1425: 31.4.10 Forced output mode
+    - p1425: 31.4.11 Output compare mode
+      - p1426: Procedure
+    - p1427: 31.4.12 PWM mode
+      - p1428: Dithering mode
+      - p1431: Table 311. CCR and ARR register change dithering pattern (continued)
+    - p1432: 31.4.13 Combined PWM mode (TIM15 only)
+    - p1433: 31.4.14 Complementary outputs and dead-time insertion
+      - p1436: Redirecting tim_ocxref to tim_ocx or tim_ocxn
+    - p1436: 31.4.15 Using the break function
+    - p1440: 31.4.16 Bidirectional break input
+      - p1440: Table 312. Break protection disarming conditions
+      - p1440: Arming and rearming break circuitry
+    - p1441: 31.4.17 Clearing the tim_ocxref signal on an external event
+    - p1442: 31.4.18 6-step PWM generation
+    - p1444: 31.4.19 One-pulse mode
+    - p1445: 31.4.20 Retriggerable one pulse mode (TIM15 only)
+    - p1446: 31.4.21 UIF bit remapping
+    - p1446: 31.4.22 Timer input XOR function (TIM15 only)
+    - p1446: 31.4.23 External trigger synchronization (TIM15 only)
+      - p1447: Slave mode: Reset mode
+      - p1448: Slave mode: Gated mode
+      - p1449: Slave mode: Trigger mode
+      - p1449: Slave mode selection preload for run-time update
+    - p1449: 31.4.24 Slave mode – combined reset + trigger mode (TIM15 only)
+    - p1449: 31.4.25 Slave mode – combined reset + gated mode (TIM15 only)
+    - p1450: 31.4.26 Timer synchronization (TIM15 only)
+    - p1450: 31.4.27 Using timer output as trigger for other timers (TIM16/TIM17 only)
+    - p1450: 31.4.28 ADC triggers (TIM15 only)
+    - p1450: 31.4.29 DMA burst mode
+    - p1451: 31.4.30 TIM15/TIM16/TIM17 DMA requests
+      - p1451: Table 313. DMA request
+    - p1451: 31.4.31 Debug mode
+  - p1452: 31.5 TIM15/TIM16/TIM17 low-power modes
+    - p1452: Table 314. Effect of low-power modes on TIM15/TIM16/TIM17
+  - p1452: 31.6 TIM15/TIM16/TIM17 interrupts
+    - p1452: Table 315. Interrupt requests
+  - p1453: 31.7 TIM15 registers
+    - p1453: 31.7.1 TIM15 control register 1 (TIM15_CR1)
+    - p1454: 31.7.2 TIM15 control register 2 (TIM15_CR2)
+    - p1456: 31.7.3 TIM15 slave mode control register (TIM15_SMCR)
+    - p1458: 31.7.4 TIM15 DMA/interrupt enable register (TIM15_DIER)
+    - p1459: 31.7.5 TIM15 status register (TIM15_SR)
+    - p1461: 31.7.6 TIM15 event generation register (TIM15_EGR)
+    - p1462: 31.7.7 TIM15 capture/compare mode register 1 (TIM15_CCMR1)
+    - p1463: 31.7.8 TIM15 capture/compare mode register 1 [alternate] (TIM15_CCMR1)
+    - p1466: 31.7.9 TIM15 capture/compare enable register (TIM15_CCER)
+      - p1468: Table 316. Output control bits for complementary tim_ocx and tim_ocxn channels with break feature (TIM15)
+    - p1469: 31.7.10 TIM15 counter (TIM15_CNT)
+    - p1469: 31.7.11 TIM15 prescaler (TIM15_PSC)
+    - p1470: 31.7.12 TIM15 autoreload register (TIM15_ARR)
+    - p1470: 31.7.13 TIM15 repetition counter register (TIM15_RCR)
+    - p1471: 31.7.14 TIM15 capture/compare register 1 (TIM15_CCR1)
+    - p1472: 31.7.15 TIM15 capture/compare register 2 (TIM15_CCR2)
+    - p1472: 31.7.16 TIM15 break and dead-time register (TIM15_BDTR)
+    - p1475: 31.7.17 TIM15 timer deadtime register 2 (TIM15_DTR2)
+    - p1476: 31.7.18 TIM15 input selection register (TIM15_TISEL)
+    - p1477: 31.7.19 TIM15 alternate function register 1 (TIM15_AF1)
+    - p1479: 31.7.20 TIM15 alternate function register 2 (TIM15_AF2)
+    - p1480: 31.7.21 TIM15 DMA control register (TIM15_DCR)
+    - p1480: 31.7.22 TIM15 DMA address for full transfer (TIM15_DMAR)
+    - p1481: 31.7.23 TIM15 register map
+      - p1481: Table 317. TIM15 register map and reset values (continued)
+  - p1484: 31.8 TIM16/TIM17 registers
+    - p1484: 31.8.1 TIMx control register 1 (TIMx_CR1)(x = 16 to 17)
+    - p1485: 31.8.2 TIMx control register 2 (TIMx_CR2)(x = 16 to 17)
+    - p1486: 31.8.3 TIMx DMA/interrupt enable register (TIMx_DIER)(x = 16 to 17)
+    - p1487: 31.8.4 TIMx status register (TIMx_SR)(x = 16 to 17)
+    - p1488: 31.8.5 TIMx event generation register (TIMx_EGR)(x = 16 to 17)
+    - p1489: 31.8.6 TIMx capture/compare mode register 1 (TIMx_CCMR1) (x = 16 to 17)
+    - p1490: 31.8.7 TIMx capture/compare mode register 1 [alternate] (TIMx_CCMR1)(x = 16 to 17)
+    - p1492: 31.8.8 TIMx capture/compare enable register (TIMx_CCER)(x = 16 to 17)
+      - p1494: Table 318. Output control bits for complementary tim_oc1 and tim_oc1n channels with break feature (TIM16/TIM17)
+    - p1495: 31.8.9 TIMx counter (TIMx_CNT)(x = 16 to 17)
+    - p1495: 31.8.10 TIMx prescaler (TIMx_PSC)(x = 16 to 17)
+    - p1496: 31.8.11 TIMx auto-reautoreload register (TIMx_ARR)(x = 16 to 17)
+    - p1496: 31.8.12 TIMx repetition counter register (TIMx_RCR)(x = 16 to 17)
+    - p1497: 31.8.13 TIMx capture/compare register 1 (TIMx_CCR1)(x = 16 to 17)
+    - p1498: 31.8.14 TIMx break and dead-time register (TIMx_BDTR)(x = 16 to 17)
+    - p1501: 31.8.15 TIMx timer deadtime register 2 (TIMx_DTR2)(x = 16 to 17)
+    - p1502: 31.8.16 TIMx input selection register (TIMx_TISEL)(x = 16 to 17)
+    - p1502: 31.8.17 TIMx alternate function register 1 (TIMx_AF1)(x = 16 to 17)
+    - p1505: 31.8.18 TIMx alternate function register 2 (TIMx_AF2)(x = 16 to 17)
+    - p1505: 31.8.19 TIMx option register 1 (TIMx_OR1)(x = 16 to 17)
+    - p1506: 31.8.20 TIMx DMA control register (TIMx_DCR)(x = 16 to 17)
+    - p1506: 31.8.21 TIM16/TIM17 DMA address for full transfer (TIMx_DMAR)(x = 16 to 17)
+    - p1508: 31.8.22 TIM16/TIM17 register map
+      - p1508: Table 319. TIM16/TIM17 register map and reset values (continued)
+- p1510: 32 Basic timers (TIM6/TIM7)
+  - p1510: 32.1 TIM6/TIM7 introduction
+  - p1510: 32.2 TIM6/TIM7 main features
+  - p1511: 32.3 TIM6/TIM7 functional description
+    - p1511: 32.3.1 TIM6/TIM7 block diagram
+    - p1511: 32.3.2 TIM6/TIM7 internal signals
+      - p1511: Table 320. TIM internal input/output signals
+    - p1512: 32.3.3 TIM6/TIM7 clocks
+    - p1512: 32.3.4 Time-base unit
+      - p1513: Prescaler description
+    - p1514: 32.3.5 Counting mode
+      - p1518: Dithering mode
+      - p1521: Table 321. TIMx_ARR register change dithering pattern (continued)
+    - p1522: 32.3.6 UIF bit remapping
+    - p1523: 32.3.7 ADC triggers
+    - p1523: 32.3.8 TIM6/TIM7 DMA requests
+      - p1523: Table 322. DMA request
+    - p1523: 32.3.9 Debug mode
+    - p1523: 32.3.10 TIM6/TIM7 low-power modes
+      - p1523: Table 323. Effect of low-power modes on TIM6/TIM7
+    - p1523: 32.3.11 TIM6/TIM7 interrupts
+      - p1523: Table 324. Interrupt request
+  - p1524: 32.4 TIM6/TIM7 registers
+    - p1524: 32.4.1 TIMx control register 1 (TIMx_CR1)(x = 6 to 7)
+    - p1526: 32.4.2 TIMx control register 2 (TIMx_CR2)(x = 6 to 7)
+    - p1526: 32.4.3 TIMx DMA/Interrupt enable register (TIMx_DIER)(x = 6 to 7)
+    - p1527: 32.4.4 TIMx status register (TIMx_SR)(x = 6 to 7)
+    - p1527: 32.4.5 TIMx event generation register (TIMx_EGR)(x = 6 to 7)
+    - p1527: 32.4.6 TIMx counter (TIMx_CNT)(x = 6 to 7)
+    - p1528: 32.4.7 TIMx prescaler (TIMx_PSC)(x = 6 to 7)
+    - p1528: 32.4.8 TIMx autoreload register (TIMx_ARR)(x = 6 to 7)
+    - p1529: 32.4.9 TIMx register map
+      - p1529: Table 325. TIMx register map and reset values
+- p1530: 33 Low-power timer (LPTIM)
+  - p1530: 33.1 Introduction
+  - p1530: 33.2 LPTIM main features
+  - p1531: 33.3 LPTIM implementation
+    - p1531: Table 326. STM32G4 series LPTIM features
+  - p1531: 33.4 LPTIM functional description
+    - p1531: 33.4.1 LPTIM block diagram
+    - p1531: 33.4.2 LPTIM input and trigger mapping
+      - p1531: Table 327. LPTIM1 external trigger connection (continued)
+      - p1532: Table 328. LPTIM1 input 1 connection
+      - p1532: Table 329. LPTIM1 input 2 connection
+    - p1532: 33.4.3 LPTIM reset and clocks
+    - p1533: 33.4.4 Glitch filter
+    - p1534: 33.4.5 Prescaler
+      - p1534: Table 330. Prescaler division ratios
+    - p1534: 33.4.6 Trigger multiplexer
+    - p1535: 33.4.7 Operating mode
+      - p1535: One-shot mode
+      - p1536: Continous mode
+    - p1537: 33.4.8 Timeout function
+    - p1537: 33.4.9 Waveform generation
+    - p1538: 33.4.10 Register update
+    - p1539: 33.4.11 Counter mode
+    - p1539: 33.4.12 Timer enable
+    - p1540: 33.4.13 Timer counter reset
+    - p1540: 33.4.14 Encoder mode
+      - p1541: Table 331. Encoder counting scenarios
+    - p1542: 33.4.15 Debug mode
+  - p1542: 33.5 LPTIM low-power modes
+    - p1542: Table 332. Effect of low-power modes on the LPTIM
+  - p1543: 33.6 LPTIM interrupts
+    - p1543: Table 333. Interrupt events
+  - p1543: 33.7 LPTIM registers
+    - p1544: 33.7.1 LPTIM interrupt and status register (LPTIM_ISR)
+    - p1545: 33.7.2 LPTIM interrupt clear register (LPTIM_ICR)
+    - p1545: 33.7.3 LPTIM interrupt enable register (LPTIM_IER)
+    - p1546: 33.7.4 LPTIM configuration register (LPTIM_CFGR)
+    - p1549: 33.7.5 LPTIM control register (LPTIM_CR)
+    - p1551: 33.7.6 LPTIM compare register (LPTIM_CMP)
+    - p1551: 33.7.7 LPTIM autoreload register (LPTIM_ARR)
+    - p1552: 33.7.8 LPTIM counter register (LPTIM_CNT)
+    - p1552: 33.7.9 LPTIM option register (LPTIM_OR)
+    - p1554: 33.7.10 LPTIM register map
+      - p1554: Table 334. LPTIM register map and reset values
+- p1555: 34 Infrared interface (IRTIM)
+- p1556: 35 Independent watchdog (IWDG)
+  - p1556: 35.1 Introduction
+  - p1556: 35.2 IWDG main features
+  - p1556: 35.3 IWDG functional description
+    - p1556: 35.3.1 IWDG block diagram
+    - p1557: 35.3.2 Window option
+      - p1557: Configuring the IWDG when the window option is enabled
+      - p1557: Configuring the IWDG when the window option is disabled
+    - p1558: 35.3.3 Hardware watchdog
+    - p1558: 35.3.4 Low-power freeze
+    - p1558: 35.3.5 Register access protection
+    - p1558: 35.3.6 Debug mode
+  - p1559: 35.4 IWDG registers
+    - p1559: 35.4.1 IWDG key register (IWDG_KR)
+    - p1560: 35.4.2 IWDG prescaler register (IWDG_PR)
+    - p1561: 35.4.3 IWDG reload register (IWDG_RLR)
+    - p1562: 35.4.4 IWDG status register (IWDG_SR)
+    - p1563: 35.4.5 IWDG window register (IWDG_WINR)
+    - p1564: 35.4.6 IWDG register map
+      - p1564: Table 335. IWDG register map and reset values
+- p1565: 36 System window watchdog (WWDG)
+  - p1565: 36.1 Introduction
+  - p1565: 36.2 WWDG main features
+  - p1565: 36.3 WWDG functional description
+    - p1566: 36.3.1 WWDG block diagram
+    - p1566: 36.3.2 Enabling the watchdog
+    - p1566: 36.3.3 Controlling the down-counter
+    - p1566: 36.3.4 How to program the watchdog timeout
+    - p1568: 36.3.5 Debug mode
+  - p1568: 36.4 WWDG interrupts
+  - p1568: 36.5 WWDG registers
+    - p1569: 36.5.1 WWDG control register (WWDG_CR)
+    - p1569: 36.5.2 WWDG configuration register (WWDG_CFR)
+    - p1570: 36.5.3 WWDG status register (WWDG_SR)
+    - p1570: 36.5.4 WWDG register map
+      - p1570: Table 336. WWDG register map and reset values
+- p1571: 37 Real-time clock (RTC)
+  - p1571: 37.1 Introduction
+  - p1571: 37.2 RTC main features
+  - p1572: 37.3 RTC functional description
+    - p1572: 37.3.1 RTC block diagram
+    - p1573: 37.3.2 RTC pins and internal signals
+      - p1573: Table 337. RTC input/output pins
+      - p1573: Table 338. RTC internal input/output signals
+      - p1574: Table 339. RTC interconnection
+    - p1574: 37.3.3 GPIOs controlled by the RTC and TAMP
+      - p1574: Table 340. PC13 configuration (continued)
+      - p1576: Table 341. RTC_OUT mapping
+    - p1576: 37.3.4 Clock and prescalers
+    - p1577: 37.3.5 Real-time clock and calendar
+    - p1578: 37.3.6 Programmable alarms
+    - p1578: 37.3.7 Periodic auto-wakeup
+    - p1579: 37.3.8 RTC initialization and configuration
+      - p1579: RTC register access
+      - p1579: RTC register write protection
+      - p1579: Calendar initialization and configuration
+      - p1580: Daylight saving time
+      - p1580: Programming the alarm
+      - p1580: Programming the wakeup timer
+    - p1581: 37.3.9 Reading the calendar
+      - p1581: When BYPSHAD control bit is cleared in the RTC_CR register
+      - p1581: When the BYPSHAD control bit is set in the RTC_CR register (bypass shadow registers)
+    - p1582: 37.3.10 Resetting the RTC
+    - p1582: 37.3.11 RTC synchronization
+    - p1583: 37.3.12 RTC reference clock detection
+    - p1583: 37.3.13 RTC smooth digital calibration
+      - p1584: Calibration when PREDIV_A < 3
+      - p1585: Verifying the RTC calibration
+      - p1585: Re-calibration on-the-fly
+    - p1585: 37.3.14 Timestamp function
+    - p1586: 37.3.15 Calibration clock output
+    - p1586: 37.3.16 Tamper and alarm output
+      - p1587: TAMPALRM output
+  - p1587: 37.4 RTC low-power modes
+    - p1587: Table 342. Effect of low-power modes on RTC
+    - p1587: Table 343. RTC pins functionality over modes
+  - p1588: 37.5 RTC interrupts
+    - p1588: Table 344. Interrupt requests
+  - p1588: 37.6 RTC registers
+    - p1588: 37.6.1 RTC time register (RTC_TR)
+    - p1589: 37.6.2 RTC date register (RTC_DR)
+    - p1590: 37.6.3 RTC sub second register (RTC_SSR)
+    - p1590: 37.6.4 RTC initialization control and status register (RTC_ICSR)
+    - p1592: 37.6.5 RTC prescaler register (RTC_PRER)
+    - p1593: 37.6.6 RTC wakeup timer register (RTC_WUTR)
+    - p1593: 37.6.7 RTC control register (RTC_CR)
+    - p1596: 37.6.8 RTC write protection register (RTC_WPR)
+    - p1597: 37.6.9 RTC calibration register (RTC_CALR)
+    - p1598: 37.6.10 RTC shift control register (RTC_SHIFTR)
+    - p1599: 37.6.11 RTC timestamp time register (RTC_TSTR)
+    - p1599: 37.6.12 RTC timestamp date register (RTC_TSDR)
+    - p1600: 37.6.13 RTC timestamp sub second register (RTC_TSSSR)
+    - p1601: 37.6.14 RTC alarm A register (RTC_ALRMAR)
+    - p1602: 37.6.15 RTC alarm A sub second register (RTC_ALRMASSR)
+    - p1603: 37.6.16 RTC alarm B register (RTC_ALRMBR)
+    - p1604: 37.6.17 RTC alarm B sub second register (RTC_ALRMBSSR)
+    - p1604: 37.6.18 RTC status register (RTC_SR)
+    - p1605: 37.6.19 RTC masked interrupt status register (RTC_MISR)
+    - p1606: 37.6.20 RTC status clear register (RTC_SCR)
+    - p1608: 37.6.21 RTC register map
+      - p1608: Table 345. RTC register map and reset values (continued)
+- p1610: 38 Tamper and backup registers (TAMP)
+  - p1610: 38.1 Introduction
+  - p1610: 38.2 TAMP main features
+  - p1611: 38.3 TAMP functional description
+    - p1611: 38.3.1 TAMP block diagram
+    - p1612: 38.3.2 TAMP pins and internal signals
+      - p1612: Table 346. TAMP input/output pins
+      - p1612: Table 347. TAMP internal input/output signals
+      - p1612: Table 348. TAMP interconnection
+    - p1612: 38.3.3 TAMP register write protection
+    - p1613: 38.3.4 Tamper detection
+      - p1613: TAMP backup registers
+      - p1613: Tamper detection initialization
+      - p1613: Trigger output generation on tamper event
+      - p1614: Timestamp on tamper event
+      - p1614: Edge detection on tamper inputs (passive mode)
+      - p1614: Level detection with filtering on tamper inputs (passive mode)
+  - p1615: 38.4 TAMP low-power modes
+    - p1615: Table 349. Effect of low-power modes on TAMP
+  - p1615: 38.5 TAMP interrupts
+    - p1615: Table 350. Interrupt requests
+  - p1615: 38.6 TAMP registers
+    - p1616: 38.6.1 TAMP control register 1 (TAMP_CR1)
+    - p1617: 38.6.2 TAMP control register 2 (TAMP_CR2)
+    - p1618: 38.6.3 TAMP filter control register (TAMP_FLTCR)
+    - p1619: 38.6.4 TAMP interrupt enable register (TAMP_IER)
+    - p1620: 38.6.5 TAMP status register (TAMP_SR)
+    - p1621: 38.6.6 TAMP masked interrupt status register (TAMP_MISR)
+    - p1622: 38.6.7 TAMP status clear register (TAMP_SCR)
+    - p1623: 38.6.8 TAMP backup x register (TAMP_BKPxR)
+    - p1624: 38.6.9 TAMP register map
+      - p1624: Table 351. TAMP register map and reset values
+- p1625: 39 Inter-integrated circuit interface (I2C)
+  - p1625: 39.1 I2C introduction
+  - p1625: 39.2 I2C main features
+  - p1626: 39.3 I2C implementation
+    - p1626: Table 352. I2C implementation
+  - p1626: 39.4 I2C functional description
+    - p1627: 39.4.1 I2C block diagram
+    - p1627: 39.4.2 I2C pins and internal signals
+      - p1627: Table 353. I2C input/output pins
+      - p1628: Table 354. I2C internal input/output signals
+    - p1628: 39.4.3 I2C clock requirements
+    - p1628: 39.4.4 I2C mode selection
+      - p1628: Communication flow
+    - p1629: 39.4.5 I2C initialization
+      - p1629: Enabling and disabling the peripheral
+      - p1629: Noise filters
+      - p1630: Table 355. Comparison of analog and digital filters
+      - p1630: I2C timings
+      - p1632: Table 356. I²C-bus and SMBus specification data setup and hold times
+    - p1633: 39.4.6 I2C reset
+    - p1634: 39.4.7 I2C data transfer
+      - p1634: Reception
+      - p1635: Transmission
+      - p1635: Hardware transfer management
+      - p1636: Table 357. I2C configuration
+    - p1636: 39.4.8 I2C target mode
+      - p1636: I2C target initialization
+      - p1637: Target with clock stretching
+      - p1637: Target without clock stretching
+      - p1638: Target byte control mode
+      - p1639: Target transmitter
+      - p1643: Target receiver
+    - p1645: 39.4.9 I2C controller mode
+      - p1645: I2C controller initialization
+      - p1647: Table 358. I²C-bus and SMBus specification clock timings
+      - p1647: Controller communication initialization (address phase)
+      - p1648: Initialization of a controller receiver addressing a 10-bit address target
+      - p1649: Controller transmitter
+      - p1653: Controller receiver
+    - p1656: 39.4.10 I2C_TIMINGR register configuration examples
+      - p1657: Table 359. Timing settings for fI2CCLK of 8 MHz
+      - p1657: Table 360. Timing settings for fI2CCLK of 16 MHz
+      - p1658: Table 361. Timing settings for fI2CCLK of 48 MHz
+    - p1658: 39.4.11 SMBus specific features
+      - p1658: Introduction
+      - p1658: Bus protocols
+      - p1659: Address resolution protocol (ARP)
+      - p1659: Received command and data acknowledge control
+      - p1659: Host notify protocol
+      - p1659: SMBus alert
+      - p1659: Packet error checking
+      - p1660: Timeouts
+      - p1660: Table 362. SMBus timeout specifications
+      - p1661: Bus idle detection
+    - p1661: 39.4.12 SMBus initialization
+      - p1661: Received command and data acknowledge control (target mode)
+      - p1661: Specific addresses (target mode)
+      - p1661: Packet error checking
+      - p1662: Table 363. SMBus with PEC configuration
+      - p1662: Timeout detection
+      - p1662: Bus idle detection
+    - p1663: 39.4.13 SMBus I2C_TIMEOUTR register configuration examples
+      - p1663: Table 364. TIMEOUTA[11:0] for maximum tTIMEOUT of 25 ms
+      - p1663: Table 365. TIMEOUTB[11:0] for maximum tLOW:SEXT and tLOW:MEXT of 8 ms
+      - p1663: Table 366. TIMEOUTA[11:0] for maximum tIDLE of 50 µs
+    - p1663: 39.4.14 SMBus target mode
+      - p1663: SMBus target transmitter
+      - p1665: SMBus target receiver
+    - p1667: 39.4.15 SMBus controller mode
+      - p1667: SMBus controller transmitter
+      - p1669: SMBus controller receiver
+    - p1670: 39.4.16 Wake-up from Stop mode on address match
+    - p1671: 39.4.17 Error conditions
+      - p1671: Bus error (BERR)
+      - p1671: Arbitration loss (ARLO)
+      - p1672: Overrun/underrun error (OVR)
+      - p1672: Packet error checking error (PECERR)
+      - p1672: Timeout error (TIMEOUT)
+      - p1672: Alert (ALERT)
+  - p1673: 39.5 I2C in low-power modes
+    - p1673: Table 367. Effect of low-power modes to I2C
+  - p1673: 39.6 I2C interrupts
+    - p1673: Table 368. I2C interrupt requests
+  - p1674: 39.7 I2C DMA requests
+    - p1674: 39.7.1 Transmission using DMA
+    - p1674: 39.7.2 Reception using DMA
+  - p1674: 39.8 I2C debug modes
+  - p1675: 39.9 I2C registers
+    - p1675: 39.9.1 I2C control register 1 (I2C_CR1)
+    - p1677: 39.9.2 I2C control register 2 (I2C_CR2)
+    - p1679: 39.9.3 I2C own address 1 register (I2C_OAR1)
+    - p1680: 39.9.4 I2C own address 2 register (I2C_OAR2)
+    - p1681: 39.9.5 I2C timing register (I2C_TIMINGR)
+    - p1682: 39.9.6 I2C timeout register (I2C_TIMEOUTR)
+    - p1683: 39.9.7 I2C interrupt and status register (I2C_ISR)
+    - p1685: 39.9.8 I2C interrupt clear register (I2C_ICR)
+    - p1686: 39.9.9 I2C PEC register (I2C_PECR)
+    - p1686: 39.9.10 I2C receive data register (I2C_RXDR)
+    - p1687: 39.9.11 I2C transmit data register (I2C_TXDR)
+    - p1688: 39.9.12 I2C register map
+      - p1688: Table 369. I2C register map and reset values
+- p1689: 40 Universal synchronous/asynchronous receiver transmitter (USART/UART)
+  - p1689: 40.1 USART introduction
+  - p1690: 40.2 USART main features
+  - p1691: 40.3 USART extended features
+  - p1691: 40.4 USART implementation
+    - p1691: Table 370. USART / LPUART features
+  - p1692: 40.5 USART functional description
+    - p1692: 40.5.1 USART block diagram
+    - p1693: 40.5.2 USART signals
+      - p1693: USART bidirectional communications
+      - p1693: RS232 hardware flow control mode
+      - p1693: RS485 hardware flow control mode
+      - p1693: Synchronous SPI master/slave mode and smartcard mode
+      - p1694: Table 371. USART/UART input/output pins
+      - p1694: Description of USART input/output signals
+      - p1694: Table 372. USART internal input/output signals
+    - p1694: 40.5.3 USART character description
+    - p1696: 40.5.4 USART FIFOs and thresholds
+    - p1696: 40.5.5 USART transmitter
+      - p1696: Character transmission
+      - p1699: Single byte communication
+      - p1700: Break characters
+      - p1700: Idle characters
+    - p1700: 40.5.6 USART receiver
+      - p1700: Start bit detection
+      - p1702: Character reception
+      - p1703: Break character
+      - p1703: Idle character
+      - p1703: Overrun error
+      - p1704: Selecting the clock source and the appropriate oversampling method
+      - p1706: Table 373. Noise detection from sampled data
+      - p1706: Framing error
+      - p1707: Configurable stop bits during reception
+    - p1707: 40.5.7 USART baud rate generation
+      - p1708: How to derive USARTDIV from USART_BRR register values
+    - p1708: 40.5.8 Tolerance of the USART receiver to clock deviation
+      - p1709: Table 374. Tolerance of the USART receiver when BRR [3:0] = 0000
+      - p1710: Table 375. Tolerance of the USART receiver when BRR[3:0] is different from 0000
+    - p1710: 40.5.9 USART auto baud rate detection
+    - p1712: 40.5.10 USART multiprocessor communication
+      - p1712: Idle line detection (WAKE = 0)
+      - p1713: 4-bit/7-bit address mark detection (WAKE = 1)
+    - p1714: 40.5.11 USART Modbus communication
+      - p1714: Modbus/RTU
+      - p1714: Modbus/ASCII
+    - p1715: 40.5.12 USART parity control
+      - p1715: Table 376. USART frame formats
+      - p1715: Even parity
+      - p1715: Odd parity
+      - p1715: Parity checking in reception
+      - p1715: Parity generation in transmission
+    - p1716: 40.5.13 USART LIN (local interconnection network) mode
+      - p1716: LIN transmission
+      - p1716: LIN reception
+    - p1718: 40.5.14 USART synchronous mode
+      - p1718: Master mode
+      - p1720: Slave mode
+    - p1722: 40.5.15 USART single-wire half-duplex communication
+    - p1722: 40.5.16 USART receiver timeout
+    - p1723: 40.5.17 USART smartcard mode
+      - p1725: Block mode (T = 1)
+      - p1726: Direct and inverse convention
+    - p1727: 40.5.18 USART IrDA SIR ENDEC block
+      - p1728: IrDA low-power mode
+    - p1730: 40.5.19 Continuous communication using USART and DMA
+      - p1730: Transmission using DMA
+      - p1731: Reception using DMA
+      - p1732: Error flagging and interrupt generation in multibuffer communication
+    - p1732: 40.5.20 RS232 hardware flow control and RS485 Driver Enable
+      - p1733: RS232 RTS flow control
+      - p1733: RS232 CTS flow control
+      - p1734: RS485 driver enable
+    - p1735: 40.5.21 USART low-power management
+      - p1736: Using mute mode with low-power mode
+      - p1736: Wake-up from low-power mode when USART kernel clock (usart_ker_ck) is OFF in low-power mode
+      - p1738: Determining the maximum USART baud rate that enables to correctly wake up the device from low-power mode
+  - p1738: 40.6 USART in low-power modes
+    - p1738: Table 377. Effect of low-power modes on the USART
+  - p1739: 40.7 USART interrupts
+    - p1739: Table 378. USART interrupt requests
+  - p1740: 40.8 USART registers
+    - p1740: 40.8.1 USART control register 1 (USART_CR1)
+    - p1743: 40.8.2 USART control register 1 [alternate] (USART_CR1)
+    - p1747: 40.8.3 USART control register 2 (USART_CR2)
+    - p1751: 40.8.4 USART control register 3 (USART_CR3)
+    - p1755: 40.8.5 USART baud rate register (USART_BRR)
+    - p1755: 40.8.6 USART guard time and prescaler register (USART_GTPR)
+    - p1756: 40.8.7 USART receiver timeout register (USART_RTOR)
+    - p1757: 40.8.8 USART request register (USART_RQR)
+    - p1758: 40.8.9 USART interrupt and status register (USART_ISR)
+    - p1764: 40.8.10 USART interrupt and status register [alternate] (USART_ISR)
+    - p1769: 40.8.11 USART interrupt flag clear register (USART_ICR)
+    - p1771: 40.8.12 USART receive data register (USART_RDR)
+    - p1771: 40.8.13 USART transmit data register (USART_TDR)
+    - p1772: 40.8.14 USART prescaler register (USART_PRESC)
+    - p1773: 40.8.15 USART register map
+      - p1773: Table 379. USART register map and reset values (continued)
+- p1775: 41 Low-power universal asynchronous receiver transmitter (LPUART)
+  - p1775: 41.1 LPUART introduction
+  - p1776: 41.2 LPUART main features
+  - p1777: 41.3 LPUART implementation
+    - p1777: Table 380. USART / LPUART features
+  - p1778: 41.4 LPUART functional description
+    - p1778: 41.4.1 LPUART block diagram
+    - p1779: 41.4.2 LPUART signals
+      - p1779: RS232 hardware flow control mode
+      - p1779: RS485 hardware flow control mode
+      - p1779: Table 381. LPUART input/output pins
+      - p1779: Description of USART input/output signals
+      - p1779: Table 382. LPUART internal input/output signals (continued)
+    - p1780: 41.4.3 LPUART character description
+    - p1781: 41.4.4 LPUART FIFOs and thresholds
+    - p1782: 41.4.5 LPUART transmitter
+      - p1782: Character transmission
+      - p1784: Single byte communication
+      - p1785: Break characters
+      - p1785: Idle characters
+    - p1785: 41.4.6 LPUART receiver
+      - p1785: Start bit detection
+      - p1786: Character reception
+      - p1787: Break character
+      - p1787: Idle character
+      - p1787: Overrun error
+      - p1788: Selecting the clock source
+      - p1788: Framing error
+      - p1789: Configurable stop bits during reception
+    - p1789: 41.4.7 LPUART baud rate generation
+      - p1789: Table 383. Error calculation for programmed baud rates at lpuart_ker_ck_pres = 32.768 kHz
+      - p1790: Table 384. Error calculation for programmed baud rates at fCK = 100 MHz
+    - p1790: 41.4.8 Tolerance of the LPUART receiver to clock deviation
+      - p1791: Table 385. Tolerance of the LPUART receiver
+    - p1791: 41.4.9 LPUART multiprocessor communication
+      - p1792: Idle line detection (WAKE = 0)
+      - p1792: 4-bit/7-bit address mark detection (WAKE = 1)
+    - p1793: 41.4.10 LPUART parity control
+      - p1793: Even parity
+      - p1793: Odd parity
+      - p1794: Parity checking in reception
+      - p1794: Parity generation in transmission
+    - p1794: 41.4.11 LPUART single-wire half-duplex communication
+    - p1794: 41.4.12 Continuous communication using DMA and LPUART
+      - p1794: Transmission using DMA
+      - p1796: Reception using DMA
+      - p1796: Error flagging and interrupt generation in multibuffer communication
+    - p1797: 41.4.13 RS232 hardware flow control and RS485 Driver Enable
+      - p1797: RS232 RTS flow control
+      - p1798: RS232 CTS flow control
+      - p1798: RS485 driver enable
+    - p1799: 41.4.14 LPUART low-power management
+      - p1800: Using mute mode with low-power mode
+      - p1800: Wake-up from low-power mode when LPUART kernel clock lpuart_ker_ck is OFF in low-power mode
+      - p1802: Determining the maximum LPUART baud rate that enables to correctly wake up the MCU from low-power mode
+  - p1802: 41.5 LPUART in low-power modes
+    - p1802: Table 387. Effect of low-power modes on the LPUART
+  - p1803: 41.6 LPUART interrupts
+    - p1803: Table 388. LPUART interrupt requests
+  - p1804: 41.7 LPUART registers
+    - p1804: 41.7.1 LPUART control register 1 (LPUART_CR1)
+    - p1807: 41.7.2 LPUART control register 1 [alternate] (LPUART_CR1)
+    - p1810: 41.7.3 LPUART control register 2 (LPUART_CR2)
+    - p1812: 41.7.4 LPUART control register 3 (LPUART_CR3)
+    - p1815: 41.7.5 LPUART baud rate register (LPUART_BRR)
+    - p1815: 41.7.6 LPUART request register (LPUART_RQR)
+    - p1816: 41.7.7 LPUART interrupt and status register (LPUART_ISR)
+    - p1820: 41.7.8 LPUART interrupt and status register [alternate] (LPUART_ISR)
+    - p1823: 41.7.9 LPUART interrupt flag clear register (LPUART_ICR)
+    - p1824: 41.7.10 LPUART receive data register (LPUART_RDR)
+    - p1824: 41.7.11 LPUART transmit data register (LPUART_TDR)
+    - p1825: 41.7.12 LPUART prescaler register (LPUART_PRESC)
+    - p1826: 41.7.13 LPUART register map
+      - p1826: Table 389. LPUART register map and reset values (continued)
+- p1828: 42 Serial peripheral interface / integrated interchip sound (SPI/I2S)
+  - p1828: 42.1 Introduction
+  - p1828: 42.2 SPI main features
+  - p1829: 42.3 I2S main features
+  - p1829: 42.4 SPI/I2S implementation
+    - p1829: Table 390. STM32G4 series SPI and SPI/I2S implementation
+  - p1830: 42.5 SPI functional description
+    - p1830: 42.5.1 General description
+    - p1831: 42.5.2 Communications between one master and one slave
+      - p1831: Full-duplex communication
+      - p1831: Half-duplex communication
+      - p1832: Simplex communications
+    - p1833: 42.5.3 Standard multislave communication
+    - p1834: 42.5.4 Multimaster communication
+    - p1835: 42.5.5 Slave select (NSS) pin management
+    - p1836: 42.5.6 Communication formats
+      - p1836: Clock phase and polarity controls
+      - p1837: Data frame format
+    - p1838: 42.5.7 Configuration of SPI
+    - p1839: 42.5.8 Procedure for enabling SPI
+    - p1839: 42.5.9 Data transmission and reception procedures
+      - p1839: RXFIFO and TXFIFO
+      - p1840: Sequence handling
+      - p1840: Procedure for disabling the SPI
+      - p1841: Data packing
+      - p1842: Communication using DMA (direct memory addressing)
+      - p1843: Packing with DMA
+      - p1844: Communication diagrams
+    - p1849: 42.5.10 SPI status flags
+      - p1849: Tx buffer empty flag (TXE)
+      - p1849: Rx buffer not empty (RXNE)
+      - p1849: Busy flag (BSY)
+    - p1850: 42.5.11 SPI error flags
+      - p1850: Overrun flag (OVR)
+      - p1850: Mode fault (MODF)
+      - p1850: CRC error (CRCERR)
+      - p1850: TI mode frame format error (FRE)
+    - p1851: 42.5.12 NSS pulse mode
+    - p1851: 42.5.13 TI mode
+      - p1851: TI protocol in master mode
+    - p1852: 42.5.14 CRC calculation
+      - p1852: CRC principle
+      - p1853: CRC transfer managed by CPU
+      - p1853: CRC transfer managed by DMA
+      - p1853: Resetting the SPIx_TXCRC and SPIx_RXCRC values
+  - p1854: 42.6 SPI interrupts
+    - p1854: Table 391. SPI interrupt requests
+  - p1855: 42.7 I2S functional description
+    - p1855: 42.7.1 I2S general description
+    - p1856: 42.7.2 Supported audio protocols
+      - p1857: I2S Philips standard
+      - p1859: MSB justified standard
+      - p1860: LSB justified standard
+      - p1862: PCM standard
+    - p1863: 42.7.3 Start-up description
+    - p1865: 42.7.4 Clock generator
+      - p1866: For I2S modes:
+      - p1866: For PCM modes:
+      - p1867: Table 392. Audio-frequency precision using 48 MHz clock derived from HSE
+    - p1868: 42.7.5 I2S master mode
+      - p1868: Procedure
+      - p1868: Transmission sequence
+      - p1869: Reception sequence
+    - p1869: 42.7.6 I2S slave mode
+      - p1870: Transmission sequence
+      - p1871: Reception sequence
+    - p1871: 42.7.7 I2S status flags
+      - p1871: Busy flag (BSY)
+      - p1872: Tx buffer empty flag (TXE)
+      - p1872: RX buffer not empty (RXNE)
+      - p1872: Channel Side flag (CHSIDE)
+    - p1872: 42.7.8 I2S error flags
+      - p1872: Underrun flag (UDR)
+      - p1872: Overrun flag (OVR)
+      - p1872: Frame error flag (FRE)
+    - p1873: 42.7.9 DMA features
+  - p1873: 42.8 I2S interrupts
+    - p1873: Table 393. I2S interrupt requests
+  - p1874: 42.9 SPI and I2S registers
+    - p1874: 42.9.1 SPI control register 1 (SPIx_CR1)
+    - p1876: 42.9.2 SPI control register 2 (SPIx_CR2)
+    - p1878: 42.9.3 SPI status register (SPIx_SR)
+    - p1880: 42.9.4 SPI data register (SPIx_DR)
+    - p1880: 42.9.5 SPI CRC polynomial register (SPIx_CRCPR)
+    - p1880: 42.9.6 SPI Rx CRC register (SPIx_RXCRCR)
+    - p1881: 42.9.7 SPI Tx CRC register (SPIx_TXCRCR)
+    - p1881: 42.9.8 SPIx_I2S configuration register (SPIx_I2SCFGR)
+    - p1883: 42.9.9 SPIx_I2S prescaler register (SPIx_I2SPR)
+    - p1885: 42.9.10 SPI/I2S register map
+      - p1885: Table 394. SPI/I2S register map and reset values
+- p1886: 43 Serial audio interface (SAI)
+  - p1886: 43.1 Introduction
+  - p1886: 43.2 SAI main features
+  - p1887: 43.3 SAI implementation
+    - p1887: Table 395. STM32G4 series SAI features
+  - p1888: 43.4 SAI functional description
+    - p1888: 43.4.1 SAI block diagram
+    - p1889: 43.4.2 SAI pins and internal signals
+      - p1889: Table 396. SAI internal input/output signals
+      - p1889: Table 397. SAI input/output pins
+    - p1889: 43.4.3 Main SAI modes
+      - p1889: Master mode
+      - p1890: Slave mode
+      - p1890: Configuring and enabling SAI modes
+    - p1890: 43.4.4 SAI synchronization mode
+      - p1890: Internal synchronization
+    - p1891: 43.4.5 Audio data size
+    - p1891: 43.4.6 Frame synchronization
+      - p1891: Frame length
+      - p1892: Frame synchronization polarity
+      - p1892: Frame synchronization active level length
+      - p1892: Frame synchronization offset
+      - p1893: FS signal role
+    - p1894: 43.4.7 Slot configuration
+    - p1896: 43.4.8 SAI clock generator
+      - p1896: Generation of the master clock (MCLK_x)
+      - p1896: Table 398. MCLK_x activation conditions
+      - p1897: Generation of the bit clock (SCK_x)
+      - p1899: Clock generator programming examples
+      - p1899: Table 399. Clock generator programming examples
+    - p1899: 43.4.9 Internal FIFOs
+      - p1899: Interrupt generation in transmitter mode
+      - p1900: Interrupt generation in reception mode
+    - p1901: 43.4.10 PDM interface
+      - p1903: Enabling the PDM interface
+      - p1903: Startup sequence
+      - p1904: SAI_ADR data format
+      - p1906: TDM mode configuration for PDM interface
+      - p1906: Table 400. SAI_A configuration for TDM mode (continued)
+      - p1907: Adjusting the bitstream clock rate
+      - p1908: Table 401. TDM frame configuration examples
+      - p1908: Adjusting the delay lines
+    - p1909: 43.4.11 AC’97 link controller
+      - p1910: Clock generator programming in AC’97 mode
+    - p1910: 43.4.12 SPDIF output
+      - p1911: Table 402. SOPD pattern
+      - p1911: Table 403. Parity bit calculation
+      - p1912: Clock generator programming in SPDIF generator mode
+      - p1912: Table 404. Audio sampling frequency versus symbol rates
+    - p1913: 43.4.13 Specific features
+      - p1913: Mute mode
+      - p1913: Mono/stereo mode
+      - p1914: Companding mode
+      - p1915: Output data line management on an inactive slot
+    - p1917: 43.4.14 Error flags
+      - p1917: FIFO overrun/underrun (OVRUDR)
+      - p1919: Anticipated frame synchronization detection (AFSDET)
+      - p1919: Late frame synchronization detection
+      - p1920: Codec not ready (CNRDY AC’97)
+      - p1920: Wrong clock configuration in master mode (with NODIV = 0)
+    - p1920: 43.4.15 Disabling the SAI
+    - p1920: 43.4.16 SAI DMA interface
+  - p1921: 43.5 SAI interrupts
+    - p1921: Table 405. SAI interrupt sources
+  - p1923: 43.6 SAI registers
+    - p1923: 43.6.1 SAI configuration register 1 (SAI_ACR1)
+    - p1925: 43.6.2 SAI configuration register 2 (SAI_ACR2)
+    - p1927: 43.6.3 SAI frame configuration register (SAI_AFRCR)
+    - p1928: 43.6.4 SAI slot register (SAI_ASLOTR)
+    - p1929: 43.6.5 SAI interrupt mask register (SAI_AIM)
+    - p1931: 43.6.6 SAI status register (SAI_ASR)
+    - p1933: 43.6.7 SAI clear flag register (SAI_ACLRFR)
+    - p1934: 43.6.8 SAI data register (SAI_ADR)
+    - p1934: 43.6.9 SAI configuration register 1 (SAI_BCR1)
+    - p1937: 43.6.10 SAI configuration register 2 (SAI_BCR2)
+    - p1939: 43.6.11 SAI frame configuration register (SAI_BFRCR)
+    - p1940: 43.6.12 SAI slot register (SAI_BSLOTR)
+    - p1941: 43.6.13 SAI interrupt mask register (SAI_BIM)
+    - p1942: 43.6.14 SAI status register (SAI_BSR)
+    - p1944: 43.6.15 SAI clear flag register (SAI_BCLRFR)
+    - p1945: 43.6.16 SAI data register (SAI_BDR)
+    - p1946: 43.6.17 SAI PDM control register (SAI_PDMCR)
+    - p1947: 43.6.18 SAI PDM delay register (SAI_PDMDLY)
+    - p1949: 43.6.19 SAI register map
+      - p1949: Table 406. SAI register map and reset values (continued)
+- p1951: 44 FD controller area network (FDCAN)
+  - p1951: 44.1 Introduction
+  - p1953: 44.2 FDCAN main features
+  - p1954: 44.3 FDCAN functional description
+    - p1954: 44.3.1 FDCAN block diagram
+      - p1954: Dual interrupt lines
+      - p1954: CAN core
+      - p1954: Sync
+      - p1955: Tx handler
+      - p1955: Rx handler
+      - p1955: APB interface
+      - p1955: Message RAM interface
+    - p1955: 44.3.2 FDCAN pins and internal signals
+      - p1955: Table 407. CAN subsystem I/O signals
+      - p1955: Table 408. CAN subsystem I/O pins
+    - p1956: 44.3.3 Bit timing
+    - p1957: 44.3.4 Operating modes
+      - p1957: Configuration
+      - p1957: Software initialization
+      - p1958: Normal operation
+      - p1958: CAN FD operation
+      - p1959: Table 409. DLC coding in FDCAN
+      - p1960: Transceiver delay compensation
+      - p1962: Restricted operation mode
+      - p1962: Bus monitoring mode
+      - p1963: Disabled automatic retransmission mode (DAR)
+      - p1963: Power-down (Sleep mode)
+      - p1964: Test modes
+      - p1964: External loop-back mode
+      - p1964: Internal loop-back mode
+      - p1965: Timestamp generation
+      - p1965: Debug mode behavior
+      - p1965: Timeout counter
+    - p1966: 44.3.5 Error management
+    - p1967: 44.3.6 Message RAM
+      - p1967: Rx handling
+      - p1967: Acceptance filter
+      - p1968: Range filter
+      - p1969: Filter for dedicated IDs
+      - p1969: Classic bit mask filter
+      - p1969: Standard message ID filtering
+      - p1971: Extended message ID filtering
+      - p1972: Rx FIFOs
+      - p1972: Rx FIFO blocking mode
+      - p1972: Rx FIFO overwrite mode
+      - p1973: Tx handling
+      - p1973: Table 410. Possible configurations for frame transmission
+      - p1973: Transmit pause
+      - p1974: Tx FIFO
+      - p1974: Tx queue
+      - p1975: Transmit cancellation
+      - p1975: Tx event handling
+    - p1976: 44.3.7 FIFO acknowledge handling
+    - p1976: 44.3.8 FDCAN Rx FIFO element
+      - p1976: Table 411. Rx FIFO element
+      - p1976: Table 412. Rx FIFO element description (continued)
+    - p1978: 44.3.9 FDCAN Tx buffer element
+      - p1978: Table 413. Tx buffer and FIFO element
+      - p1978: Table 414. Tx buffer element description (continued)
+    - p1980: 44.3.10 FDCAN Tx event FIFO element
+      - p1980: Table 415. Tx event FIFO element
+      - p1980: Table 416. Tx event FIFO element description (continued)
+    - p1981: 44.3.11 FDCAN standard message ID filter element
+      - p1981: Table 417. Standard message ID filter element
+      - p1982: Table 418. Standard message ID filter element field description
+    - p1982: 44.3.12 FDCAN extended message ID filter element
+      - p1982: Table 419. Extended message ID filter element
+      - p1983: Table 420. Extended message ID filter element field description
+  - p1984: 44.4 FDCAN registers
+    - p1984: 44.4.1 FDCAN core release register (FDCAN_CREL)
+    - p1984: 44.4.2 FDCAN endian register (FDCAN_ENDN)
+    - p1984: 44.4.3 FDCAN data bit timing and prescaler register (FDCAN_DBTP)
+    - p1985: 44.4.4 FDCAN test register (FDCAN_TEST)
+    - p1986: 44.4.5 FDCAN RAM watchdog register (FDCAN_RWD)
+    - p1987: 44.4.6 FDCAN CC control register (FDCAN_CCCR)
+    - p1988: 44.4.7 FDCAN nominal bit timing and prescaler register (FDCAN_NBTP)
+    - p1990: 44.4.8 FDCAN timestamp counter configuration register (FDCAN_TSCC)
+    - p1990: 44.4.9 FDCAN timestamp counter value register (FDCAN_TSCV)
+    - p1991: 44.4.10 FDCAN timeout counter configuration register (FDCAN_TOCC)
+    - p1992: 44.4.11 FDCAN timeout counter value register (FDCAN_TOCV)
+    - p1992: 44.4.12 FDCAN error counter register (FDCAN_ECR)
+    - p1993: 44.4.13 FDCAN protocol status register (FDCAN_PSR)
+    - p1995: 44.4.14 FDCAN transmitter delay compensation register (FDCAN_TDCR)
+    - p1995: 44.4.15 FDCAN interrupt register (FDCAN_IR)
+    - p1998: 44.4.16 FDCAN interrupt enable register (FDCAN_IE)
+    - p2000: 44.4.17 FDCAN interrupt line select register (FDCAN_ILS)
+    - p2001: 44.4.18 FDCAN interrupt line enable register (FDCAN_ILE)
+    - p2001: 44.4.19 FDCAN global filter configuration register (FDCAN_RXGFC)
+    - p2003: 44.4.20 FDCAN extended ID and mask register (FDCAN_XIDAM)
+    - p2003: 44.4.21 FDCAN high-priority message status register (FDCAN_HPMS)
+    - p2004: 44.4.22 FDCAN Rx FIFO 0 status register (FDCAN_RXF0S)
+    - p2005: 44.4.23 CAN Rx FIFO 0 acknowledge register (FDCAN_RXF0A)
+    - p2005: 44.4.24 FDCAN Rx FIFO 1 status register (FDCAN_RXF1S)
+    - p2006: 44.4.25 FDCAN Rx FIFO 1 acknowledge register (FDCAN_RXF1A)
+    - p2006: 44.4.26 FDCAN Tx buffer configuration register (FDCAN_TXBC)
+    - p2007: 44.4.27 FDCAN Tx FIFO/queue status register (FDCAN_TXFQS)
+    - p2007: 44.4.28 FDCAN Tx buffer request pending register (FDCAN_TXBRP)
+    - p2008: 44.4.29 FDCAN Tx buffer add request register (FDCAN_TXBAR)
+    - p2009: 44.4.30 FDCAN Tx buffer cancellation request register (FDCAN_TXBCR)
+    - p2009: 44.4.31 FDCAN Tx buffer transmission occurred register (FDCAN_TXBTO)
+    - p2010: 44.4.32 FDCAN Tx buffer cancellation finished register (FDCAN_TXBCF)
+    - p2010: 44.4.33 FDCAN Tx buffer transmission interrupt enable register (FDCAN_TXBTIE)
+    - p2011: 44.4.34 FDCAN Tx buffer cancellation finished interrupt enable register (FDCAN_TXBCIE)
+    - p2011: 44.4.35 FDCAN Tx event FIFO status register (FDCAN_TXEFS)
+    - p2012: 44.4.36 FDCAN Tx event FIFO acknowledge register (FDCAN_TXEFA)
+    - p2012: 44.4.37 FDCAN CFG clock divider register (FDCAN_CKDIV)
+    - p2013: 44.4.38 FDCAN register map
+      - p2013: Table 421. FDCAN register map and reset values (continued)
+- p2017: 45 Universal serial bus full-speed device interface (USB)
+  - p2017: 45.1 Introduction
+  - p2017: 45.2 USB main features
+  - p2017: 45.3 USB implementation
+    - p2017: Table 422. STM32G4 series USB implementation
+  - p2018: 45.4 USB functional description
+    - p2019: 45.4.1 Description of USB blocks
+  - p2020: 45.5 Programming considerations
+    - p2020: 45.5.1 Generic USB device programming
+    - p2021: 45.5.2 System and power-on reset
+      - p2021: USB reset (RESET interrupt)
+      - p2021: Structure and usage of packet buffers
+      - p2023: Endpoint initialization
+      - p2023: IN packets (data transmission)
+      - p2024: OUT and SETUP packets (data reception)
+      - p2025: Control transfers
+    - p2026: 45.5.3 Double-buffered endpoints
+      - p2027: Table 423. Double-buffering buffer flag definition
+      - p2027: Table 424. Bulk double-buffering memory buffers usage
+    - p2028: 45.5.4 Isochronous transfers
+      - p2029: Table 425. Isochronous memory buffers usage
+    - p2029: 45.5.5 Suspend/Resume events
+      - p2030: Table 426. Resume event detection (continued)
+  - p2032: 45.6 USB and USB SRAM registers
+    - p2032: 45.6.1 Common registers
+      - p2032: USB control register (USB_CNTR)
+      - p2034: USB interrupt status register (USB_ISTR)
+      - p2037: USB frame number register (USB_FNR)
+      - p2037: USB device address (USB_DADDR)
+      - p2038: Buffer table address (USB_BTABLE)
+      - p2038: LPM control and status register (USB_LPMCSR)
+      - p2039: Battery charging detector (USB_BCDR)
+      - p2040: Endpoint-specific registers
+      - p2040: USB endpoint n register (USB_EPnR), n=[0..7]
+      - p2043: Table 427. Reception status encoding
+      - p2043: Table 428. Endpoint type encoding
+      - p2043: Table 429. Endpoint kind meaning
+      - p2044: Table 430. Transmission status encoding
+    - p2045: 45.6.2 Buffer descriptor table
+      - p2045: Transmission buffer address n (USB_ADDRn_TX)
+      - p2045: Transmission byte count n (USB_COUNTn_TX)
+      - p2046: Reception buffer address n (USB_ADDRn_RX)
+      - p2046: Reception byte count n (USB_COUNTn_RX)
+      - p2047: Table 431. Definition of allocated buffer memory
+    - p2048: 45.6.3 USB register map
+      - p2048: Table 432. USB register map and reset values (continued)
+- p2050: 46 USB Type-C®/USB Power Delivery interface (UCPD)
+  - p2050: 46.1 Introduction
+  - p2050: 46.2 UCPD main features
+  - p2051: 46.3 UCPD implementation
+    - p2051: Table 433. UCPD implementation
+  - p2051: 46.4 UCPD functional description
+    - p2052: 46.4.1 UCPD block diagram
+      - p2052: Table 434. UCPD signals on pins
+      - p2053: Table 435. UCPD internal signals
+    - p2053: 46.4.2 UCPD reset and clocks
+    - p2054: 46.4.3 Physical layer protocol
+      - p2054: Symbol encoding
+      - p2054: Table 436. 4b5b symbol encoding table (continued)
+      - p2056: Ordered sets
+      - p2056: Table 437. Ordered sets
+      - p2056: Table 438. Validation of ordered sets (continued)
+      - p2057: Bit ordering at transmission
+      - p2057: Table 439. Data size
+      - p2058: Packet format
+      - p2059: Collision avoidance
+      - p2059: Physical layer signaling schemes
+      - p2059: BIST
+    - p2060: 46.4.4 UCPD BMC transmitter
+    - p2062: 46.4.5 UCPD BMC receiver
+    - p2063: 46.4.6 UCPD Type-C pull-ups (Rp) and pull-downs (Rd)
+    - p2064: 46.4.7 UCPD Type-C voltage monitoring and de-bouncing
+    - p2064: 46.4.8 UCPD fast role swap (FRS)
+      - p2064: FRS signaling
+      - p2064: FRS detection
+    - p2064: 46.4.9 UCPD DMA Interface
+    - p2064: 46.4.10 Wake-up from Stop mode
+  - p2065: 46.5 UCPD programming sequences
+    - p2065: 46.5.1 Initialization phase
+    - p2065: 46.5.2 Type-C state machine handling
+      - p2065: Table 440. Coding for ANAMODE, ANASUBMODE and link with TYPEC_VSTATE_CCx
+      - p2067: Table 441. Type-C sequence (source: 3A); cable/sink connected (Rd on CC1; Ra on CC2)
+    - p2067: 46.5.3 USB PD transmit
+      - p2068: Hard Reset transmission
+      - p2068: Use of DMA for transmission
+    - p2068: 46.5.4 USB PD receive
+      - p2069: Use of DMA for reception
+  - p2069: 46.6 UCPD low-power modes
+    - p2069: Table 442. Effect of low power modes on the UCPD
+  - p2070: 46.7 UCPD interrupts
+    - p2070: Table 443. UCPD interrupt requests
+  - p2071: 46.8 UCPD registers
+    - p2071: 46.8.1 UCPD configuration register 1 (UCPD_CFGR1)
+    - p2073: 46.8.2 UCPD configuration register 2 (UCPD_CFGR2)
+    - p2073: 46.8.3 UCPD control register (UCPD_CR)
+    - p2076: 46.8.4 UCPD interrupt mask register (UCPD_IMR)
+    - p2077: 46.8.5 UCPD status register (UCPD_SR)
+    - p2080: 46.8.6 UCPD interrupt clear register (UCPD_ICR)
+    - p2081: 46.8.7 UCPD Tx ordered set type register (UCPD_TX_ORDSETR)
+    - p2081: 46.8.8 UCPD Tx payload size register (UCPD_TX_PAYSZR)
+    - p2082: 46.8.9 UCPD Tx data register (UCPD_TXDR)
+    - p2082: 46.8.10 UCPD Rx ordered set register (UCPD_RX_ORDSETR)
+    - p2083: 46.8.11 UCPD Rx payload size register (UCPD_RX_PAYSZR)
+    - p2084: 46.8.12 UCPD receive data register (UCPD_RXDR)
+    - p2084: 46.8.13 UCPD Rx ordered set extension register 1 (UCPD_RX_ORDEXTR1)
+    - p2085: 46.8.14 UCPD Rx ordered set extension register 2 (UCPD_RX_ORDEXTR2)
+    - p2085: 46.8.15 UCPD register map
+      - p2085: Table 444. UCPD register map and reset values (continued)
+- p2088: 47 Debug support (DBG)
+  - p2088: 47.1 Overview
+  - p2089: 47.2 Reference Arm® documentation
+  - p2089: 47.3 SWJ debug port (serial wire and JTAG)
+    - p2090: 47.3.1 Mechanism to select the JTAG-DP or the SW-DP
+  - p2090: 47.4 Pinout and debug port pins
+    - p2091: 47.4.1 SWJ debug port pins
+      - p2091: Table 445. SWJ debug port pins
+    - p2091: 47.4.2 Flexible SWJ-DP pin assignment
+      - p2091: Table 446. Flexible SWJ-DP pin assignment
+    - p2092: 47.4.3 Internal pull-up and pull-down on JTAG pins
+    - p2093: 47.4.4 Using serial wire and releasing the unused debug pins as GPIOs
+  - p2093: 47.5 STM32G4 series JTAG TAP connection
+  - p2094: 47.6 ID codes and locking mechanism
+    - p2095: 47.6.1 MCU device ID code
+      - p2095: DBGMCU_IDCODE
+    - p2095: 47.6.2 Boundary scan TAP
+      - p2095: JTAG ID code
+    - p2095: 47.6.3 Cortex®-M4 with FPU TAP
+    - p2096: 47.6.4 Cortex®-M4 with FPU JEDEC-106 ID code
+  - p2096: 47.7 JTAG debug port
+    - p2096: Table 447. JTAG debug port data registers (continued)
+    - p2097: Table 448. 32-bit debug port registers addressed through the shifted value A[3:2]
+  - p2098: 47.8 SW debug port
+    - p2098: 47.8.1 SW protocol introduction
+    - p2098: 47.8.2 SW protocol sequence
+      - p2098: Table 449. Packet request (8-bits)
+      - p2099: Table 450. ACK response (3 bits)
+      - p2099: Table 451. DATA transfer (33 bits)
+    - p2099: 47.8.3 SW-DP state machine (reset, idle states, ID code)
+    - p2099: 47.8.4 DP and AP read/write accesses
+    - p2100: 47.8.5 SW-DP registers
+      - p2100: Table 452. SW-DP registers
+    - p2101: 47.8.6 SW-AP registers
+  - p2101: 47.9 AHB-AP (AHB access port) - valid for both JTAG-DP and SW-DP
+    - p2101: Features:
+    - p2101: Table 453. Cortex®-M4 with FPU AHB-AP registers
+  - p2102: 47.10 Core debug
+    - p2102: Table 454. Core debug registers
+  - p2102: 47.11 Capability of the debugger host to connect under system reset
+  - p2103: 47.12 FPB (Flash patch breakpoint)
+  - p2103: 47.13 DWT (data watchpoint trigger)
+  - p2104: 47.14 ITM (instrumentation trace macrocell)
+    - p2104: 47.14.1 General description
+    - p2104: 47.14.2 Time stamp packets, synchronization and overflow packets
+      - p2105: Table 455. Main ITM registers
+      - p2105: Example of configuration
+  - p2106: 47.15 ETM (Embedded Trace Macrocell™)
+    - p2106: 47.15.1 General description
+    - p2106: 47.15.2 Signal protocol, packet types
+    - p2106: 47.15.3 Main ETM registers
+      - p2106: Table 456. Main ETM registers
+    - p2107: 47.15.4 Configuration example
+  - p2107: 47.16 MCU debug component (DBGMCU)
+    - p2107: 47.16.1 Debug support for low-power modes
+    - p2108: 47.16.2 Debug support for timers, RTC, watchdog and I2C
+    - p2108: 47.16.3 Debug MCU configuration register (DBGMCU_CR)
+    - p2109: 47.16.4 Debug MCU APB1 freeze register1 (DBGMCU_APB1FZR1)
+    - p2111: 47.16.5 Debug MCU APB1 freeze register 2 (DBGMCU_APB1FZR2)
+    - p2111: 47.16.6 Debug MCU APB2 freeze register (DBGMCU_APB2FZR)
+  - p2113: 47.17 TPIU (trace port interface unit)
+    - p2113: 47.17.1 Introduction
+    - p2113: 47.17.2 TRACE pin assignment
+      - p2113: Table 457. Asynchronous TRACE pin assignment
+      - p2114: Table 458. Synchronous TRACE pin assignment
+      - p2114: TPUI TRACE pin assignment
+      - p2114: Table 459. Flexible TRACE pin assignment (continued)
+    - p2115: 47.17.3 TPUI formatter
+    - p2116: 47.17.4 TPUI frame synchronization packets
+    - p2116: 47.17.5 Transmission of the synchronization frame packet
+    - p2116: 47.17.6 Synchronous mode
+    - p2117: 47.17.7 Asynchronous mode
+    - p2117: 47.17.8 TRACECLKIN connection inside the STM32G4 series
+    - p2118: 47.17.9 TPIU registers
+      - p2118: Table 460. Important TPIU registers
+    - p2119: 47.17.10 Example of configuration
+  - p2120: 47.18 DBG register map
+    - p2120: Table 461. DBG register map and reset values
+- p2121: 48 Device electronic signature
+  - p2121: 48.1 Unique device ID register (96 bits)
+  - p2122: 48.2 Flash size data register
+  - p2122: 48.3 Package data register
+- p2124: 49 Important security notice
+- p2125: 50 Revision history
+  - p2125: Table 462. Document revision history (continued)

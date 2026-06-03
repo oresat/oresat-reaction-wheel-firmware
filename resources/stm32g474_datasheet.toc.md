@@ -1,0 +1,141 @@
+# stm32g474_datasheet.pdf
+
+**Title:** Datasheet - STM32G474xB STM32G474xC STM32G474xE - Arm® Cortex®-M4 32-bit MCU+FPU, 170 MHz / 213 DMIPS, 128 KB SRAM, rich analog, math acc, 184 ps 12 chan Hi-res timer
+**Pages:** 236
+
+Page numbers are 1-based PDF pages (pass directly to the Read tool's `pages` parameter).
+
+---
+
+- p13: 1 Introduction
+- p14: 2 Description
+- p18: 3 Functional overview
+  - p18: 3.1 Arm® Cortex®-M4 core with FPU
+  - p18: 3.2 Adaptive real-time memory accelerator (ART accelerator)
+  - p18: 3.3 Memory protection unit
+  - p19: 3.4 Embedded Flash memory
+  - p20: 3.5 Embedded SRAM
+  - p21: 3.6 Multi-AHB bus matrix
+  - p21: 3.7 Boot modes
+  - p22: 3.8 CORDIC
+  - p22: 3.9 Filter mathematical accelerator (FMAC)
+  - p23: 3.10 Cyclic redundancy check calculation unit (CRC)
+  - p23: 3.11 Power supply management
+    - p23: 3.11.1 Power supply schemes
+    - p24: 3.11.2 Power supply supervisor
+    - p24: 3.11.3 Voltage regulator
+    - p25: 3.11.4 Low-power modes
+    - p25: 3.11.5 Reset mode
+    - p26: 3.11.6 VBAT operation
+  - p27: 3.12 Interconnect matrix
+  - p29: 3.13 Clocks and startup
+  - p30: 3.14 General-purpose inputs/outputs (GPIOs)
+  - p30: 3.15 Direct memory access controller (DMA)
+  - p31: 3.16 DMA request router (DMAMUX)
+  - p31: 3.17 Interrupts and events
+    - p31: 3.17.1 Nested vectored interrupt controller (NVIC)
+    - p31: 3.17.2 Extended interrupt/event controller (EXTI)
+  - p32: 3.18 Analog-to-digital converter (ADC)
+    - p32: 3.18.1 Temperature sensor
+    - p33: 3.18.2 Internal voltage reference (VREFINT)
+    - p33: 3.18.3 VBAT battery voltage monitoring
+    - p33: 3.18.4 Operational amplifier internal output (OPAMPxINT):
+  - p33: 3.19 Digital to analog converter (DAC)
+  - p34: 3.20 Voltage reference buffer (VREFBUF)
+  - p35: 3.21 Comparators (COMP)
+  - p35: 3.22 Operational amplifier (OPAMP)
+  - p35: 3.23 Random number generator (RNG)
+  - p35: 3.24 Timers and watchdogs
+    - p36: 3.24.1 High-resolution timer (HRTIM)
+    - p36: 3.24.2 Advanced motor control timer (TIM1, TIM8, TIM20)
+    - p37: 3.24.3 General-purpose timers (TIM2, TIM3, TIM4, TIM5, TIM15, TIM16, TIM17)
+    - p37: 3.24.4 Basic timers (TIM6 and TIM7)
+    - p38: 3.24.5 Low-power timer (LPTIM1)
+    - p38: 3.24.6 Independent watchdog (IWDG)
+    - p38: 3.24.7 System window watchdog (WWDG)
+    - p38: 3.24.8 SysTick timer
+  - p39: 3.25 Real-time clock (RTC) and backup registers
+  - p39: 3.26 Tamper and backup registers (TAMP)
+  - p40: 3.27 Infrared transmitter
+  - p41: 3.28 Inter-integrated circuit interface (I2C)
+  - p42: 3.29 Universal synchronous/asynchronous receiver transmitter (USART)
+  - p43: 3.30 Low-power universal asynchronous receiver transmitter (LPUART)
+  - p43: 3.31 Serial peripheral interface (SPI)
+  - p44: 3.32 Serial audio interfaces (SAI)
+  - p45: 3.33 Controller area network (FDCAN1, FDCAN2, FDCAN3)
+  - p45: 3.34 Universal serial bus (USB)
+  - p45: 3.35 USB Type-C™ / USB Power Delivery controller (UCPD)
+  - p46: 3.36 Clock recovery system (CRS)
+  - p46: 3.37 Flexible static memory controller (FSMC)
+  - p47: 3.38 Quad-SPI memory interface (QUADSPI)
+  - p48: 3.39 Development support
+    - p48: 3.39.1 Serial wire JTAG debug port (SWJ-DP)
+    - p48: 3.39.2 Embedded trace macrocell™
+- p49: 4 Pinouts and pin description
+  - p49: 4.1 UFQFPN48 pinout description
+  - p50: 4.2 LQFP48 pinout description
+  - p50: 4.3 LQFP64 pinout description
+  - p51: 4.4 LQFP80 pinout description
+  - p52: 4.5 LQFP100 pinout description
+  - p53: 4.6 LQFP128 pinout description
+  - p54: 4.7 WLCSP81 pinout description
+  - p54: 4.8 TFBGA100 pinout description
+  - p55: 4.9 UFBGA121 pinout description
+  - p56: 4.10 Pin definition
+  - p73: 4.11 Alternate functions
+- p80: 5 Electrical characteristics
+  - p80: 5.1 Parameter conditions
+    - p80: 5.1.1 Minimum and maximum values
+    - p80: 5.1.2 Typical values
+    - p80: 5.1.3 Typical curves
+    - p80: 5.1.4 Loading capacitor
+    - p80: 5.1.5 Pin input voltage
+    - p81: 5.1.6 Power supply scheme
+    - p82: 5.1.7 Current consumption measurement
+  - p82: 5.2 Absolute maximum ratings
+  - p84: 5.3 Operating conditions
+    - p84: 5.3.1 General operating conditions
+    - p85: 5.3.2 Operating conditions at power-up / power-down
+    - p85: 5.3.3 Embedded reset and power control block characteristics
+    - p87: 5.3.4 Embedded voltage reference
+    - p88: 5.3.5 Supply current characteristics
+    - p114: 5.3.6 Wakeup time from low-power modes and voltage scaling transition times
+    - p115: 5.3.7 External clock source characteristics
+    - p120: 5.3.8 Internal clock source characteristics
+    - p123: 5.3.9 PLL characteristics
+    - p124: 5.3.10 Flash memory characteristics
+    - p125: 5.3.11 EMC characteristics
+    - p126: 5.3.12 Electrical sensitivity characteristics
+    - p127: 5.3.13 I/O current injection characteristics
+    - p128: 5.3.14 I/O port characteristics
+    - p133: 5.3.15 NRST pin characteristics
+    - p134: 5.3.16 High-resolution timer (HRTIM)
+    - p136: 5.3.17 Extended interrupt and event controller input (EXTI) characteristics
+    - p137: 5.3.18 Analog switches booster
+    - p138: 5.3.19 Analog-to-digital converter characteristics
+    - p153: 5.3.20 Digital-to-Analog converter characteristics
+    - p160: 5.3.21 Voltage reference buffer characteristics
+    - p163: 5.3.22 Comparator characteristics
+    - p164: 5.3.23 Operational amplifiers characteristics
+    - p168: 5.3.24 Temperature sensor characteristics
+    - p168: 5.3.25 VBAT monitoring characteristics
+    - p169: 5.3.26 Timer characteristics
+    - p170: 5.3.27 Communication interfaces characteristics
+    - p180: 5.3.28 FSMC characteristics
+    - p197: 5.3.29 QUADSPI characteristics
+    - p199: 5.3.30 UCPD characteristics
+- p200: 6 Package information
+  - p200: 6.1 WLCSP81 package information
+  - p203: 6.2 UFQFPN48 package information
+  - p206: 6.3 LQFP48 package information
+  - p210: 6.4 LQFP64 package information
+  - p213: 6.5 LQFP80 package information
+  - p216: 6.6 TFBGA100 package information
+  - p219: 6.7 LQFP100 package information
+  - p222: 6.8 LQFP128 package information
+  - p225: 6.9 UFBGA121 package information
+  - p228: 6.10 Thermal characteristics
+    - p229: 6.10.1 Reference document
+    - p230: 6.10.2 Selecting the product temperature range
+- p232: 7 Ordering information
+- p233: 8 Revision history

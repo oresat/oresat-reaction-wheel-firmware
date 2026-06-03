@@ -1,0 +1,61 @@
+#pragma once
+
+#include "typedefs.h"
+#include "periphmap.h"
+
+static __fn_inline __fn_flatten void set_nCS(bool level) {
+    if (level)
+        spi_ncs.port->BSRR = (u32) spi_ncs.pin;
+    else
+        spi_ncs.port->BRR = (u32) spi_ncs.pin;
+}
+
+
+void ma702_preheat();
+
+typedef enum ma702_field_strength_flag {
+    FIELD_HIGH, FIELD_LOW, FIELD_IN_RANGE, FIELD_UNK
+} ma702_field_strength_flag_t;
+
+ma702_field_strength_flag_t ma702_read_field_strength_flags();
+
+u8 ma702_get_estimated_field_strength();
+
+u16 ma702_read_angle();
+
+// Starts angle read function
+static __fn_inline void ma702_fast_read_start() {
+    set_nCS(0);
+    CLEAR_BIT((&ENCODER_SPI_HANDLE)->Instance->CR2, SPI_RXFIFO_THRESHOLD);
+    (&ENCODER_SPI_HANDLE)->Instance->DR = 0; // 0 for read angle
+}
+
+// Ends angle read function, returning angle data
+static __fn_inline u16 ma702_fast_read_finish() {
+    while (__HAL_SPI_GET_FLAG(&ENCODER_SPI_HANDLE, SPI_FLAG_RXNE) == false);
+    const u16 angle_data = (uint16_t) ((&ENCODER_SPI_HANDLE)->Instance->DR);
+    set_nCS(1);
+
+    return angle_data & 0x3FFF;
+}
+
+#define __MA702_FAST_ANGLE_READ_START() ({\
+    set_nCS(0);\
+    CLEAR_BIT((&ENCODER_SPI_HANDLE)->Instance->CR2, SPI_RXFIFO_THRESHOLD);\
+    (&ENCODER_SPI_HANDLE)->Instance->DR = 0;\
+})
+
+#define __MA702_FAST_ANGLE_READ_FINISH() ({\
+    while (__HAL_SPI_GET_FLAG(&ENCODER_SPI_HANDLE, SPI_FLAG_RXNE) == false);\
+    const u16 __angle_data = (uint16_t) ((&ENCODER_SPI_HANDLE)->Instance->DR);\
+    set_nCS(1);\
+    __angle_data>>2;\
+})
+
+
+extern volatile u16 current_angle_dma_raw;
+extern volatile u32 angle_timestamp_dma;
+extern volatile u32 angle_timestamp_completed_dma;
+extern volatile bool encoder_read_success_dma;
+extern volatile bool encoder_dma_in_progress;
+static volatile bool angle_measurement_called_last = false;

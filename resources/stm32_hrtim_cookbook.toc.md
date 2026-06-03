@@ -1,0 +1,137 @@
+# stm32_hrtim_cookbook.pdf
+
+**Title:** HRTIM cookbook - Application note
+**Pages:** 84
+
+Page numbers are 1-based PDF pages (pass directly to the Read tool's `pages` parameter).
+
+---
+
+- p1: Table 1. Applicable products
+- p7: 1 Getting the kitchen ready
+  - p7: 1.1 Prerequisites
+  - p7: 1.2 Hardware set-up
+  - p8: 1.3 Tools set-up
+  - p8: 1.4 HRTIM versions
+    - p8: Table 2. HRTIM features according to products where it is integrated
+  - p8: 1.5 MCU and HRTIM set-up
+    - p8: 1.5.1 System clock initialization
+      - p9: Table 3. HRTIM input frequency operating range
+    - p9: 1.5.2 HRTIM initialization
+    - p9: 1.5.3 HRTIM DLL initialization
+    - p10: 1.5.4 HRTIM I/Os initialization
+    - p10: 1.5.5 Other peripherals initialization
+    - p11: 1.5.6 HRTIM functionality check
+- p13: 2 HRTIM basic operating principles
+  - p13: 2.1 Single PWM generation
+    - p14: Figure 1. Basic PWM generation
+    - p14: Figure 2. HRTIM configuration for generating basic PWM signals
+  - p15: 2.2 Generating multiple PWMs
+    - p15: Table 4. Timer resolution and minimum PWM frequency for fHRTIM = 144 MHz
+    - p16: Table 5. Timer resolution and minimum PWM frequency for fHRTIM = 170 MHz
+    - p17: Figure 3. Generation of multiple PWM signals
+  - p18: 2.3 Generating PWM with other timing units and the master timer
+    - p19: Figure 4. PWM generation with the master timer
+  - p20: 2.4 Arbitrary waveform generation
+    - p20: Figure 5. Arbitrary waveform generation
+- p22: 3 Voltage mode dual buck converter
+  - p22: Figure 6. Voltage-mode buck converter
+  - p23: Figure 7. VM buck waveforms, including ADC sampling and interrupts
+  - p23: Figure 8. PWM interrupts and register update
+- p25: 4 Voltage mode buck converter with synchronous rectification and fault protection
+  - p25: Figure 9. Voltage mode buck with synchronous rectification
+  - p26: Figure 10. Buck operation with FAULT
+- p27: 5 Non-inverting buck-boost converter
+  - p27: Figure 11. Non-inverting buck-boost converter
+  - p28: Figure 12. Buck-boost operating mode
+  - p29: Figure 13. Buck-boost converter operating waveforms
+- p31: 6 Transition mode power factor controller
+  - p31: Figure 14. Transition mode PFC
+  - p32: Figure 15. Transition mode PFC operation at Ton max and during overcurrent
+  - p33: Figure 16. Transition mode PFC operation at Toff max and Toff min
+- p35: 7 Multiphase buck converter
+  - p35: Figure 17. 5-phase interleaved buck converter
+  - p36: Figure 18. 5-phase interleaved buck converter control waveforms
+  - p37: Figure 19. Disabling a phase with the master timers
+  - p38: Figure 20. Low-load management with phase shedding and burst mode
+  - p38: Figure 21. Light load buck converter
+  - p39: Table 6. Sampling triggers and results in Data[0..4] RAM table
+  - p40: Figure 22. Sampling point placement depending on the number of active phases
+  - p40: 7.1 Debugging ADC operation
+    - p40: Figure 23. Making sure ADC sampling points are correctly placed
+    - p41: Table 7. Expected conversion results
+    - p41: Figure 24. ADC sampling (5-phase configuration)
+    - p42: Figure 25. ADC sampling (3-phase configuration)
+- p44: 8 Cycle-by-cycle protection without deadtime insertion
+  - p44: Figure 26. Current-mode buck converter
+  - p45: Figure 27. Overcurrent protection scheme
+  - p45: Figure 28. Overcurrent protection without deadtime
+  - p46: Figure 29. Multi-cycle overload protection with dual external events
+  - p46: Figure 30. Multi-cycle overload protection with a single external events
+- p47: 9 Voltage mode LLC half bridge converter
+  - p47: Figure 31. LLC converter
+  - p50: Figure 32. Voltage mode LLC converter operating waveforms
+  - p50: Figure 33. Fixed frequency ISR to process the control loop
+  - p51: 9.1 LLC demonstration overview
+  - p51: 9.2 Demonstration code
+- p52: 10 CLLC converter
+  - p52: Figure 34. CLLC converter
+  - p54: Figure 35. CLLC operating waveforms
+  - p55: 10.1 CLLC demonstration overview
+  - p55: 10.2 Demonstration code
+- p56: 11 Dual active bridge
+  - p56: Figure 36. DAB converter
+  - p57: Figure 37. DAB operating waveforms
+  - p58: 11.1 DAB demonstration overview
+  - p58: 11.2 Demonstration code
+- p59: 12 Three-phase PWM rectifier
+  - p59: Figure 38. Three-phase PWM rectifier converter
+  - p60: Figure 39. Waveform sequence for a three-phase PFC
+  - p60: 12.1 Demonstration overview
+  - p61: 12.2 Demonstration code
+- p62: 13 Hard switching full bridge: peak current mode control
+  - p62: Figure 40. Hard switching full bridge converter
+  - p63: Figure 41. Peak current-mode control
+  - p64: Figure 42. HSFB operating waveforms
+  - p65: Figure 43. Dual trigger DAC
+  - p65: 13.1 HSFB demonstration overview
+  - p66: 13.2 Demonstration code
+- p67: 14 Bridgeless totem pole PFC
+  - p67: Figure 44. TTPFC converter
+  - p68: Figure 45. HF LEG operating waveforms, including ADC sampling and interrupts
+  - p69: Figure 46. LF LEG operating waveforms
+  - p70: 14.1 TTPFC demonstration overview
+  - p70: 14.2 Demonstration code
+- p71: 15 Other examples
+- p72: 16 Where to find software examples?
+  - p72: Table 8. Summary of examples
+- p74: Appendix A HRTIM v2
+  - p74: A.1 Features
+    - p74: A.1.1 Sixth timing unit (Timer F)
+    - p74: A.1.2 Dual channel DAC triggers
+      - p74: Figure 47. Peak current-mode control with slope compensation
+    - p74: A.1.3 External event counter
+    - p74: A.1.4 Extended fault features
+    - p74: A.1.5 Push-pull improvements
+    - p75: A.1.6 Classical PWM mode
+    - p75: A.1.7 Up-down mode
+      - p75: Figure 48. Comparison of up-only and up-down modes
+    - p75: A.1.8 ADC post-scaler
+    - p75: A.1.9 Null duty cycle mode
+    - p76: A.1.10 New interleaving modes
+    - p76: A.1.11 Swap mode
+- p77: Appendix B Software migration
+  - p77: B.1 HRTIM v1.0 to HRTIMv1.1
+  - p77: B.2 HRTIMv1 to HRTIMv2
+    - p77: Table 9. Events mapping
+    - p78: Table 10. Windowing signals mapping per timer (EEFLTR[3:0] = 1111)
+    - p78: Table 11. Filtering signals mapping per timer
+    - p79: Table 12. HRTIM ADC trigger 1 and 3 registers (HRTIM_ADC1R, HRTIM_ADC3R)
+    - p79: Table 13. HRTIM ADC trigger 2 and 4 registers (HRTIM_ADC2R, HRTIM_ADC4R)
+- p80: Appendix C Reference documents
+  - p80: C.1 STM32F334x
+  - p80: C.2 STM32H74x / STM32H75x
+  - p80: C.3 STM32G47x
+  - p81: C.4 Others
+- p82: Revision history
+  - p82: Table 14. Document revision history (continued)

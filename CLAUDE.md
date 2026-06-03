@@ -1,0 +1,166 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+OreSat ACS (Attitude Control System) reaction-wheel motor controller firmware. Bare-metal C on STM32G474VEHX (Cortex-M4F, 144 MHz), targeting four reaction wheels on a CANopen bus. Drives a BLDC motor via field-oriented control (FOC) using the on-chip HRTIM, three-shunt current sensing, and an MA702 SPI magnetic angle encoder.
+
+## Build & flash
+
+The project is dual-managed: STM32CubeIDE (`.cproject`, `.mxproject`) and CMake (`CMakeLists.txt`). Most local development uses the CMake out-of-tree build directories already on disk (CLion-style):
+
+```
+cmake-build-debug          # -Og -g (default)
+cmake-build-release        # -Ofast
+cmake-build-relwithdebinfo # -Ofast -g
+cmake-build-minsizerel     # -Os
+```
+
+Build:
+```bash
+cmake --build cmake-build-debug -j
+# or, if reconfiguring:
+cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
+cmake --build cmake-build-debug -j
+```
+
+Build artifacts: `cmake-build-*/oresat-acs-fw-v8.{elf,hex,bin,map}`. Toolchain is `arm-none-eabi-gcc` (must be on PATH). Linker script: `STM32G474VEHX_FLASH.ld`.
+
+Flash via OpenOCD with the bundled config (uses ST-Link SWD):
+```bash
+openocd -f st_nucleo_g4.cfg -c "program cmake-build-debug/oresat-acs-fw-v8.elf verify reset exit"
+```
+
+### CMake regeneration caveat
+
+`CMakeLists.txt` is auto-generated from `CMakeLists_template.txt` by STM32CubeIDE — the file's first line says "DO NOT CHANGE". Edit the template (or the `.ioc`) and let CubeIDE regenerate; manual edits to `CMakeLists.txt` will be overwritten. Same for files under `Core/` — CubeMX regenerates them from `oresat-acs-fw-v8.ioc`, so keep custom code inside the `/* USER CODE BEGIN ... */ ... /* USER CODE END ... */` markers.
+
+There are no tests in this project — it is target firmware. "Build passes" is the primary correctness signal; behavior is verified on hardware.
+
+## Source layout
+
+- `Core/{Inc,Src}` — CubeMX-generated HAL/LL peripheral init and ISRs (`main.c`, `stm32g4xx_it.c`, per-peripheral `*.c`). Treat as generated.
+- `Firmware/{Inc,Src}` — application code (everything custom lives here). Entry point is `app_main()`, called from `main()` after HAL init.
+- `Drivers/STM32G4xx_HAL_Driver` — vendor HAL/LL.
+- `Drivers/CMSIS` — Cortex-M / device headers.
+- `Drivers/libtrace` — trace-port helpers.
+- `DSP/` — CMSIS-DSP (used for filters, controllers, fixed-point math via `dsp/controller_functions.h`).
+- `CANopenSTM32/CANopenNode` + `CANopenNode_STM32` — vendored CANopenNode stack and STM32 driver glue. Build excludes `CANopenNode/example` and `CANopenNode_STM32/OD*`.
+- `OD/{OD.c,OD.h}` — Object Dictionary, **auto-generated** by CANopen tooling (likely `canopen-editor`/`libedssharp` from `DS301_profile.eds`). Don't hand-edit; regenerate from the EDS.
+- `oresat-acs-fw-v8.ioc` — STM32CubeMX project. Pin assignments, clock tree, peripheral parameter init.
+- `stm32g474.svd` — register definitions for debug.
+- `resources/` — STM32G474 datasheet, STM32G4 reference manual, HRTIM cookbook (PDFs), with companion `.toc.md` outlines and `.txt` text dumps. See `resources/INDEX.md` for the query workflow.
+
+## Reference manuals (resources/)
+
+When a question is about STM32G4 hardware behavior — register fields, peripheral wiring, timing constraints, electrical limits, HRTIM topologies — consult `resources/` before guessing. Three PDFs, indexed for offline lookup:
+
+- `stm32g474_datasheet.pdf` (236 p) — pinout, electrical limits, peripheral availability.
+- `stm32g4_reference_manual.pdf` (2140 p) — register definitions, peripheral behavior. The authoritative source.
+- `stm32_hrtim_cookbook.pdf` (84 p) — HRTIM application patterns (this firmware uses HRTIM heavily).
+
+For each PDF there is a `<name>.toc.md` (markdown outline with PDF page numbers) and `<name>.txt` (page-marked text dump). Workflow:
+
+1. **Section is known** → open the relevant `.toc.md`, find the page, Read the PDF directly with `pages="<N>-<M>"` (PDF pages are 1-based, max 20 per call). Use this for figures, register-bit diagrams, timing charts.
+2. **Searching for a term** → grep the `.txt` with the page-aware awk pattern documented in `resources/INDEX.md`:
+   ```bash
+   awk '/^=== PAGE / {p=$3} /PATTERN/ {print "p" p ": " FILENAME ":" NR ": " $0}' resources/<name>.txt
+   ```
+   That gives `p<page>: <file>:<line>: <match>` so you can jump straight from grep hit to PDF page.
+
+`resources/build_index.py` regenerates the indexes if PDFs are added or replaced.
+
+## Architecture: three concurrent timing domains
+
+The system is structured around three independent ISR domains plus a foreground loop. Understanding which domain code runs in is essential before changing it.
+
+1. **Fast control loop — HRTIM1 repetition ISR @ 16 kHz** (`PWM_FREQ=192000` / `PWM_RCR=12`).
+   Entry: `hrtim_repetition_callback()` in `Firmware/Src/control_ll.c`. Each tick:
+   1. Kick off MA702 SPI angle read (non-blocking start via direct-register macro `__MA702_FAST_ANGLE_READ_START()`).
+   2. Run `adc_update_callback()` — reads injected ADC (3-shunt phase currents + Vbus), applies offset cal & shunt-amp gain, runs over/undervoltage/overcurrent trips.
+   3. Finish SPI read, `encoder_update_callback()` — feed angle into encoder estimator.
+   4. Call active `control_law.control_law_exec` / `current_consumer` / `encoder_consumer` / `pwm_producer`.
+   5. `pwm_update_callback()` validates SVM output and writes new HRTIM compares.
+   The fast loop is the only place that arms/drives PWM. If `controller_get_errors()` is non-zero anywhere in this chain, `controller_disarm()` is called immediately.
+
+2. **FSM tick — TIM17 IRQ @ ~1 kHz** (`CONTROLLER_FSM_TIM_HANDLE`).
+   Routed through `controller_run_state_machine()` → `fsm_exec()`. The FSM picks a `control_law_t*` for the requested state via `get_ctrl_law_for_state()` and installs it; the fast loop then runs that law.
+
+3. **CANopen tick — TIM4 IRQ @ ~1 kHz** (`CAN_TIM_HANDLE`).
+   Calls `canopen_1khz_isr()` → `canopen_app_interrupt()` (CANopenNode internals).
+
+4. **Foreground loop — `app_main()`'s `while(1)`** (`HAL_Delay(1)`-paced).
+   Calls `update_tpdo_od_vals()`, `canopen_process()` (NMT/SDO/PDO processing), `process_sdo_vals()` (act on host writes, e.g. requested state, setpoints, reboot).
+
+`TIM7` triggers the auxiliary ADC (thermistors, VVCC sense). `TIM15` is the systick handle. See `Firmware/Inc/periphmap.h` for the canonical handle-to-role mapping; always reference these symbolic names rather than `htimN` directly.
+
+## Architecture: control-law plug-in contract
+
+The fast loop is generic — it only knows the `control_law_t` struct (`Firmware/Inc/control_ll.h`). Each operating mode (torque / velocity / position control, motor R/L cal, encoder dir/phase cal, open-loop, validation, etc.) provides its own `control_law_t` instance:
+
+```c
+typedef struct {
+    ll_encoder_consumer_t encoder_consumer;       // bool(u16 enc_val)
+    ll_phase_current_consumer_t current_consumer; // bool(f32 A,B,C, f32 Vbus)
+    ll_pwm_timings_producer_t pwm_producer;       // bool(svm_vec_t* out)
+    ll_control_law_exec_t control_law_exec;       // void(void)
+    ll_control_law_is_complete_t is_complete;     // bool(void)
+    ll_control_law_init_t control_law_init;       // void(void)
+    ll_control_law_finish_t control_law_finish;   // bool(bool cancelled)
+} control_law_t;
+```
+
+Returning `false` from a consumer/producer signals an error and the controller will disarm. `is_complete` returning true ends the procedure; the FSM then returns to `IDLE`.
+
+Owners of `control_law_t` instances:
+- `closed_loop_controller.c` — `torque_ctrl_control_law`, `vel_ctrl_control_law`, `pos_ctrl_control_law`, `vel_ramp_ctrl_control_law` (delegate consumers/producer to `foc_control_law`).
+- `foc.c` — `foc_control_law` (Clarke/Park/SVM core).
+- `motor_calibration.c` — `resistance_cal_ctrl_law`, `inductance_cal_ctrl_law`.
+- `encoder_calibration.c` — `encoder_dir_cal_ctrl_law`, `encoder_phase_cal_ctrl_law`, `encoder_validation_ctrl_law`, `encoder_single_point_cal_ctrl_law`.
+- `encoder.c` — `encoder_test_control_law`.
+- `open_loop_current_controller.c` — `open_loop_ctrl_law`.
+
+## Architecture: FSM and error model
+
+`fsm_state_t` (`Firmware/Inc/fsm.h`) enumerates 17 states (`IDLE`, three control modes, six calibration/test routines, `OPEN_LOOP_CONTROL`, `VEL_RAMP_CONTROL`, error states, `CLEAR_ERRORS`). External requests arrive via `fsm_request_state()` (called from CANopen SDO handler) — the FSM tick reconciles current vs. requested state, calls `control_law_finish` on the outgoing law and `control_law_init` on the incoming one, and tracks `fsm_last_state_exit_ok` for the host to read.
+
+Errors are bit-flag `CONTROLLER_ERRORS_t` accumulated via `controller_add_errors()`. Any nonzero error forces `FSM_STATE_CONTROLLER_ERROR`; only `FSM_STATE_CLEAR_ERRORS` resets them. Decoding helpers: `STRINGIFY_CONTROLLER_ERRORS()` in `util.h`.
+
+## Architecture: CAN identity and OD
+
+CAN node ID is **hardware-strapped** at boot from DEBUG1/2/3 GPIOs (1000-sample majority vote in `app_main.c`), mapping to one of `CANID_WHEEL{1..4}` (`0x3C/0x40/0x44/0x48` from `config.h`). Bus runs at 1 Mbit/s on FDCAN1. Four TPDOs are configured.
+
+OD entries the firmware reads/writes (see `can_comms.c`):
+- `0x4000` rxw_ctrl_stat — current FSM state, error bitmask, procedure result (TPDO).
+- `0x4001` rxw_motor_vel_current — velocity, iq (TPDO).
+- `0x4002` rxw_bus_volt_current — bus current, bus voltage (TPDO).
+- `0x4003` rxw_temp — three temperature readings (TPDO).
+- `0x4004` rxw_requested_state — host-writable target FSM state.
+- `0x4005` rxw_setpoint — `setpoint_1`, `setpoint_2` (interpretation depends on state).
+- `0x4006` rxw_reserved — two spare floats.
+- `0x4007` rxw_reboot — write-1-to-reboot.
+
+`update_tpdo_od_vals()` is the single fan-out from internal state to the OD; `process_sdo_vals()` is the single fan-in.
+
+## Coordinate frames and motor math
+
+Three vector types in `bldc_math.h`, used throughout:
+- `svm_vec_t {A,B,C}` — three-phase ABC duty cycles or currents.
+- `ab_vec_t {alpha,beta}` — stationary two-phase (Clarke).
+- `dq_vec_t {d,q}` — rotor-synchronous (Park; needs electrical angle).
+
+Transforms: `clarke_transform`, `park_transform(ab, phase)`, `inv_park_transform(dq, phase)`, `SVM(ab)` (with third-harmonic injection). `svm_output_valid` is what triggers `CTRLR_ERR_MODULATION` / `CTRLR_ERR_PWM_TIMING_INVALID`.
+
+Pole pairs: `MOTOR_NUM_POLEPAIRS = 6`. Encoder CPR: `ENCODER_CPR = 16384` (14-bit MA702). Motor electrical angle = encoder mech angle × 6, modulo 2π.
+
+All tunables (current limits, calibration voltages/times, R/L bounds, controller bandwidths, voltage trip thresholds, FOC feedforward enables) live in `Firmware/Inc/config.h`. Treat changes there as system-affecting.
+
+## Conventions specific to this codebase
+
+- **Custom typedefs** in `Firmware/Inc/typedefs.h`: use `u8`/`u16`/`u32`/`u64`/`i*`/`f32`/`f64`, not `uint8_t` etc., in `Firmware/`. Same file defines function-attribute macros: `__fn_const`, `__fn_pure`, `__fn_flatten`, `__fn_hot`, `__fn_leaf`, `__fn_noreturn`, `__fn_used`, `__fn_inline` (= `inline + always_inline`). `__ccmram` places data in CCM RAM. Apply these on hot-path functions for register-pressure / locality wins.
+- **Direct register access on hot paths.** ISRs and the fast loop bypass the HAL where it's slow: see GPIO writes via `BSRR`/`BRR` in `util.h`'s `gpio_debug*`, the `__MA702_FAST_ANGLE_READ_START/_FINISH` SPI macros, and DAC writes in `util.h`'s `dac_debug*`. Don't replace these with `HAL_GPIO_WritePin` / `HAL_SPI_Transmit` etc. — the timing budget at 16 kHz won't tolerate it.
+- **Custom printf** (`Firmware/Src/printf.c` + `putchar.c`) routes over `DEBUG_UART_HANDLE` (USART2). Use `printf` from `Firmware/Inc/printf.h`, not the libc one. `blank_console()` macro clears the terminal.
+- **Bootloader.** The on-chip ST USART bootloader is *not* used directly (`app_main.c` comment: "FUCKS OUR SHIT UP"). Boot pin is checked in software and a custom jump-to-bootloader path is taken. Option bytes are verified/written on every boot via `check_option_bytes_ok()` / `write_option_bytes()`; if they need updating, the firmware writes them and reboots.
+- **`assert` is custom** (`util.h`) — calls `user_assert_fail(file, line)`, not libc abort.
+- **Volatile shared state.** The fast loop, FSM tick, and foreground each touch shared state (`controller_errors`, `last_phase_currents`, `is_currents_updated`, etc.). These are typed `volatile`; respect that and don't assume single-reader semantics.
