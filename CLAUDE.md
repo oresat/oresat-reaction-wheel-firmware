@@ -32,6 +32,23 @@ Flash via OpenOCD with the bundled config (uses ST-Link SWD):
 openocd -f st_nucleo_g4.cfg -c "program cmake-build-debug/oresat-acs-fw-v8.elf verify reset exit"
 ```
 
+### Two-image build/flash (bootloader + app)
+
+This repo also vendors the board's UART bootloader at `bootloader/` — a separate,
+self-contained CMake project (its own toolchain, linker script and FPU ABI) that
+is **not** part of the app build above. Two scripts at the repo root drive both
+images at once:
+
+```bash
+./build.sh [Debug|Release|RelWithDebInfo|MinSizeRel]   # builds app + bootloader/
+./flash.sh                                             # flashes BOTH over SWD, one OpenOCD session
+```
+
+`flash.sh` programs the bootloader at `0x08000000` and the app at `0x08008000`
+(each at the address baked into its ELF; they don't overlap). The single-image
+commands above still work for app-only build/flash. See the **Bootloader** note
+under "Conventions" and `docs/bootloader-integration.md`.
+
 ### CMake regeneration caveat
 
 `CMakeLists.txt` is auto-generated from `CMakeLists_template.txt` by STM32CubeIDE — the file's first line says "DO NOT CHANGE". Edit the template (or the `.ioc`) and let CubeIDE regenerate; manual edits to `CMakeLists.txt` will be overwritten. Same for files under `Core/` — CubeMX regenerates them from `oresat-acs-fw-v8.ioc`, so keep custom code inside the `/* USER CODE BEGIN ... */ ... /* USER CODE END ... */` markers.
@@ -53,6 +70,7 @@ A gitignored root `compile_commands.json` symlink → `cmake-build-debug/` plus 
 - `docs/can-interface.md` — CANopen host interface (COB-IDs per wheel, TPDO wire format, SDO commands, example sequences).
 - `docs/foc_capture.md` — per-tick FOC inner-loop snapshot mechanism for offline analysis (arm via SDO `0x4006:01`, dump via `tools/foc_capture_dump.sh`).
 - `docs/footguns.md` — cross-cutting runtime/concurrency/hardware traps (blocking printf in the FSM ISR, assumed-good encoder read, dead-time naming, option-byte reflash, etc.).
+- `docs/bootloader-integration.md` — how this app boots behind the `bootloader/` image: memory map, the `0x08008000` relink + `SCB->VTOR` relocation, option bytes, IWDG continuity.
 
 Consult these before changing FSM/control-law, the fast loop, or CAN/OD code.
 
@@ -69,6 +87,7 @@ Consult these before changing FSM/control-law, the fast loop, or CAN/OD code.
 - `oresat-acs-fw-v8.ioc` — STM32CubeMX project. Pin assignments, clock tree, peripheral parameter init.
 - `stm32g474.svd` — register definitions for debug.
 - `resources/` — STM32G474 datasheet, STM32G4 reference manual, HRTIM cookbook (PDFs), with companion `.toc.md` outlines and `.txt` text dumps. See `resources/INDEX.md` for the query workflow.
+- `bootloader/` — the board's UART bootloader (formerly the standalone `oresat-acs-bootloader-v8`), vendored here as a self-contained subproject (its own CMake/`.ioc`/linker script). Flashed to `0x08000000`, runs before this app; **not** part of the app's CMake build — build/flash both via the root `build.sh` / `flash.sh`. See the **Bootloader** note under "Conventions".
 
 ## Reference manuals (resources/)
 
@@ -181,6 +200,6 @@ All tunables (current limits, calibration voltages/times, R/L bounds, controller
 - **Custom typedefs** in `Firmware/Inc/typedefs.h`: use `u8`/`u16`/`u32`/`u64`/`i*`/`f32`/`f64`, not `uint8_t` etc., in `Firmware/`. Same file defines function-attribute macros: `__fn_const`, `__fn_pure`, `__fn_flatten`, `__fn_hot`, `__fn_leaf`, `__fn_noreturn`, `__fn_used`, `__fn_inline` (= `inline + always_inline`). `__ccmram` places data in CCM RAM. Apply these on hot-path functions for register-pressure / locality wins.
 - **Direct register access on hot paths.** ISRs and the fast loop bypass the HAL where it's slow: see GPIO writes via `BSRR`/`BRR` in `util.h`'s `gpio_debug*`, the `__MA702_FAST_ANGLE_READ_START/_FINISH` SPI macros, and DAC writes in `util.h`'s `dac_debug*`. Don't replace these with `HAL_GPIO_WritePin` / `HAL_SPI_Transmit` etc. — the timing budget at 16 kHz won't tolerate it.
 - **Custom printf** (`Firmware/Src/printf.c` + `putchar.c`) routes over `DEBUG_UART_HANDLE` (USART2). Use `printf` from `Firmware/Inc/printf.h`, not the libc one. `blank_console()` macro clears the terminal.
-- **Bootloader.** This app is flashed at `0x08008000` and runs *behind* a separate custom bootloader (`oresat-acs-bootloader-v8`) at `0x08000000`. That bootloader — not this app — owns the boot decision: it reads BOOT0 (PB8) as a GPIO and either jumps to this app (which then relocates its vector table to `0x08008000` via `SCB->VTOR`; see `system_stm32g4xx.c` + `STM32G474VEHX_FLASH.ld`) or runs a UART DFU loader (ST OpenBootloader on USART1) for field reflash. The on-chip ST *system-memory* bootloader is deliberately bypassed (`app_main.c` comment: "FUCKS OUR SHIT UP"), and the app's own `jump_to_bootloader()` path is now commented out (that logic lives in the separate bootloader). Option bytes are still verified/written on every boot via `check_option_bytes_ok()` / `write_option_bytes()`; if they need updating, the firmware writes them and reboots. See `docs/bootloader-integration.md`.
+- **Bootloader.** This app is flashed at `0x08008000` and runs *behind* a separate custom bootloader — vendored in this repo at `bootloader/` and built standalone (root `build.sh`/`flash.sh`) — at `0x08000000`. That bootloader — not this app — owns the boot decision: it reads BOOT0 (PB8) as a GPIO and either jumps to this app (which then relocates its vector table to `0x08008000` via `SCB->VTOR`; see `system_stm32g4xx.c` + `STM32G474VEHX_FLASH.ld`) or runs a UART DFU loader (ST OpenBootloader on USART1) for field reflash. The on-chip ST *system-memory* bootloader is deliberately bypassed (`app_main.c` comment: "FUCKS OUR SHIT UP"), and the app's own `jump_to_bootloader()` path is now commented out (that logic lives in the separate bootloader). Option bytes are still verified/written on every boot via `check_option_bytes_ok()` / `write_option_bytes()`; if they need updating, the firmware writes them and reboots. See `docs/bootloader-integration.md`.
 - **`assert` is custom** (`util.h`) — calls `user_assert_fail(file, line)`, not libc abort.
 - **Volatile shared state.** The fast loop, FSM tick, and foreground each touch shared state (`controller_errors`, `last_phase_currents`, `is_currents_updated`, etc.). These are typed `volatile`; respect that and don't assume single-reader semantics.
