@@ -9,6 +9,7 @@
 #include "config.h"
 #include "control_ll.h"
 #include "encoder.h"
+#include "foc_capture.h"
 #include "mathutil.h"
 #include "printf.h"
 #include "swo_util.h"
@@ -41,6 +42,10 @@ volatile dq_vec_t v_current_ctrl_integral = {0.f, 0.f};
 static const f32 idq_measured_filter = 1.f;
 static volatile f32 ibus = 0.f;
 
+// Latest phase currents stashed by foc_meas_current_cb so foc_gen_pwm_cb
+// can include them in the per-tick capture snapshot.
+static volatile f32 last_Ia = 0.f, last_Ib = 0.f, last_Ic = 0.f;
+
 
 void init_foc() {
     // TODO LOL
@@ -70,6 +75,10 @@ bool foc_meas_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
     //debug_phA_current(A_i);
     //debug_phB_current(B_i);
     //debug_phC_current(C_i);
+
+    last_Ia = A_i;
+    last_Ib = B_i;
+    last_Ic = C_i;
 
     ab_vec_t Ialpha_beta_currents = clarke_transform((svm_vec_t) {A_i, B_i, C_i});
     ialpha_beta_measured = Ialpha_beta_currents;
@@ -193,6 +202,35 @@ bool foc_gen_pwm_cb(svm_vec_t *mag) {
 
     idq_measured = idq_measured_;
     v_current_ctrl_integral = v_current_ctrl_integral_;
+
+    if (foc_capture_state == FOC_CAPTURE_ARMED) {
+        u32 idx = foc_capture_idx;
+        foc_capture_buf[idx] = (foc_capture_t){
+            .loop_count = controller_get_loop_count(),
+            .Ia = last_Ia, .Ib = last_Ib, .Ic = last_Ic,
+            .Ialpha = ialpha_beta_meas_.alpha,
+            .Ibeta  = ialpha_beta_meas_.beta,
+            .Id_meas = idq.d,
+            .Iq_meas = idq.q,
+            .Id_set  = idq_setpoint_.d,
+            .Iq_set  = idq_setpoint_.q,
+            .motor_phase = phase_,
+            .motor_vel   = vel_,
+            .Vd_int = v_current_ctrl_integral_.d,
+            .Vq_int = v_current_ctrl_integral_.q,
+            .mod_d = mod_dq.d,
+            .mod_q = mod_dq.q,
+            .mod_alpha = mod_ab.alpha,
+            .mod_beta  = mod_ab.beta,
+            .svm_A = pwm_output.A,
+            .svm_B = pwm_output.B,
+            .svm_C = pwm_output.C,
+            .Vbus  = vvbus_meas_,
+        };
+        idx++;
+        foc_capture_idx = idx;
+        if (idx >= FOC_CAPTURE_LEN) foc_capture_state = FOC_CAPTURE_DONE;
+    }
 
     return true;
 }
