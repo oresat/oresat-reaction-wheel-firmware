@@ -45,7 +45,7 @@ typedef struct state_name {
 } state_name_t;
 
 #define tmp(enum_name) ((state_name_t) {#enum_name})
-const static state_name_t state_names[] = {
+static const state_name_t state_names[] = {
         tmp(FSM_STATE_NONE),
         tmp(FSM_STATE_IDLE),
         tmp(FSM_STATE_SYSTEM_ERROR),

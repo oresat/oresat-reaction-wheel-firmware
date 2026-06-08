@@ -256,9 +256,9 @@ void hrtim_repetition_callback(HRTIM_HandleTypeDef* hhrtim, u32 timidx) {
 
     // Run ADC update callback
     adc_update_callback();
-    f32 A_i = last_phase_currents[0];
-    f32 B_i = last_phase_currents[1];
-    f32 C_i = last_phase_currents[2];
+    __maybe_unused f32 A_i = last_phase_currents[0];
+    __maybe_unused f32 B_i = last_phase_currents[1];
+    __maybe_unused f32 C_i = last_phase_currents[2];
 
     // Dump phase currents to DAC
     // Rescale from 0-13.5A (clamped) to 0.3-3V (margins for DAC buffer swing)

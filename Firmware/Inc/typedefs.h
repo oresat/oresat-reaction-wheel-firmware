@@ -39,5 +39,12 @@ typedef double f64;
 // inline: force placement of function inline (as opposed to suggesting inline placement, which is what `inline` does)
 #define __fn_inline inline __attribute__((always_inline))
 
+// maybe_unused: a variable that may be deliberately unused (debug hooks, toggled-off scaffolding).
+// Silences -Wunused-variable / -Wunused-but-set-variable without deleting the read. Guarded since
+// some libc <sys/cdefs.h> also define __maybe_unused.
+#ifndef __maybe_unused
+#define __maybe_unused __attribute__((unused))
+#endif
+
 
 #define __ccmram __attribute__((section (".ccmram")))

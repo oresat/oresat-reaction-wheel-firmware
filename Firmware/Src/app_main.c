@@ -64,7 +64,7 @@ __fn_noreturn void app_main() {
 
     __enable_irq();
 
-    volatile u32 n = MAGIC_NUMBER;
+    __maybe_unused volatile u32 n = MAGIC_NUMBER;
 
     blank_console();
     printf("        THIS FIRMWARE IS DEDICATED        \r\n");

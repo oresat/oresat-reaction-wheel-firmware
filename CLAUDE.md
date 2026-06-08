@@ -38,6 +38,23 @@ openocd -f st_nucleo_g4.cfg -c "program cmake-build-debug/oresat-acs-fw-v8.elf v
 
 There are no tests in this project — it is target firmware. "Build passes" is the primary correctness signal; behavior is verified on hardware.
 
+### Warning checks (`./lint.sh`)
+
+The CMake build runs **without** `-Wall`/`-Wextra` (and globs vendor HAL/CMSIS-DSP/CANopenNode into one target, which would bury app warnings if it did). `./lint.sh` compiles each `Firmware/Src/*.c` with `-Wall -Wextra` using the exact flags from `compile_commands.json`, giving real coverage on the code you own. Run it before declaring app-code changes done — **the baseline is clean (0 warnings), so any output is something you introduced.** Deliberately-unused debug locals are marked `__maybe_unused` (`typedefs.h`); `printf`/`snprintf` carry format attributes (`printf.h`) so `-Wformat` arg/format mismatches are caught here too (the normal build, lacking `-Wformat`, ignores them).
+
+### Editor/LSP
+
+A gitignored root `compile_commands.json` symlink → `cmake-build-debug/` plus `.clangd` (strips arm-gcc-only flags clang rejects) make command-line clangd / editor LSP work against the cross-compile flags. CLion uses its own indexer and ignores both.
+
+### Docs
+
+- `docs/control-laws.md` — per-FSM-state cheat sheet (setpoint meaning, completion/error conditions, stubs/gotchas).
+- `docs/control-cycle.md` — end-to-end trace of one 16 kHz fast-loop tick, interrupt priorities, and the producer/consumer flag machine.
+- `docs/can-interface.md` — CANopen host interface (COB-IDs per wheel, TPDO wire format, SDO commands, example sequences).
+- `docs/footguns.md` — cross-cutting runtime/concurrency/hardware traps (blocking printf in the FSM ISR, assumed-good encoder read, dead-time naming, option-byte reflash, etc.).
+
+Consult these before changing FSM/control-law, the fast loop, or CAN/OD code.
+
 ## Source layout
 
 - `Core/{Inc,Src}` — CubeMX-generated HAL/LL peripheral init and ISRs (`main.c`, `stm32g4xx_it.c`, per-peripheral `*.c`). Treat as generated.
@@ -47,7 +64,7 @@ There are no tests in this project — it is target firmware. "Build passes" is 
 - `Drivers/libtrace` — trace-port helpers.
 - `DSP/` — CMSIS-DSP (used for filters, controllers, fixed-point math via `dsp/controller_functions.h`).
 - `CANopenSTM32/CANopenNode` + `CANopenNode_STM32` — vendored CANopenNode stack and STM32 driver glue. Build excludes `CANopenNode/example` and `CANopenNode_STM32/OD*`.
-- `OD/{OD.c,OD.h}` — Object Dictionary, **auto-generated** by CANopen tooling (likely `canopen-editor`/`libedssharp` from `DS301_profile.eds`). Don't hand-edit; regenerate from the EDS.
+- `OD/{OD.c,OD.h}` — Object Dictionary, **auto-generated** from `CANopenNode_STM32/DS301_profile.eds` (via CANopenEditor; `.xpd` is the editor project). Don't hand-edit — regenerate from the EDS. In practice this is rarely touched; the application-specific `0x4000`–`0x4007` block is already defined.
 - `oresat-acs-fw-v8.ioc` — STM32CubeMX project. Pin assignments, clock tree, peripheral parameter init.
 - `stm32g474.svd` — register definitions for debug.
 - `resources/` — STM32G474 datasheet, STM32G4 reference manual, HRTIM cookbook (PDFs), with companion `.toc.md` outlines and `.txt` text dumps. See `resources/INDEX.md` for the query workflow.
@@ -127,6 +144,8 @@ Owners of `control_law_t` instances:
 
 Errors are bit-flag `CONTROLLER_ERRORS_t` accumulated via `controller_add_errors()`. Any nonzero error forces `FSM_STATE_CONTROLLER_ERROR`; only `FSM_STATE_CLEAR_ERRORS` resets them. Decoding helpers: `STRINGIFY_CONTROLLER_ERRORS()` in `util.h`.
 
+Per-state reference (what each state does, its setpoint interpretation, completion/error conditions, and known stubs/gotchas) is in `docs/control-laws.md`.
+
 ## Architecture: CAN identity and OD
 
 CAN node ID is **hardware-strapped** at boot from DEBUG1/2/3 GPIOs (1000-sample majority vote in `app_main.c`), mapping to one of `CANID_WHEEL{1..4}` (`0x3C/0x40/0x44/0x48` from `config.h`). Bus runs at 1 Mbit/s on FDCAN1. Four TPDOs are configured.
@@ -141,7 +160,7 @@ OD entries the firmware reads/writes (see `can_comms.c`):
 - `0x4006` rxw_reserved — two spare floats.
 - `0x4007` rxw_reboot — write-1-to-reboot.
 
-`update_tpdo_od_vals()` is the single fan-out from internal state to the OD; `process_sdo_vals()` is the single fan-in.
+`update_tpdo_od_vals()` is the single fan-out from internal state to the OD; `process_sdo_vals()` is the single fan-in. Wire-level detail (per-wheel COB-IDs, TPDO byte layout, SDO command sequences, setpoint routing) is in `docs/can-interface.md`.
 
 ## Coordinate frames and motor math
 

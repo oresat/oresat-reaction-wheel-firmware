@@ -58,8 +58,10 @@ static __fn_inline void swo_print_bool(const u32 port, const bool val) {
 
 #define tmp(enum_name) \
 static __fn_inline __fn_flatten void debug##enum_name(const f32 val) {}
-//#define tmp(enum_name) \
-//static __fn_inline __fn_flatten void debug##enum_name(const f32 val) {swo_print_f32(enum_name,val);}
+/* to enable SWO emit, swap the no-op tmp() above for this one:
+#define tmp(enum_name) \
+static __fn_inline __fn_flatten void debug##enum_name(const f32 val) {swo_print_f32(enum_name,val);}
+*/
 
 //@formatter:off
 
@@ -94,8 +96,10 @@ tmp(_ibus)
 
 #define tmp(enum_name) \
 static __fn_inline __fn_flatten void debug##enum_name(const bool val) {}
-//#define tmp(enum_name) \
-//static __fn_inline __fn_flatten void debug##enum_name(const bool val) {swo_print_bool(enum_name,val);}
+/* to enable SWO emit, swap the no-op tmp() above for this one:
+#define tmp(enum_name) \
+static __fn_inline __fn_flatten void debug##enum_name(const bool val) {swo_print_bool(enum_name,val);}
+*/
 //@formatter:off
 tmp(_hrtim_isr)
 tmp(_adc_callback)

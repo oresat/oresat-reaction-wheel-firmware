@@ -36,6 +36,16 @@
 #include <stddef.h>
 
 
+// Enable GCC/Clang printf-style format-string checking on these declarations. The CMake build
+// runs without -Wformat so this is inert there; `./lint.sh` (-Wall) uses it to catch arg/format
+// mismatches. Guarded so non-GNU compilers are unaffected.
+#if defined(__GNUC__)
+#define _ATTR_PRINTF(fmt_idx, first_arg) __attribute__((__format__(__printf__, fmt_idx, first_arg)))
+#else
+#define _ATTR_PRINTF(fmt_idx, first_arg)
+#endif
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -58,7 +68,7 @@ void _putchar(char character);
  * \return The number of characters that are written into the array, not counting the terminating null character
  */
 #define printf printf_
-int printf_(const char* format, ...);
+int printf_(const char* format, ...) _ATTR_PRINTF(1, 2);
 
 
 /**
@@ -69,7 +79,7 @@ int printf_(const char* format, ...);
  * \return The number of characters that are WRITTEN into the buffer, not counting the terminating null character
  */
 #define sprintf sprintf_
-int sprintf_(char* buffer, const char* format, ...);
+int sprintf_(char* buffer, const char* format, ...) _ATTR_PRINTF(2, 3);
 
 
 /**
@@ -84,8 +94,8 @@ int sprintf_(char* buffer, const char* format, ...);
  */
 #define snprintf  snprintf_
 #define vsnprintf vsnprintf_
-int  snprintf_(char* buffer, size_t count, const char* format, ...);
-int vsnprintf_(char* buffer, size_t count, const char* format, va_list va);
+int  snprintf_(char* buffer, size_t count, const char* format, ...) _ATTR_PRINTF(3, 4);
+int vsnprintf_(char* buffer, size_t count, const char* format, va_list va) _ATTR_PRINTF(3, 0);
 
 
 /**
@@ -95,7 +105,7 @@ int vsnprintf_(char* buffer, size_t count, const char* format, va_list va);
  * \return The number of characters that are WRITTEN into the buffer, not counting the terminating null character
  */
 #define vprintf vprintf_
-int vprintf_(const char* format, va_list va);
+int vprintf_(const char* format, va_list va) _ATTR_PRINTF(1, 0);
 
 
 /**
@@ -106,7 +116,7 @@ int vprintf_(const char* format, va_list va);
  * \param format A string that specifies the format of the output
  * \return The number of characters that are sent to the output function, not counting the terminating null character
  */
-int fctprintf(void (*out)(char character, void* arg), void* arg, const char* format, ...);
+int fctprintf(void (*out)(char character, void* arg), void* arg, const char* format, ...) _ATTR_PRINTF(3, 4);
 
 
 #ifdef __cplusplus

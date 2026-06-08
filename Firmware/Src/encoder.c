@@ -29,7 +29,7 @@ void encoder_init() {
 }
 
 // Predict new encoder position (in turns) given a number of PWM cycles (NOTE not RCR cycles - n_periods=4 is one update!)
-posvel_t static __fn_inline encoder_predict(const u32 n_periods) {
+static __fn_inline posvel_t encoder_predict(const u32 n_periods) {
     f32 t_pred = (f32)n_periods * enc_meas_period / (f32)PWM_RCR;
 
     posvel_t posvel_estimate_ = posvel_estimate;

@@ -45,7 +45,7 @@ ma702_field_strength_flag_t ma702_read_field_strength_flags() {
 
     u16 field_thresh = rx_buf[0] >> 8;
 
-    bool mgh, mgl, mg1l, mg2l;
+    bool mgh, mgl __maybe_unused, mg1l, mg2l;
     mgh = (field_thresh & 0x80) == 0x80;
     mgl = (field_thresh & 0x40) == 0x40;
     mg1l = (field_thresh & 0x8) == 0x8;

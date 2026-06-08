@@ -72,7 +72,7 @@ void encoder_dir_cal_exec_cb() {
                     : MOTOR_NUM_POLEPAIRS * 2.f * M_PI_f32 *
                       percent_complete * ENCODER_DIR_CAL_ROTATION_DIST;
 
-    f32 lockin_mod = (n_loops < dir_cal_n_loop_lockin) ? clamp_f32(0.f, 2 * n_loops / dir_cal_n_loop_lockin, 1.f) : 1.f;
+    f32 lockin_mod = (n_loops < dir_cal_n_loop_lockin) ? clamp_f32(0.f, 2.f * (f32) n_loops / (f32) dir_cal_n_loop_lockin, 1.f) : 1.f;
 
     dq_vec_t dq_lockin = {.d = lockin_mod * LOCKIN_SPIN_CURRENT, .q = 0.f};
     ab_vec_t ab_lockin = inv_park_transform(dq_lockin, phase_pos);
@@ -170,7 +170,7 @@ void encoder_phase_cal_init() {
 }
 
 const u32 capture_data_every = (u32) (LOOP_UPDATE_FREQ / 1000); // 1ms sampling
-volatile static u32 n = 0;
+static volatile u32 n = 0;
 
 
 void encoder_phase_cal_exec_cb() {
@@ -218,7 +218,7 @@ void encoder_phase_cal_exec_cb() {
     }
 
     f32 lockin_mod = (n_loops < phase_cal_n_loop_lockin)
-                     ? clamp_f32(0.f, 2 * n_loops / phase_cal_n_loop_lockin, 1.f)
+                     ? clamp_f32(0.f, 2.f * (f32) n_loops / (f32) phase_cal_n_loop_lockin, 1.f)
                      : 1.f;
 
     dq_vec_t dq_lockin = {.d = lockin_mod * LOCKIN_SPIN_CURRENT, .q = 0.f};

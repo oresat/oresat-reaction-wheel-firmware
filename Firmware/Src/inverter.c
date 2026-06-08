@@ -147,7 +147,7 @@ void inverter_amp_offset_correction() {
         C_accum += ((i16) ADC_DMA_buf.C_raw) - 2048;
     }
     u32 t_end = HAL_GetTick();
-    printf("Calibration time for %d samples: %d ms\r\n", n_samples, t_end - t_start);
+    printf("Calibration time for %lu samples: %lu ms\r\n", (unsigned long) n_samples, (unsigned long) (t_end - t_start));
     //printf("\r\n");
 
     f32 A_accum_avg = ((f32) A_accum) / ((f32) n_samples);

@@ -26,7 +26,7 @@
 // Last raw ADC count from DMA
 volatile aux_adc_raw_t aux_adc_last_reading_raw = {0, 0, 0, 0, 0, 0};
 
-volatile static bool convComplete = false;
+static volatile bool convComplete = false;
 
 
 u16 VREFINT_CAL = 0;

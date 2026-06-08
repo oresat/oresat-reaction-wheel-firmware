@@ -109,7 +109,7 @@ static inline void STRINGIFY_CONTROLLER_ERRORS(char *buf, u32 max_size, u32 err)
     for (u8 i = 0; i < 32; i++) {
         if (err & errors[i].err_val) {
             found_err = true;
-            u32 wrote = snprintf(buf, max_size, "%s%s", errors[i].string);
+            u32 wrote = snprintf(buf, max_size, "%s ", errors[i].string);
             if (wrote > max_size) return;
             max_size -= wrote;
             buf += wrote;

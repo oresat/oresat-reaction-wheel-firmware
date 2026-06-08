@@ -26,7 +26,7 @@ typedef struct {
 } aux_adc_result_t;
  */
 
-volatile extern aux_adc_raw_t aux_adc_last_reading_raw;
+extern volatile aux_adc_raw_t aux_adc_last_reading_raw;
 //volatile extern aux_adc_result_t aux_adc_last_reading_conv;
 
 void aux_adc_start();
