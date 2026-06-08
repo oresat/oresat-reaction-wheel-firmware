@@ -194,9 +194,66 @@ NULL` (set in `MX_IWDG_Init()`). Keep that intact, and preserve two invariants:
 - BOOT0 pin = **PB8** (read as GPIO input by the bootloader).
 - Bootloader DFU UART = **USART1**, PE0 (TX) / PE1 (RX), AF7, 115200-8E1 with
   autobaud on the `0x7F` sync byte.
-- Bootloader review notes (already addressed in `oresat-acs-bootloader-v8`):
+- Bootloader review notes (already addressed in the vendored `bootloader/`):
   GPIO-port clock-enable now follows the selected UART handle; redundant USART2
   clock-enable removed; stale pin comment fixed.
 
-Next step once §3/§4 land: consolidate the bootloader + app into a single repo
-(as was done for v7 → `oresat-acs-v7/`).
+## 7. Cold bootstrap via the ROM bootloader (UART / USB DFU)
+
+For a **virgin board** (or after a full chip erase) the custom bootloader isn't
+on the chip yet, so neither SWD `./flash.sh` nor the custom UART DFU is available.
+You bootstrap through the STM32 **ROM (system-memory) bootloader**, flash both
+images at once, and let the app fix the option bytes on first run.
+
+**Why it's safe to use the ROM loader here:** power **only the 5 V logic test
+point**, not the inverter rail. The ROM loader reconfigures pins to its own
+defaults on entry — harmless while the gate drivers are unpowered (that pin
+behaviour is the whole reason it's bypassed in normal operation).
+
+**⚠️ Wiring gotcha — the ROM loader uses ST's *fixed* pins, NOT the custom DFU
+pins.** The custom bootloader's DFU is USART1 on **PE0/PE1**, but the ROM
+bootloader only listens on its own hardwired pins (per **AN2606**): typically
+**USART1 PA9/PA10**, **USART2 PA2/PA3**, or **USB DFU PA11/PA12** (it auto-scans
+several). Connect your adapter to one of *those* — talking to PE0/PE1 will get
+you nothing.
+
+**Procedure:**
+
+1. Power the 5 V logic test point only (inverter unpowered).
+2. Pull **BOOT0 high**, reset/power-on → ROM bootloader runs (factory option
+   bytes are `nSWBOOT0=1`, i.e. BOOT0-from-pin, so BOOT0-high → system memory).
+3. Build the combined image:
+   ```bash
+   ./build.sh           # builds app + bootloader
+   ./bootstrap-bin.sh   # -> combined-bootstrap.bin (bootloader @0x08000000 + app @0x08008000)
+   ```
+4. Flash the **whole file at 0x08000000** (one pass places both images):
+   ```bash
+   stm32flash -b 115200 -w combined-bootstrap.bin -S 0x08000000 -v /dev/ttyUSB0   # UART
+   dfu-util  -a 0 -s 0x08000000 -D combined-bootstrap.bin                          # USB DFU
+   ```
+5. Set **BOOT0 low** and power-cycle. Now boot goes: main flash → custom
+   bootloader → (BOOT0 low) → app → `check_option_bytes_ok()` fails →
+   `write_option_bytes()` sets `nBOOT0=1 / nSWBOOT0=0` → reboot. Option bytes are
+   now correct, BOOT0 is henceforth a plain GPIO, and the board boots normally.
+   (Watch the `nBOOT0/nSWBOOT0 OK` printout on the debug UART — USART2, PD5/PD6.)
+6. Done. Use SWD `./flash.sh` from here on; the custom UART DFU (PE0/PE1) is now
+   available for field updates.
+
+**Two-file alternative** (same result, two ROM-loader cycles) if you'd rather not
+build a combined image:
+```bash
+stm32flash -w bootloader/cmake-build-debug/oresat-acs-bootloader-v8.bin -S 0x08000000 -v <port>
+stm32flash -w cmake-build-debug/oresat-acs-fw-v8.bin                    -S 0x08008000 -v <port>
+```
+
+**Gotchas:**
+- After flashing with BOOT0 still high, **don't** `-g 0x08000000` (Go): that enters
+  the custom bootloader, which sees BOOT0 high and drops into UART DFU on PE0/PE1
+  instead of running the app. Use the BOOT0-low power-cycle (step 5), or jump
+  straight to the app with `-g 0x08008000`.
+- The option-byte write runs *before* any inverter/encoder code
+  (`app_main.c:77`, ahead of DAC/CORDIC/encoder at 99+), so 5 V-only power is
+  enough for the bootstrap to complete and reboot.
+- `combined-bootstrap.bin` is `*.bin`-gitignored; regenerate it with
+  `./bootstrap-bin.sh` whenever the images change.
