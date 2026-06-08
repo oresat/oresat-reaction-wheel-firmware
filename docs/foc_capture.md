@@ -1,16 +1,23 @@
 # FOC capture — per-tick scope of the inner loop
 
-A one-shot, every-tick snapshot of FOC inner-loop state. Use it for current-PI tuning, encoder
+A per-tick ring-buffer snapshot of FOC inner-loop state. Use it for current-PI tuning, encoder
 phase verification, modulation-saturation hunting, deadtime-distortion analysis — anything where
 SWO bandwidth is too tight to stream all the variables you want.
 
-The capture lives in `Firmware/Inc/foc_capture.h` + `Firmware/Src/foc_capture.c`; the write site is
-at the end of `foc_gen_pwm_cb()` in `Firmware/Src/foc.c`. Dump tooling is in `tools/`.
+**Mode:** continuous ring while running, frozen on stop. Newest sample overwrites oldest. When you
+stop the capture (explicitly or via FSM exit), the last ~16 ms of FOC state is preserved for dump.
+
+Code lives in `Firmware/Inc/foc_capture.h` + `Firmware/Src/foc_capture.c`; the write site is at the
+end of `foc_gen_pwm_cb()` in `Firmware/Src/foc.c`; auto-stop is in `fsm.c:fsm_exit_state`. Bench
+tooling is in `tools/foc_capture.sh` (arm / stop / status / dump / decode subcommands; uses
+OpenOCD SWD memory access — no firmware mailbox needed) and `tools/decode_foc_capture.py`
+(the binary → CSV decoder it wraps).
 
 ## What gets captured
 
-Each fast-loop tick (16 kHz, when armed) writes one `foc_capture_t` to the buffer. Layout, in order
-— **must stay in sync with `tools/decode_foc_capture.py`'s `DTYPE`**:
+Each fast-loop tick (16 kHz, when state == `FOC_CAPTURE_RUNNING`) writes one `foc_capture_t` to
+`foc_capture_buf[idx % FOC_CAPTURE_LEN]`, then increments `idx` (monotonic u32). Layout — **must
+stay in sync with `tools/decode_foc_capture.py`'s `DTYPE`**:
 
 | Field | Type | Unit | Source |
 |---|---|---|---|
@@ -27,70 +34,127 @@ Each fast-loop tick (16 kHz, when armed) writes one `foc_capture_t` to the buffe
 | `svm_A`, `svm_B`, `svm_C` | f32 ×3 | (0..1) | SVM output → fed straight to `hrtim_pwm_set_dcycle_f32()`. |
 | `Vbus` | f32 | V | Bus voltage at sample time. |
 
-Total **88 bytes per sample**. Buffer is `FOC_CAPTURE_LEN = 256` samples = **22.5 KB**, **16 ms at
-16 kHz** (giving a couple ms of margin past the typical 10 ms tuning window).
+Total **88 bytes per sample**. Ring depth is `FOC_CAPTURE_LEN = 256` samples = **22.5 KB**, **16 ms
+at 16 kHz**.
+
+## State machine
+
+```
+            arm()              stop() or FSM exit
+   IDLE ─────────────► RUNNING ────────────────────► STOPPED
+    ▲                    │                              │
+    │                    │ arm() resets idx=0           │ arm()
+    │                    │                              │ resets
+    └────────────────────┴──────────────────────────────┘ idx=0
+```
+
+| State | Value | Meaning |
+|---|---|---|
+| `FOC_CAPTURE_IDLE` | 0 | Power-on default. ISR hook is gated off. |
+| `FOC_CAPTURE_RUNNING` | 1 | Ring writes active. `idx` increments each tick, oldest sample is overwritten. |
+| `FOC_CAPTURE_STOPPED` | 2 | Ring frozen. `idx` retained — tells the decoder how many samples were captured and where the wrap is. |
+
+Transitions:
+
+- **`foc_capture_arm()`** (`tools/foc_capture.sh arm` via SWD `mww`+`mwb`):
+  `idx = 0`, state → `RUNNING`.
+- **`foc_capture_stop()`** (`tools/foc_capture.sh stop` via SWD `mwb`, or FSM exiting a control
+  state): state → `STOPPED`. `idx` and buffer contents preserved.
+
+The FSM auto-stop fires from `fsm_exit_state()` whenever leaving any of the control / cal / open-
+loop / vel-ramp states. This includes both clean exits (state finished its run) and forced exits
+(error trip, host-requested transition mid-run).
+
+## How it's driven: SWD only
+
+The state machine is controlled by direct SWD memory writes to `foc_capture_state` and
+`foc_capture_idx` via OpenOCD. There is no CAN/SDO trigger — the bench probe is the only control
+surface. (Earlier revisions used OD `0x4006:01` as an SDO trigger; that was removed because the
+probe path is faster, halts the CPU for zero ticks, and there's no in-flight use case where you'd
+want a 16 ms FOC capture but couldn't also attach a probe.)
+
+`tools/foc_capture.sh` is the one-stop wrapper: `arm`, `stop`, `status`, `dump`, `decode`.
 
 ## How to use it
 
-### 1. Arm the capture
-
-Edge-triggered via OD `0x4006.reserved_1` (any nonzero f32 that differs from the previous value
-arms a new run; see `can_comms.c:process_sdo_vals`). From a CANopen host:
-
-```
-SDO download 0x4006:01 = 1.0   # arms; idx resets to 0, state → FOC_CAPTURE_ARMED
-```
-
-If you want to re-arm later in the same session, write a *different* value (e.g. `2.0`, then `1.0`,
-then `2.0`, …) — `process_sdo_vals` only acts on changes.
-
-### 2. Wait for it to fill
-
-256 samples × 62.5 µs/tick = **16 ms**. After that:
-- `foc_capture_state == FOC_CAPTURE_DONE` (= 2)
-- `foc_capture_idx == 256`
-
-You can poll either via OpenOCD memory read, or just wait 20+ ms before dumping. State and index
-live next to the buffer:
-
-```
-$ arm-none-eabi-objdump -t cmake-build-debug/oresat-acs-fw-v8.elf | grep foc_capture
-... O .bss 00000001 foc_capture_state    # 1-byte enum
-... O .bss 00000004 foc_capture_idx
-... O .bss 00005800 foc_capture_buf      # 22528 bytes
-```
-
-### 3. Dump from target
-
-```
-$ tools/foc_capture_dump.sh
-foc_capture_buf @ 0x20001f74, size 22528 bytes -> foc_capture.bin
-wrote foc_capture.bin
-```
-
-The script looks up the buffer's address + size from the ELF symbol table, halts the target via
-OpenOCD, dumps `dump_image`, resumes. **Briefly halts the target** (~few hundred ms) — fast loop
-will resume from a fresh ISR after resume.
-
-Override defaults:
-```bash
-tools/foc_capture_dump.sh path/to/oresat-acs-fw-v8.elf my_capture.bin
-OPENOCD_CFG=other_iface.cfg tools/foc_capture_dump.sh
-```
-
-### 4. Decode + plot
+### 1. Arm
 
 ```bash
-$ python3 tools/decode_foc_capture.py foc_capture.bin > foc.csv
-$ head -2 foc.csv
-loop_count,Ia,Ib,Ic,Ialpha,Ibeta,Id_meas,Iq_meas,Id_set,Iq_set,motor_phase,motor_vel,Vd_int,Vq_int,mod_d,mod_q,mod_alpha,mod_beta,svm_A,svm_B,svm_C,Vbus
-40213,0.123,-0.456,0.333,...
+$ tools/foc_capture.sh arm
+arm: idx=0, state=RUNNING (1)  @  0x20001f70 / 0x20001f6c
 ```
 
-The decoder trims trailing all-zero records (zero `loop_count` ⇒ unused slot), so it's safe to dump
-mid-capture if you don't want to wait.
+Resets `idx` to 0 (via SWD `mww`) and sets `state = RUNNING` (via SWD `mwb`). Neither halts the
+target — `mww`/`mwb` go through the MEM-AP in the background while the CPU keeps executing. The
+next fast-loop tick starts writing to `buf[0]`.
 
-Quick matplotlib recipe:
+### 2. Run your experiment
+
+The ring continuously overwrites itself. The buffer always holds *the last ~16 ms* of FOC state.
+
+Check on it any time with:
+```bash
+$ tools/foc_capture.sh status
+state=RUNNING idx=4128 (samples_in_buf=256)
+```
+
+(`samples_in_buf` saturates at `FOC_CAPTURE_LEN = 256`; once the ring has wrapped, the buffer is
+always full.)
+
+### 3. Stop (manually or automatically)
+
+Two ways the capture stops:
+
+- **Explicit stop:** `tools/foc_capture.sh stop` (single SWD `mwb`, no halt).
+- **FSM auto-stop:** any transition out of a control state (`TORQUE_CONTROL`, `VEL_CONTROL`,
+  `OPEN_LOOP_CONTROL`, calibrations, etc.) auto-stops the capture. This is the workflow for
+  "capture the moment a fault happened" — the buffer preserves the ~16 ms leading up to the
+  controller_disarm. No host action required.
+
+Stopping mid-tick won't corrupt the partial sample; the state check is at the top of the write
+block in `foc_gen_pwm_cb`.
+
+**Always stop before dumping** if the controller is armed. See "Dump halt safety" below.
+
+### 4. Dump
+
+```bash
+$ tools/foc_capture.sh dump
+dump: foc_capture.bin (+.head) <- buf 0x20001f74/22528 + idx 0x20001f70
+wrote foc_capture.bin (22528 B), foc_capture.bin.head (idx=128043)
+```
+
+The script looks up addresses + size from the ELF symbol table and reads three things via OpenOCD:
+the current state byte (for the post-read consistency check), the buffer (22.5 KB), and the idx.
+**No halt.** Reads are background MEM-AP transactions — the CPU keeps running, PWM keeps updating,
+the FOC loop keeps controlling. See "Dump halt safety" below for why this matters.
+
+Defaults: ELF = `cmake-build-debug/oresat-acs-fw-v8.elf`, output = `foc_capture.bin`,
+OpenOCD config = `st_nucleo_g4.cfg`. Override via env vars (`ELF=...`, `OPENOCD_CFG=...`) or the
+positional arg (`tools/foc_capture.sh dump my_run.bin`).
+
+The script warns if it found `state == RUNNING` — meaning the ISR was actively writing the buffer
+while you were reading it, and the resulting dump may have torn samples (one half-old, one
+half-new). Re-run after `stop` for a clean snapshot.
+
+### 5. Decode + plot
+
+```bash
+$ tools/foc_capture.sh decode foc_capture.bin > foc.csv
+head=128043, emitting 256 samples
+```
+
+`decode` is a thin wrapper around `python3 tools/decode_foc_capture.py`. The decoder reads
+`foc_capture.bin.head` to know how to unwrap the ring:
+
+| Head value | Decoder behavior |
+|---|---|
+| 0 | Empty CSV (no samples captured). |
+| `0 < head ≤ LEN` (256) | Capture stopped before wrap; emits `buf[0:head]` in chronological order. |
+| `head > LEN` | Ring wrapped; oldest sample is `buf[head % LEN]`, newest is `buf[(head-1) % LEN]`. Emits all 256 samples chronological. |
+
+Output is one CSV row per sample, all 22 named columns. Quick matplotlib recipe:
+
 ```python
 import pandas as pd, matplotlib.pyplot as plt
 df = pd.read_csv('foc.csv')
@@ -102,15 +166,71 @@ ax[2].plot(t, df.svm_A, t, df.svm_B, t, df.svm_C); ax[2].set_ylabel('SVM A/B/C')
 plt.show()
 ```
 
+## Dump halt safety
+
+### TL;DR
+
+`tools/foc_capture.sh dump` **does not halt the target**. The bulk buffer read goes through the
+MEM-AP background memory channel on the Cortex-M; the CPU keeps executing instructions, the
+HRTIM repetition ISR keeps firing, and the FOC loop keeps controlling the motor for the full
+duration of the read. Safe to run while spinning.
+
+### Why it matters
+
+If we *did* halt for the dump (an earlier draft of the script had explicit `halt`/`resume`), here's
+what would happen:
+
+- The CPU stops on the next debug breakpoint; the fast-loop ISR stops firing.
+- HRTIM and the ADC keep running by default (DBGMCU freeze is off for those peripherals). PWM
+  outputs stay frozen at whatever compare values were last loaded — the motor sees a *fixed* stator
+  voltage vector for the entire halt window.
+- The rotor, with its mechanical inertia and the energy already in the windings, keeps spinning.
+  Once the rotor moves ~90° electrical away from the frozen-field d-axis, the back-EMF and the
+  applied voltage stop being aligned; the current is then ≈ `V_applied / R_phase` (minus a small
+  BEMF term at low speed).
+- For this board: `R_phase ≈ 0.1 Ω` (post-cal estimate), Vbus ≈ 8 V, max modulation ≈ 0.5 →
+  worst-case phase current ≈ **40 A**. Way past the firmware's 5 A trip, but the firmware can't
+  trip because the CPU is halted. HRTIM has hardware fault inputs that *could* catch this, but
+  they're disabled (`pTimerCfg.FaultEnable = HRTIM_TIMFAULTENABLE_NONE` — `hrtim.c:172`).
+
+The buffer is 22.5 KB. At a ST-Link V3's MEM-AP rate of ~200-400 KB/s, that's **roughly 50-150 ms**
+of halt; at ST-Link V2 rates (~50-100 KB/s) it's **250-500 ms**. Either way: long enough at 40 A
+to thermally stress the shunts, the FETs, and the motor windings. So we don't halt.
+
+### Why no halt is correct, not just expedient
+
+Cortex-M debug architecture exposes both a halt-mode debug interface (DHCSR.C_HALT) and a
+run-mode memory access port (MEM-AP). For a SRAM read, MEM-AP works fine while the CPU runs —
+it just arbitrates with the CPU's own bus accesses through the BusMatrix. Background reads cost
+a small amount of extra CPU stall (a few cycles when MEM-AP wins arbitration on SRAM1/SRAM2),
+which on our fast loop is ~negligible (<0.1% of the 62.5 µs budget).
+
+The risk that *does* remain: **data tearing**. The ISR is writing to the buffer (when RUNNING),
+and we're reading the same buffer concurrently. The MEM-AP reads 32-bit words atomically, so we
+never see a half-written word; but a single 88-byte sample is 22 word-writes, and our 22.5 KB
+read happens word-at-a-time over hundreds of ms. So a sample we're reading at the moment the ISR
+overwrites it can show up as half-old, half-new fields. The dump script warns when this is a risk
+(reads `state` first, warns if it's RUNNING).
+
+To get a fully consistent dump, **stop first**:
+```bash
+tools/foc_capture.sh stop && tools/foc_capture.sh dump
+```
+
+The FSM auto-stop handles this for the post-mortem-after-disarm case automatically.
+
 ## Cost in the fast loop
 
-When `foc_capture_state != FOC_CAPTURE_ARMED` the entire hook is one branch (~2 cycles ≈ 14 ns).
-While armed: 88-byte struct copy ≈ 22 word writes + index update + bounds check ≈ **~175 ns** per
-tick, < 0.3 % of the 62.5 µs ISR budget. Has not been observed to perturb FOC behavior.
+When `foc_capture_state != FOC_CAPTURE_RUNNING` the entire hook is one branch (~2 cycles ≈ 14 ns).
+While running: 88-byte struct copy + `idx % LEN` (single AND because `LEN = 256 = 2^8`) + index
+update ≈ **~175 ns** per tick, < 0.3 % of the 62.5 µs ISR budget.
+
+The compiler turns `idx % FOC_CAPTURE_LEN` into a single bitwise-AND with `0xFF` because
+`FOC_CAPTURE_LEN` is a power of two. Verified with `-O2` disassembly.
 
 ## When you add or remove a captured field
 
-Three places must move together — the compiler will catch the C side, but the Python side is on the
+Three places must move together — the compiler catches the C side, but the Python side is on the
 honor system:
 
 1. `Firmware/Inc/foc_capture.h` — add the f32 to `foc_capture_t` (keep all fields 4-byte for no
@@ -119,50 +239,74 @@ honor system:
 3. `tools/decode_foc_capture.py` — add the field to `DTYPE` *in the same order*, then update the
    `assert DTYPE.itemsize == 88` to the new size. This assert is the trip wire: if the dtype gets
    out of sync, the Python loud-fails on import. If you leave it in sync but in the wrong order,
-   you get silently-misaligned values — **so add fields at the end of both the struct and the dtype,
-   never in the middle**.
+   you get silently-misaligned values — **always append at the end of both the struct and the
+   dtype, never in the middle**.
 
-## Bench workflow checklist
+If you change `FOC_CAPTURE_LEN`, also update the comment in `foc_capture.h` (RAM cost, ms at
+16 kHz). The decoder doesn't hard-code `LEN` — it reads it from the file size — so no Python
+change needed.
 
-For a current-PI tuning session, the canonical sequence:
+## Bench workflow checklists
+
+### Step-response tuning of the current PI (SWD bench workflow)
 
 1. Build + flash.
-2. Bring the wheel up to the desired test state via SDO (`0x4004` = e.g. `4` for TORQUE_CONTROL,
-   then `0x4005:01` = small Iq setpoint).
-3. Let it settle.
-4. Step the setpoint (write a new `setpoint_1`), then *immediately* SDO-write `0x4006:01 = 1.0` to
-   arm the capture.
-5. Wait ≥ 20 ms.
-6. `tools/foc_capture_dump.sh`.
-7. `python3 tools/decode_foc_capture.py foc_capture.bin > step.csv`, plot, look at the step
-   response of `Iq_meas` vs `Iq_set`, integrator wind-up in `Vq_int`, modulation saturation in
-   `mod_d`/`mod_q` or in the `0.99 * sqrt3_over_2 * |mod|⁻¹` scalefactor (deducible from comparing
-   `mod_d/q` to `mod_alpha/beta`).
+2. From your host, SDO-request `TORQUE_CONTROL` (`0x4004 = 4`) and a small `Iq` setpoint via
+   `0x4005:01`; let it settle.
+3. `tools/foc_capture.sh arm`.
+4. Host writes a new `setpoint_1` (the step).
+5. Wait ≥ 16 ms for the ring to overwrite the pre-step state with post-step.
+6. `tools/foc_capture.sh stop && tools/foc_capture.sh dump && tools/foc_capture.sh decode > step.csv`.
+7. Plot `Iq_meas` vs `Iq_set`, `Vq_int` for integrator wind-up, `mod_d/q` vs `mod_alpha/beta` for
+   modulation saturation.
 
-For deadtime / waveform analysis: same recipe, but step into a steady spin at the speed of
-interest and capture during steady-state. The 22 SVM/mod/phase-current traces should reveal any
-6th-harmonic deadtime distortion as 6 cycles per electrical revolution in `Ia/Ib/Ic`.
+### Post-mortem after an unexpected disarm
+
+1. Arm capture *before* the run that might fail (`tools/foc_capture.sh arm`).
+2. Let the system run normally. If it errors out, the FSM auto-stops the capture as part of the
+   exit sequence — no host action required.
+3. After the disarm: `tools/foc_capture.sh dump && tools/foc_capture.sh decode > postmortem.csv`.
+4. The CSV holds the last 16 ms before the trip. Look at the trip flag in the OD
+   (`0x4000.errors`) to know what to look for in the trace.
+
+### Steady-state spin analysis (deadtime / harmonic distortion)
+
+1. Host SDO-requests a control state, sets steady-state velocity, lets it spin steady.
+2. `tools/foc_capture.sh arm && sleep 0.02 && tools/foc_capture.sh stop` — captures exactly one
+   ~16 ms window of steady-state, no transient.
+3. `tools/foc_capture.sh dump && tools/foc_capture.sh decode > spin.csv`.
+4. Plot phase currents; 6th-harmonic ripple is the textbook deadtime-distortion signature for a
+   3-phase BLDC.
 
 ## Limitations / known footguns
 
-- **One-shot only.** No ring buffer mode; once the buffer fills, captures stop until re-armed. If
-  you want pre-trigger context (capture the *N* ms *before* a fault), the hook needs to become a
-  ring + a separate "snapshot the head pointer" trigger. Not implemented yet.
-- **No timestamping beyond `loop_count`.** Wall-clock alignment to host events requires the host to
-  know the wheel's tick rate (16 kHz) and the offset of `loop_count` at the moment it sent the arm
-  command. In practice "arm + step setpoint simultaneously" works fine; for tighter sync you'd need
-  a clock-sync mechanism that doesn't exist here.
+- **`FOC_CAPTURE_LEN` is a power of two**, by design (the `% LEN` becomes a free bitwise-AND).
+  Don't change it to a non-power-of-two without expecting the modulo to become a real divide
+  in the hot path.
+- **No timestamping beyond `loop_count`.** Wall-clock alignment to host events requires the host
+  to know the wheel's tick rate (16 kHz) and the offset of `loop_count` at arm time. For tighter
+  sync you'd need an external trigger or a clock-sync mechanism that doesn't exist here.
 - **Capture is at the end of `foc_gen_pwm_cb`**, after the integrator updates and modulation clamp.
-  The PI integrator state captured is *post-update for this tick*. If you want to compare against
-  the pre-update value, look at the previous sample's `Vd_int`/`Vq_int`.
-- **No native FSM hookup yet.** Re-arming is only via SDO. Could be triggered from `controller_arm`
-  or on first error if you want pre-fault context — easy addition.
-- **Edge-triggered SDO.** Writing the same numeric value to `0x4006:01` twice does *not* re-arm.
-  Alternate values (e.g. 1 → 2 → 1 → 2) or use any monotonically increasing value.
+  The PI integrator state captured is *post-update for this tick*. To compare against the
+  pre-update value, look at the previous sample's `Vd_int`/`Vq_int`.
+- **Auto-stop fires on every control-state exit**, including error trips. If you don't want the
+  trip to freeze the buffer, re-arm with `tools/foc_capture.sh arm` after re-entering the state.
+- **SWD writes race against the ISR.** Writing `state = RUNNING` while the ISR is in flight can
+  produce one extra sample at the previous `idx` position before the host's `idx = 0` write lands.
+  The dump unwrap tolerates this — the worst-case visible artifact is a single sample written to
+  the wrong slot — but if you need bit-perfect arm timing, halt the target first
+  (`openocd -c "init; halt; mww ...; mwb ...; resume"`).
+- **Dump while RUNNING produces torn samples.** See "Dump halt safety" above for details. Always
+  `stop` before `dump` for a clean snapshot; the script warns when it spots `state == RUNNING`
+  during the dump.
+- **`idx` is u32 monotonic**, so it overflows after `2^32 / 16000` ≈ 74 hours of continuous
+  capture. After overflow the decoder's "head > LEN → wrap" branch still works correctly
+  (modular arithmetic), but `loop_count` aliasing makes the timeline ambiguous. In practice you
+  stop the capture long before this.
 
 ## See also
 
 - `docs/control-cycle.md` — where in the tick the capture write happens.
-- `docs/can-interface.md` — SDO mechanics for the arm trigger; OD `0x4006:01` was "reserved" before
-  this doc, now it's the capture-arm.
+- `docs/can-interface.md` — SDO mechanics generally; FOC capture is *not* exposed on the bus
+  (probe-only).
 - `Firmware/Inc/foc_capture.h` — the source of truth for struct layout.

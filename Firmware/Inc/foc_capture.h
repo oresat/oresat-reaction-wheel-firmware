@@ -3,7 +3,12 @@
 #include "typedefs.h"
 
 // Per-tick FOC state snapshot. Written from foc_gen_pwm_cb() at the end of
-// each fast-loop ISR, when foc_capture_state == FOC_CAPTURE_ARMED.
+// each fast-loop ISR, when foc_capture_state == FOC_CAPTURE_RUNNING.
+//
+// Operates as a ring buffer: writes go to buf[idx % FOC_CAPTURE_LEN], and
+// idx is a monotonically-increasing u32 counter. When stopped (via SWD
+// memory write or FSM exit), idx tells the decoder how far we got and how
+// to unwrap.
 //
 // All fields are little-endian; layout is fixed (no padding because all fields
 // are 4-byte aligned). Matches tools/decode_foc_capture.py's dtype.
@@ -22,19 +27,23 @@ typedef struct {
     f32 Vbus;              // bus voltage at sample time (V)
 } foc_capture_t;
 
-#define FOC_CAPTURE_LEN 256u  // 256 × ~88 B = ~22.5 KB → 16 ms at 16 kHz ISR
+#define FOC_CAPTURE_LEN 256u  // 256 × 88 B = 22.5 KB → 16 ms at 16 kHz ISR
 
 typedef enum {
-    FOC_CAPTURE_IDLE  = 0,
-    FOC_CAPTURE_ARMED = 1,
-    FOC_CAPTURE_DONE  = 2,
+    FOC_CAPTURE_IDLE    = 0,  // not writing
+    FOC_CAPTURE_RUNNING = 1,  // ring-mode writes active
+    FOC_CAPTURE_STOPPED = 2,  // frozen, buffer ready for dump
 } foc_capture_state_t;
 
 extern volatile foc_capture_t   foc_capture_buf[FOC_CAPTURE_LEN];
 extern volatile u32             foc_capture_idx;
 extern volatile foc_capture_state_t foc_capture_state;
 
-// Arm a one-shot capture. Next FOC_CAPTURE_LEN ISR ticks fill the buffer
-// starting at index 0; state transitions to FOC_CAPTURE_DONE when full.
+// Start ring-mode capture. Resets idx to 0 so the buffer fills from the top.
 // Safe to call from foreground; ISR reads state atomically.
 void foc_capture_arm(void);
+
+// Stop / freeze capture. Buffer contents and idx are preserved for readout.
+// Called from FSM exit on control states (fsm_exit_state) and from the bench
+// via SWD memory write (tools/foc_capture.sh stop).
+void foc_capture_stop(void);

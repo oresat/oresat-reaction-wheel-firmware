@@ -7,6 +7,7 @@
 #include "control_ll.h"
 #include "encoder.h"
 #include "encoder_calibration.h"
+#include "foc_capture.h"
 #include "motor_calibration.h"
 #include "open_loop_current_controller.h"
 #include "printf.h"
@@ -141,6 +142,7 @@ void fsm_exit_state(fsm_state_t exit_state, bool cancelled) {
         case FSM_STATE_SHITTY_OFFSET_CAL:
         case FSM_STATE_VEL_RAMP_CONTROL:
             controller_disarm(); // Should be handled in the controller but we do it here anyways
+            foc_capture_stop();  // freeze ring buffer for post-run readout
             fsm_last_state_exit_ok = controller_get_control_law()->control_law_finish(cancelled);
             break;
         default: ;

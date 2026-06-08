@@ -1,14 +1,30 @@
 #!/usr/bin/env python3
-"""Decode a foc_capture_buf dump (raw little-endian struct array) to CSV on stdout.
+"""Decode a foc_capture_buf ring dump to chronological CSV on stdout.
 
-Layout MUST stay in sync with Firmware/Inc/foc_capture.h's foc_capture_t.
-Each record is 88 bytes (22 × 4-byte fields). No padding because all fields
-are 4-byte aligned.
+Reads two files (the second is auto-discovered next to the first):
+    BIN      - raw foc_capture_buf contents (FOC_CAPTURE_LEN × sizeof(foc_capture_t))
+    BIN.head - the foc_capture_idx value, written by foc_capture_dump.sh
+
+The .head file holds the total-writes-since-arm count, which the decoder uses
+to unwrap the ring:
+  head == 0           → no samples captured, exits with empty CSV
+  0 < head <= LEN     → buffer was stopped before fully wrapping; emit
+                        buf[0:head] in chronological order
+  head > LEN          → ring fully wrapped; oldest sample is at
+                        buf[head % LEN], newest at buf[(head-1) % LEN]
+                        Emits LEN samples in chronological order.
+
+If .head is missing, the decoder falls back to "trim trailing all-zero
+records" mode (suitable for legacy non-ring dumps).
+
+Layout MUST stay in sync with Firmware/Inc/foc_capture.h. The assert at the
+top trips loudly if the dtype gets out of sync.
 
 Usage: python3 tools/decode_foc_capture.py foc_capture.bin > foc_capture.csv
 """
 import csv
 import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -35,11 +51,29 @@ def main() -> int:
     if len(sys.argv) != 2:
         sys.stderr.write(__doc__)
         return 2
-    data = np.fromfile(sys.argv[1], dtype=DTYPE)
-    # Drop trailing all-zero records (capture stopped early)
-    nonzero = np.where(data["loop_count"] != 0)[0]
-    if len(nonzero):
-        data = data[: nonzero[-1] + 1]
+    bin_path = Path(sys.argv[1])
+    head_path = bin_path.with_suffix(bin_path.suffix + ".head")
+
+    buf = np.fromfile(bin_path, dtype=DTYPE)
+    LEN = len(buf)
+
+    if head_path.exists():
+        head = int(head_path.read_text().strip())
+        if head == 0:
+            data = buf[:0]
+        elif head <= LEN:
+            data = buf[:head]
+        else:
+            # Ring fully wrapped: rotate so oldest sample (at head % LEN) is first
+            start = head % LEN
+            data = np.concatenate([buf[start:], buf[:start]])
+        sys.stderr.write(f"head={head}, emitting {len(data)} samples\n")
+    else:
+        # Fallback: no head file, trim trailing all-zero records
+        nonzero = np.where(buf["loop_count"] != 0)[0]
+        data = buf if not len(nonzero) else buf[: nonzero[-1] + 1]
+        sys.stderr.write(f"no .head file; trimming to {len(data)} non-zero samples\n")
+
     w = csv.writer(sys.stdout)
     w.writerow(DTYPE.names)
     for row in data:

@@ -203,9 +203,9 @@ bool foc_gen_pwm_cb(svm_vec_t *mag) {
     idq_measured = idq_measured_;
     v_current_ctrl_integral = v_current_ctrl_integral_;
 
-    if (foc_capture_state == FOC_CAPTURE_ARMED) {
+    if (foc_capture_state == FOC_CAPTURE_RUNNING) {
         u32 idx = foc_capture_idx;
-        foc_capture_buf[idx] = (foc_capture_t){
+        foc_capture_buf[idx % FOC_CAPTURE_LEN] = (foc_capture_t){
             .loop_count = controller_get_loop_count(),
             .Ia = last_Ia, .Ib = last_Ib, .Ic = last_Ic,
             .Ialpha = ialpha_beta_meas_.alpha,
@@ -227,9 +227,7 @@ bool foc_gen_pwm_cb(svm_vec_t *mag) {
             .svm_C = pwm_output.C,
             .Vbus  = vvbus_meas_,
         };
-        idx++;
-        foc_capture_idx = idx;
-        if (idx >= FOC_CAPTURE_LEN) foc_capture_state = FOC_CAPTURE_DONE;
+        foc_capture_idx = idx + 1;  // monotonic; ring wrap is at the index
     }
 
     return true;

@@ -59,8 +59,7 @@ Write these OD entries via standard SDO download (expedited). The firmware acts 
 | `0x4004:01` | `req_state` | u8 | Requested `fsm_state_t`. On change → `fsm_request_state()`. |
 | `0x4005:01` | `setpoint_1` | f32 | Routed by **current** state (see below). On change only. |
 | `0x4005:02` | `setpoint_2` | f32 | Read but currently unused. |
-| `0x4006:01` | `reserved_1` | f32 | Edge-triggered: any nonzero value (that differs from the last write) arms a FOC capture run. See `docs/foc_capture.md`. |
-| `0x4006:02` | `reserved_2` | f32 | Read but currently unused. |
+| `0x4006:01/02` | `reserved_1/2` | f32 | Read but currently unused. |
 | `0x4007:01` | `reboot_request` | u8 | Write `1` → `controller_disarm()` + `HAL_NVIC_SystemReset()`. |
 
 **`setpoint_1` routing** (by the FSM state active *at the time of the write*):

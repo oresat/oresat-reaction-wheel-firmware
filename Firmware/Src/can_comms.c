@@ -8,7 +8,6 @@
 #include "CO_app_STM32.h"
 #include "encoder.h"
 #include "foc.h"
-#include "foc_capture.h"
 #include "inverter.h"
 
 CANopenNodeSTM32 canOpenNodeSTM32;
@@ -185,9 +184,6 @@ void process_sdo_vals() {
     }
     if (sdo_reserved_1 != last_sdo_reserved_1) {
         last_sdo_reserved_1 = sdo_reserved_1;
-        // Non-zero write to reserved_1 arms a one-shot FOC capture run.
-        // See Firmware/Inc/foc_capture.h + tools/foc_capture_dump.sh for readout.
-        if (sdo_reserved_1 != 0.f) foc_capture_arm();
     }
     if (sdo_reserved_2 != last_sdo_reserved_2) {
         last_sdo_reserved_2 = sdo_reserved_2;
