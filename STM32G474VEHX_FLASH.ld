@@ -44,7 +44,9 @@ _Min_Stack_Size = 0x1600; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 128K
+  CCMRAM (xrw)    : ORIGIN = 0x10000000,   LENGTH = 32K
+  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 80K
+  RAM2   (xrw)    : ORIGIN = 0x20014000,   LENGTH = 16K
   FLASH    (rx)    : ORIGIN = 0x8008000,   LENGTH = 480K
 }
 
@@ -58,6 +60,24 @@ SECTIONS
     KEEP(*(.isr_vector)) /* Startup code */
     . = ALIGN(4);
   } >FLASH
+
+  /* Hot-path code/data shadowed into CCM SRAM (0x10000000) at boot. CCM runs with
+     zero wait states and no flash-cache jitter — used for the 16 kHz HRTIM fast loop.
+     Placed BEFORE .text so the object-file .text pulls below win over the generic
+     .text catch-all. LMA in FLASH, VMA in CCMRAM; startup copies it like .data.
+     App code lands here via __ccmram (typedefs.h), gated on CCMRAM_HOT_FUNCS. */
+  _siccmram = LOADADDR(.ccmram);
+  .ccmram :
+  {
+    . = ALIGN(4);
+    _sccmram = .;
+    *(.ccmram)
+    *(.ccmram*)
+    *arm_sin_cos_f32.c.obj(.text .text*)   /* CMSIS-DSP sincos code (vendor, can't annotate) */
+    *arm_common_tables.c.obj(.rodata.sinTable_f32 .rodata.sinTable_f32.*)  /* its 513-entry LUT */
+    . = ALIGN(4);
+    _eccmram = .;
+  } >CCMRAM AT> FLASH
 
   /* The program code and other data into "FLASH" Rom type memory */
   .text :

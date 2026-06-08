@@ -9,22 +9,22 @@ static volatile f32 vel_setpoint = 0.f;
 
 static volatile f32 vel_integrator = 0;
 
-bool closed_loop_encoder_consumer(u16 meas) {
+__ccmram bool closed_loop_encoder_consumer(u16 meas) {
     return foc_control_law.encoder_consumer(meas);
 }
 
-bool closed_loop_current_consumer(f32 A_i, f32 B_i, f32 C_i, f32 V_vbus) {
+__ccmram bool closed_loop_current_consumer(f32 A_i, f32 B_i, f32 C_i, f32 V_vbus) {
     return foc_control_law.current_consumer(A_i, B_i, C_i, V_vbus);
 }
 
-bool closed_loop_pwm_producer(svm_vec_t *mag) {
+__ccmram bool closed_loop_pwm_producer(svm_vec_t *mag) {
     return foc_control_law.pwm_producer(mag);
 }
 
-void torque_ctrl_exec() {
+__ccmram void torque_ctrl_exec() {
 }
 
-bool torque_ctrl_is_complete() {
+__ccmram bool torque_ctrl_is_complete() {
     return false;
 }
 
@@ -37,7 +37,7 @@ bool torque_ctrl_finish(bool was_cancelled) {
     return true;
 }
 
-void set_torque_setpoint(f32 torque_nm) {
+__ccmram void set_torque_setpoint(f32 torque_nm) {
     torque_setpoint = torque_nm * encoder_get_direction();
     f32 current_setpoint = torque_setpoint / MOTOR_TORQUE_CONSTANT;
     set_iq_setpoint(
@@ -70,7 +70,7 @@ void vel_ctrl_init() {
     vel_setpoint = 0;
 }
 
-void vel_ctrl_exec() {
+__ccmram void vel_ctrl_exec() {
     f32 torque = 0;
 
     f32 vel_est = encoder_get_pos_vel().vel;
@@ -90,11 +90,11 @@ void vel_ctrl_exec() {
     set_torque_setpoint(torque);
 }
 
-bool vel_ctrl_is_complete() {
+__ccmram bool vel_ctrl_is_complete() {
     return false;
 }
 
-void set_vel_setpoint(f32 vel) {
+__ccmram void set_vel_setpoint(f32 vel) {
     vel_setpoint = vel;
 }
 
@@ -128,7 +128,7 @@ void set_vel_ramp_setpoint(f32 _ramped_vel_setpoint) {
 
 const f32 MAX_VEL_DELTA_PER_LOOP = VEL_RAMP_RATE*SECONDS_PER_LOOP;
 
-void vel_ramp_ctrl_exec() {
+__ccmram void vel_ramp_ctrl_exec() {
     f32 vel_setpoint_ = vel_setpoint;
     f32 ramped_vel_setpoint_ = ramped_vel_setpoint;
     if (vel_setpoint_ < ramped_vel_setpoint_) {
@@ -147,7 +147,7 @@ void vel_ramp_ctrl_exec() {
     vel_ctrl_exec();
 }
 
-bool vel_ramp_ctrl_is_complete() {
+__ccmram bool vel_ramp_ctrl_is_complete() {
     return false;
 }
 

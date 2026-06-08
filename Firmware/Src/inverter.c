@@ -200,7 +200,7 @@ void inverter_adc_process_dma() {
     ADC_processed.C_isns = C_i;
 }
 
-void inverter_set_processed(f32 A, f32 B, f32 C, f32 Vbus) {
+__ccmram void inverter_set_processed(f32 A, f32 B, f32 C, f32 Vbus) {
     ADC_processed.Vbus_vsns = Vbus;
     ADC_processed.A_isns = A;
     ADC_processed.B_isns = B;
@@ -213,7 +213,7 @@ void inverter_get_phase_currents(f32 *A, f32 *B, f32 *C) {
     *C = ADC_processed.C_isns;
 }
 
-void inverter_get_adc_raw(u32 *A, u32 *B, u32 *C, u32 *vbus) {
+__ccmram void inverter_get_adc_raw(u32 *A, u32 *B, u32 *C, u32 *vbus) {
 
     *A = (&PHASE_A_ADC_HANDLE)->Instance->JDR1;
     *B = (&PHASE_B_ADC_HANDLE)->Instance->JDR1;
@@ -221,7 +221,7 @@ void inverter_get_adc_raw(u32 *A, u32 *B, u32 *C, u32 *vbus) {
     *vbus = (&VBUS_ADC_HANDLE)->Instance->JDR1;
 }
 
-void inverter_get_offset_correction(i16 *A, i16 *B, i16 *C) {
+__ccmram void inverter_get_offset_correction(i16 *A, i16 *B, i16 *C) {
     *A = INA240_offset_correction.A_offset;
     *B = INA240_offset_correction.B_offset;
     *C = INA240_offset_correction.C_offset;
@@ -283,6 +283,6 @@ void inverter_stop() {
 }
 
 
-bool inverter_get_calibrated() {
+__ccmram bool inverter_get_calibrated() {
     return inverter_is_calibrated;
 }

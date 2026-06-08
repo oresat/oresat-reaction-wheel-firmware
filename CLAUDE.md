@@ -71,6 +71,7 @@ A gitignored root `compile_commands.json` symlink → `cmake-build-debug/` plus 
 - `docs/foc_capture.md` — per-tick FOC inner-loop snapshot mechanism for offline analysis (arm via SDO `0x4006:01`, dump via `tools/foc_capture_dump.sh`).
 - `docs/footguns.md` — cross-cutting runtime/concurrency/hardware traps (blocking printf in the FSM ISR, assumed-good encoder read, dead-time naming, option-byte reflash, etc.).
 - `docs/bootloader-integration.md` — how this app boots behind the `bootloader/` image: memory map, the `0x08008000` relink + `SCB->VTOR` relocation, option bytes, IWDG continuity.
+- `docs/ccmram.md` — CCM SRAM hot-path placement: the fast loop runs from `0x1000_0000` in optimized builds (`__ccmram`/`CCMRAM_HOT_FUNCS`), Debug stays in flash, debug CCM with hardware breakpoints.
 
 Consult these before changing FSM/control-law, the fast loop, or CAN/OD code.
 

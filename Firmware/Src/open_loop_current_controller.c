@@ -43,7 +43,7 @@ void init_open_loop_current_controller() {
     vvbus_meas = 0.f;
 }
 
-bool open_loop_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
+__ccmram bool open_loop_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
     abc_currents = (svm_vec_t){A_i, B_i, C_i};
     vvbus = Vbus;
     ab_vec_t Ialpha_beta_currents = clarke_transform((svm_vec_t){A_i, B_i, C_i});
@@ -52,7 +52,7 @@ bool open_loop_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
     return true;
 }
 
-bool open_loop_pwm_cb(svm_vec_t* mag) {
+__ccmram bool open_loop_pwm_cb(svm_vec_t* mag) {
     f32 vvbus_meas_ = vvbus_meas;
     ab_vec_t ialpha_beta_measured_ = ialpha_beta_measured;
     ab_vec_t ialpha_beta_setpoint_ = ialpha_beta_setpoint;
@@ -99,15 +99,15 @@ bool open_loop_pwm_cb(svm_vec_t* mag) {
     return true;
 }
 
-bool open_loop_encoder_cb(u16 meas) {
+__ccmram bool open_loop_encoder_cb(u16 meas) {
     encoder_update(meas);
     return true;
 }
 
-void open_loop_exec() {
+__ccmram void open_loop_exec() {
 }
 
-bool open_loop_is_complete() {
+__ccmram bool open_loop_is_complete() {
     return false;
 }
 
@@ -115,7 +115,7 @@ bool open_loop_finish(bool was_cancelled) {
     return true;
 }
 
-void set_open_loop_current_setpoint(ab_vec_t current_setpoint) {
+__ccmram void set_open_loop_current_setpoint(ab_vec_t current_setpoint) {
     ialpha_beta_setpoint = current_setpoint;
 }
 

@@ -71,7 +71,7 @@ void init_foc() {
     ibus = 0.f;
 }
 
-bool foc_meas_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
+__ccmram bool foc_meas_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
     //debug_phA_current(A_i);
     //debug_phB_current(B_i);
     //debug_phC_current(C_i);
@@ -106,7 +106,7 @@ static __fn_inline __fn_const f32 Q_rsqrt(f32 number) {
     return y;
 }
 
-bool foc_gen_pwm_cb(svm_vec_t *mag) {
+__ccmram bool foc_gen_pwm_cb(svm_vec_t *mag) {
     dq_vec_t idq_setpoint_ = idq_setpoint;
     f32 phase_ = motor_phase;
     f32 vel_ = motor_vel;
@@ -233,7 +233,7 @@ bool foc_gen_pwm_cb(svm_vec_t *mag) {
     return true;
 }
 
-bool foc_read_encoder_cb(u16 enc_val) {
+__ccmram bool foc_read_encoder_cb(u16 enc_val) {
     encoder_update(enc_val);
     posvel_t phase_posvel = encoder_get_phase();
     motor_phase = phase_posvel.pos;
@@ -245,10 +245,10 @@ bool foc_read_encoder_cb(u16 enc_val) {
     return true;
 }
 
-void foc_exec() {
+__ccmram void foc_exec() {
 }
 
-bool foc_is_complete() {
+__ccmram bool foc_is_complete() {
     return false;
 }
 
@@ -256,7 +256,7 @@ bool foc_finish(bool was_cancelled) {
     return true;
 }
 
-void set_iq_setpoint(f32 iq) {
+__ccmram void set_iq_setpoint(f32 iq) {
     idq_setpoint.d = 0.f;
     idq_setpoint.q = iq;
 }

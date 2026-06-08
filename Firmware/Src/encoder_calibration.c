@@ -18,17 +18,17 @@ static volatile f32 last_encoder_pos = 0.f; // Local cache of encoder position
 static volatile f32 lockin_phase_angle = 0.f; // Phase angle in rads
 static volatile f32 lockin_current = 0.f; // Phase current in amps
 
-bool encoder_cal_encoder_cb(u16 angle) {
+__ccmram bool encoder_cal_encoder_cb(u16 angle) {
     encoder_update(angle);
     return true;
 }
 
 // Passthrough to open loop control law
-bool encoder_cal_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
+__ccmram bool encoder_cal_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
     return open_loop_ctrl_law.current_consumer(A_i, B_i, C_i, Vbus);
 }
 
-bool encoder_cal_pwm_cb(svm_vec_t *mag) {
+__ccmram bool encoder_cal_pwm_cb(svm_vec_t *mag) {
     return open_loop_ctrl_law.pwm_producer(mag);
 }
 
@@ -60,7 +60,7 @@ void encoder_dir_cal_init() {
     dir_cal_n_loop_end = _n_loop_end;
 }
 
-void encoder_dir_cal_exec_cb() {
+__ccmram void encoder_dir_cal_exec_cb() {
     u32 n_loops = controller_get_loop_count() - dir_cal_n_loop_start;
 
     if (n_loops == dir_cal_n_loop_lockin)
@@ -83,7 +83,7 @@ void encoder_dir_cal_exec_cb() {
     set_open_loop_current_setpoint(ab_lockin);
 }
 
-bool encoder_dir_cal_is_complete() {
+__ccmram bool encoder_dir_cal_is_complete() {
     return controller_get_loop_count() >= dir_cal_n_loop_end;
 }
 
@@ -173,7 +173,7 @@ const u32 capture_data_every = (u32) (LOOP_UPDATE_FREQ / 1000); // 1ms sampling
 static volatile u32 n = 0;
 
 
-void encoder_phase_cal_exec_cb() {
+__ccmram void encoder_phase_cal_exec_cb() {
     u32 n_loops = controller_get_loop_count() - phase_cal_n_loop_start;
 
     f32 enc_pos = encoder_get_multiturn_pos_raw();
@@ -227,7 +227,7 @@ void encoder_phase_cal_exec_cb() {
     set_open_loop_current_setpoint(ab_lockin);
 }
 
-bool encoder_phase_cal_is_complete() {
+__ccmram bool encoder_phase_cal_is_complete() {
     return controller_get_loop_count() >= phase_cal_n_loop_end;
 }
 
@@ -291,7 +291,7 @@ void encoder_validation_init() {
 }
 
 
-void encoder_validation_exec_cb() {
+__ccmram void encoder_validation_exec_cb() {
 
     if (controller_get_loop_count() - point_loop_start > ENC_VAL_LOOPS_PER_POINT) {
         datapoints[current_point] = (val_datapoint_t) {.motor_phase=encoder_validation_points[current_point],
@@ -309,7 +309,7 @@ void encoder_validation_exec_cb() {
     set_open_loop_current_setpoint(ab_lockin);
 }
 
-bool encoder_validation_is_complete() {
+__ccmram bool encoder_validation_is_complete() {
     return current_point >= ENC_VAL_POINTS_LEN;
 }
 
@@ -356,13 +356,13 @@ void encoder_single_point_cal_init() {
     set_open_loop_current_setpoint(ab_lockin);
 }
 
-void encoder_single_point_cal_exec_cb() {
+__ccmram void encoder_single_point_cal_exec_cb() {
     if (controller_get_loop_count() - shitty_cal_start > shitty_cal_n_loops) return;
     enc_val_cal = encoder_get_pos_vel().pos;
     //enc_val_cal = encoder_get_phase().pos;
 }
 
-bool encoder_single_point_cal_is_complete() {
+__ccmram bool encoder_single_point_cal_is_complete() {
     return (controller_get_loop_count() - shitty_cal_start) > shitty_cal_n_loops;
 }
 

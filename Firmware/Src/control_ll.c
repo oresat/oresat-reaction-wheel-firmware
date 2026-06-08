@@ -65,7 +65,7 @@ void controller_set_encoder_valid(bool is_valid);
 
 void controller_add_errors(u32 err);
 
-void pwm_update_callback() {
+__ccmram void pwm_update_callback() {
     debug_pwm_callback(true);
     // About 4us
 
@@ -106,7 +106,7 @@ void pwm_update_callback() {
     debug_pwm_callback(false);
 }
 
-void adc_update_callback() {
+__ccmram void adc_update_callback() {
     debug_adc_callback(true);
     // About 5us
     // Gotta make sure we've calibrated at least once otherwise Bad Things will happen
@@ -209,7 +209,7 @@ void adc_update_callback() {
     debug_adc_callback(false);
 }
 
-void encoder_update_callback() {
+__ccmram void encoder_update_callback() {
     debug_encoder_callback(true);
     if (!is_encoder_valid)
         controller_add_errors(CTRLR_ERR_ENCODER_READING_INVALID);
@@ -240,7 +240,7 @@ void encoder_update_callback() {
     debug_encoder_callback(false);
 }
 
-void hrtim_repetition_callback(HRTIM_HandleTypeDef* hhrtim, u32 timidx) {
+__ccmram void hrtim_repetition_callback(HRTIM_HandleTypeDef* hhrtim, u32 timidx) {
     debug_hrtim_isr(true);
 
     n_loop_count++;
@@ -333,7 +333,7 @@ u32 controller_get_errors() {
     return controller_errors;
 }
 
-void controller_add_errors(const u32 err) {
+__ccmram void controller_add_errors(const u32 err) {
     controller_errors |= err;
 }
 
@@ -378,11 +378,11 @@ bool controller_is_control_law_done() {
 }
 
 
-void controller_set_pwm_timings_valid(bool is_valid) {
+__ccmram void controller_set_pwm_timings_valid(bool is_valid) {
     is_pwm_timings_valid = is_valid;
 }
 
-void controller_set_new_pwm_timings(svm_vec_t* timings) {
+__ccmram void controller_set_new_pwm_timings(svm_vec_t* timings) {
     new_pwm_timings = *timings;
     is_pwm_timings_updated = true;
 }

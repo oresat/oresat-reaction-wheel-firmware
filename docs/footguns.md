@@ -94,3 +94,13 @@ the source (EDS / `.ioc` / `CMakeLists_template.txt`) and regenerate. See `CLAUD
 
 **Use the custom typedefs/printf, not libc.** `u8`/`f32`/etc. (`typedefs.h`) and `printf` from
 `printf.h` (not `<stdio.h>`). Deliberately-unused debug locals get `__maybe_unused` so lint stays clean.
+
+**Optimized builds run the fast loop from CCM SRAM — set breakpoints there in *hardware*.** In every
+non-Debug build the HRTIM ISR path is placed at `0x1000_0000` (`__ccmram` / `CCMRAM_HOT_FUNCS`) and
+shadowed from flash by a copy loop in `startup_stm32g474vehx.s`. GDB **software** breakpoints set in
+that code are overwritten by the boot copy and silently never fire — use `hbreak`, or
+`gdb_breakpoint_override hard` in `st_nucleo_g4.cfg`. CCM is linked at `0x1000_0000` (not the
+`0x2001_8000` SRAM alias) precisely so the Cortex-M4 FPB, which only reaches `< 0x2000_0000`, can set
+HW breakpoints there. The Debug build keeps this code in flash so ordinary breakpoints work — **debug
+from Debug, fly from optimized.** The copy loop and the `PREFETCH_ENABLE` bit live in *generated* files
+(`startup_*.s`, `stm32g4xx_hal_conf.h`) that a CubeMX regen reverts. Full reference: `docs/ccmram.md`.

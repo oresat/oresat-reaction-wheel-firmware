@@ -52,7 +52,7 @@ void init_resistance_cal() {
     resistance_cal_n_loop_end = n_loops + resistance_cal_length_cycles;
 }
 
-static bool resistance_cal_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
+static __ccmram bool resistance_cal_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
     ab_vec_t ab_currents = clarke_transform((svm_vec_t){.A = A_i, .B = B_i, .C = C_i});
 
     f32 alpha_current_err = MOTOR_CALIBRATION_CURRENT - ab_currents.alpha;
@@ -93,7 +93,7 @@ static bool resistance_cal_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
     return true;
 }
 
-bool resistance_cal_pwm_cb(svm_vec_t* mag) {
+__ccmram bool resistance_cal_pwm_cb(svm_vec_t* mag) {
     ab_vec_t resistance_mod = {.alpha = resistance_calib_output_mod, .beta = 0.f};
     svm_vec_t svm_magnitudes = SVM(resistance_mod);
     *mag = svm_magnitudes;
@@ -101,15 +101,15 @@ bool resistance_cal_pwm_cb(svm_vec_t* mag) {
     return true;
 }
 
-bool resistance_cal_encoder_cb(u16 _) {
+__ccmram bool resistance_cal_encoder_cb(u16 _) {
     return true;
 }
 
 // Called at ~8kHz or so externally
-void resistance_cal_exec() {
+__ccmram void resistance_cal_exec() {
 }
 
-bool resistance_cal_is_complete() {
+__ccmram bool resistance_cal_is_complete() {
     return controller_get_loop_count() > resistance_cal_n_loop_end;
 }
 
@@ -176,7 +176,7 @@ void init_inductance_cal() {
     inductance_cal_n_loop_end = n_loops + inductance_cal_length_cycles;
 }
 
-bool inductance_cal_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
+__ccmram bool inductance_cal_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
     ab_vec_t ab_currents = clarke_transform((svm_vec_t){.A = A_i, .B = B_i, .C = C_i});
 
     f32 sign = inductance_calib_test_voltage > 0.f ? 1.f : -1.f;
@@ -193,7 +193,7 @@ bool inductance_cal_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
 }
 
 
-bool inductance_cal_pwm_cb(svm_vec_t* mag) {
+__ccmram bool inductance_cal_pwm_cb(svm_vec_t* mag) {
     ab_vec_t inductance_mod = {.alpha = inductance_calib_output_mod, .beta = 0.f};
 
     svm_vec_t svm_magnitudes = SVM(inductance_mod);
@@ -201,14 +201,14 @@ bool inductance_cal_pwm_cb(svm_vec_t* mag) {
     return svm_output_valid(svm_magnitudes);
 }
 
-bool inductance_cal_encoder_cb(u16 _) {
+__ccmram bool inductance_cal_encoder_cb(u16 _) {
     return true;
 }
 
-void inductance_cal_exec() {
+__ccmram void inductance_cal_exec() {
 }
 
-bool inductance_cal_is_complete() {
+__ccmram bool inductance_cal_is_complete() {
     u32 _loop = controller_get_loop_count();
     inductance_cal_last_loop_count = _loop;
     return _loop > inductance_cal_n_loop_end;

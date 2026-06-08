@@ -1,7 +1,7 @@
 #include "bldc_math.h"
 
 // SVM transform: A/B stator-oriented quadrature to PWM timings
-__fn_const __fn_leaf svm_vec_t SVM(const ab_vec_t ab) {
+__ccmram __fn_const __fn_leaf svm_vec_t SVM(const ab_vec_t ab) {
     f32 tA, tB, tC;
     i32 sextant;
 //#define one_over_sqrt3 0.57735026919f
@@ -83,21 +83,21 @@ __fn_const __fn_leaf svm_vec_t SVM(const ab_vec_t ab) {
 
 }
 
-__fn_const __fn_leaf bool svm_output_valid(const svm_vec_t svm_magnitudes) {
+__ccmram __fn_const __fn_leaf bool svm_output_valid(const svm_vec_t svm_magnitudes) {
     return svm_magnitudes.A >= 0.f && svm_magnitudes.A <= 1.f
            && svm_magnitudes.B >= 0.f && svm_magnitudes.B <= 1.f
            && svm_magnitudes.C >= 0.f && svm_magnitudes.C <= 1.f;
 
 }
 
-__fn_const __fn_leaf ab_vec_t clarke_transform(const svm_vec_t three_phase_currents) {
+__ccmram __fn_const __fn_leaf ab_vec_t clarke_transform(const svm_vec_t three_phase_currents) {
     return (ab_vec_t) {
             .alpha = three_phase_currents.A,
             .beta  = one_over_sqrt3 * (three_phase_currents.B - three_phase_currents.C)
     };
 }
 
-__fn_const __fn_leaf dq_vec_t park_transform(const ab_vec_t ab_phase_currents, const f32 motor_phase) {
+__ccmram __fn_const __fn_leaf dq_vec_t park_transform(const ab_vec_t ab_phase_currents, const f32 motor_phase) {
     f32 Ia = ab_phase_currents.alpha;
     f32 Ib = ab_phase_currents.beta;
     sincos_t phase_sincos = sincos_f32(motor_phase);
@@ -107,7 +107,7 @@ __fn_const __fn_leaf dq_vec_t park_transform(const ab_vec_t ab_phase_currents, c
     };
 }
 
-__fn_const __fn_leaf ab_vec_t inv_park_transform(const dq_vec_t dq_voltage_mod, const f32 motor_phase) {
+__ccmram __fn_const __fn_leaf ab_vec_t inv_park_transform(const dq_vec_t dq_voltage_mod, const f32 motor_phase) {
     sincos_t phase_sincos = sincos_f32(motor_phase);
     return (ab_vec_t) { // Just an inverse rotation
             .alpha = phase_sincos.cos * dq_voltage_mod.d - phase_sincos.sin * dq_voltage_mod.q,

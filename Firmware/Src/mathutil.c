@@ -56,7 +56,7 @@ cos_f32(const f32 x) {
 #endif
 }
 
-__sincos_attr sincos_t
+__ccmram __sincos_attr sincos_t
 
 sincos_f32(const f32 x) {
     //return cordic_sincos_f32(x);
@@ -129,7 +129,7 @@ sincos_t sincos_cordic_raw(const f32 x) {
 }
  */
 
-__cmsis_fn_attr sincos_t
+__ccmram __cmsis_fn_attr sincos_t
 sincos_cmsis(const f32 x) {
     sincos_t ret;
     arm_sin_cos_f32(x * 180.f / M_PI_f32, &ret.sin, &ret.cos);

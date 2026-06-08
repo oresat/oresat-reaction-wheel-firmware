@@ -47,4 +47,15 @@ typedef double f64;
 #endif
 
 
-#define __ccmram __attribute__((section (".ccmram")))
+// Place a function (or data) in CCM SRAM (0x10000000), which executes with zero
+// wait states and no flash-cache jitter — used for the 16 kHz HRTIM fast-loop path.
+// Gated on CCMRAM_HOT_FUNCS (defined by CMake for every non-Debug build type): Debug
+// builds keep these symbols in flash so GDB software breakpoints / single-stepping
+// work normally, while optimized builds run them from CCM and debug via hardware
+// breakpoints. See the .ccmram section in STM32G474VEHX_FLASH.ld and the copy loop
+// in startup_stm32g474vehx.s.
+#if defined(CCMRAM_HOT_FUNCS)
+#define __ccmram __attribute__((section(".ccmram")))
+#else
+#define __ccmram
+#endif

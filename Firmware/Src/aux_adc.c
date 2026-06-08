@@ -61,7 +61,7 @@ void aux_adc_stop() {
 }
 
 
-u32 aux_adc_conv_vdd_voltage_mV(u16 vdd_raw) {
+__ccmram u32 aux_adc_conv_vdd_voltage_mV(u16 vdd_raw) {
     return (((((u32) VREFINT_CAL) << 20) / vdd_raw) * VREFINT_CAL_VOLTAGE_mV) >> 16;
 }
 

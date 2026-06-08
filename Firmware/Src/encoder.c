@@ -43,21 +43,21 @@ static __fn_inline posvel_t encoder_predict(const f32 t_pred) {
 // If delta > 0 and delta > 0.5, then it's a negative difference with wraparound => return delta-1
 // If delta < 0 and delta > -0.5, then it's a negative non-wraparound difference => return delta
 // If delta < 0 and delta < -0.5 then it's a positive difference with wraparound => return delta+1
-f32 circular_delta(f32 delta) {
+__ccmram f32 circular_delta(f32 delta) {
     f32 wrap_adj = roundf(delta); // Delta < -0.5 => -1, -0.5 < delta < 0.5 => 0, 0.5 < delta => 1
     return delta - wrap_adj;
 }
 
 // VERY RESTRICTIVE circular wrap to 0-1
 // x MUST be [-1, 2) or this gonna fuck up
-f32 fast_fmod_01(f32 x) {
+__ccmram f32 fast_fmod_01(f32 x) {
     return x + (f32)(x < 0.f) - (f32)(x >= 1.f);
 }
 
 // Nice clock math enabled encoder estimator
 // Keeps all values within 0-1 to avoid float issues
 // IF POS_ESTIMATE EVER DIVERGES MORE THAN 0.5 TURNS FROM POS THEN THIS SHIT WILL GO UNSTABLE
-void encoder_update(u16 meas) {
+__ccmram void encoder_update(u16 meas) {
     f32 enc_pos = (f32)meas / (f32)ENCODER_CPR; // 0-1
 
     // If this is the first time we're running the estimator as part of the control loop, we need to reset the
@@ -92,7 +92,7 @@ void encoder_update(u16 meas) {
 }
 
 
-posvel_t encoder_get_phase() {
+__ccmram posvel_t encoder_get_phase() {
     posvel_t posvel_estimate_ = posvel_estimate;
 
     // 0-1 -> 2pi * pole_pairs
@@ -112,11 +112,11 @@ posvel_t encoder_get_phase() {
     return (posvel_t){phase_pos, phase_vel};
 }
 
-posvel_t encoder_get_pos_vel() {
+__ccmram posvel_t encoder_get_pos_vel() {
     return posvel_estimate;
 }
 
-f32 encoder_get_multiturn_pos_raw() {
+__ccmram f32 encoder_get_multiturn_pos_raw() {
     return multiturn_pos_raw;
 }
 
@@ -136,26 +136,26 @@ void encoder_set_direction(f32 dir) {
     encoder_dir = dir;
 }
 
-f32 encoder_get_direction() {
+__ccmram f32 encoder_get_direction() {
     return encoder_dir;
 }
 
 
-bool test_encoder_consumer(u16 enc_val) {
+__ccmram bool test_encoder_consumer(u16 enc_val) {
     encoder_update(enc_val);
     return true;
 }
 
-bool test_current_consumer(f32 A_i, f32 B_i, f32 C_i, f32 V_vbus) {
+__ccmram bool test_current_consumer(f32 A_i, f32 B_i, f32 C_i, f32 V_vbus) {
     return true;
 }
 
-bool test_pwm_producer(svm_vec_t* mag) {
+__ccmram bool test_pwm_producer(svm_vec_t* mag) {
     *mag = SVM((ab_vec_t){0.f, 0.f});
     return true;
 }
 
-bool test_is_complete() {
+__ccmram bool test_is_complete() {
     return false;
 }
 
@@ -166,7 +166,7 @@ bool test_finish(bool cancelled) {
     return true;
 }
 
-void test_exec() {
+__ccmram void test_exec() {
 }
 
 control_law_t encoder_test_control_law = {
