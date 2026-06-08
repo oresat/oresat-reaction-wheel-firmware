@@ -61,7 +61,7 @@ void MX_HRTIM1_Init(void)
     Error_Handler();
   }
   pADCTriggerCfg.UpdateSource = HRTIM_ADCTRIGGERUPDATE_TIMER_A;
-  pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT13_TIMERA_PERIOD;
+  pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT13_TIMERA_CMP4; /* MANUAL EDIT: was _PERIOD; CMP4 centers sampling on crest */
   if (HAL_HRTIM_ADCTriggerConfig(&hhrtim1, HRTIM_ADCTRIGGER_1, &pADCTriggerCfg) != HAL_OK)
   {
     Error_Handler();
@@ -71,7 +71,7 @@ void MX_HRTIM1_Init(void)
     Error_Handler();
   }
   pADCTriggerCfg.UpdateSource = HRTIM_ADCTRIGGERUPDATE_TIMER_B;
-  pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT24_TIMERA_PERIOD;
+  pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT24_TIMERA_CMP4; /* MANUAL EDIT: was _PERIOD; CMP4 centers sampling on crest */
   if (HAL_HRTIM_ADCTriggerConfig(&hhrtim1, HRTIM_ADCTRIGGER_2, &pADCTriggerCfg) != HAL_OK)
   {
     Error_Handler();
@@ -81,7 +81,7 @@ void MX_HRTIM1_Init(void)
     Error_Handler();
   }
   pADCTriggerCfg.UpdateSource = HRTIM_ADCTRIGGERUPDATE_TIMER_E;
-  pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT13_TIMERA_PERIOD;
+  pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT13_TIMERA_CMP4; /* MANUAL EDIT: was _PERIOD; CMP4 centers sampling on crest */
   if (HAL_HRTIM_ADCTriggerConfig(&hhrtim1, HRTIM_ADCTRIGGER_3, &pADCTriggerCfg) != HAL_OK)
   {
     Error_Handler();
@@ -91,7 +91,7 @@ void MX_HRTIM1_Init(void)
     Error_Handler();
   }
   pADCTriggerCfg.UpdateSource = HRTIM_ADCTRIGGERUPDATE_TIMER_A;
-  pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT24_TIMERA_PERIOD;
+  pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT24_TIMERA_CMP4; /* MANUAL EDIT: was _PERIOD; CMP4 centers sampling on crest */
   if (HAL_HRTIM_ADCTriggerConfig(&hhrtim1, HRTIM_ADCTRIGGER_4, &pADCTriggerCfg) != HAL_OK)
   {
     Error_Handler();
@@ -199,6 +199,17 @@ void MX_HRTIM1_Init(void)
   {
     Error_Handler();
   }
+  /* MANUAL EDIT (not from .ioc): Timer A CMP4 = injected-ADC trigger, positioned so the 4x
+     oversampling burst is centered on the counter crest (= temporal center of the PWM period).
+     Trigger fires `offset` ticks before the crest; offset = L_trig + Tsample/2 + 1.5*Tconv:
+        Tsample/2 = 1.25 ADC cyc            ~= 34.7 ns
+        1.5*Tconv = 22.5 ADC cyc (12-bit)   ~= 625.0 ns   (Tconv = 15 cyc @ 36 MHz ADC)
+        L_trig    ~= 1.5 ADC cyc (ASSUMED)  ~= 41.7 ns    <-- trim this on a scope
+        offset    ~= 701 ns / 0.217 ns/tick ~= 3232 HRTIM ticks (tick = 1/4.608 GHz)
+     CMP4 = PERIOD(24000) - 3232 = 20768. Larger CMP4 -> sample later (closer to / past crest).
+     ADROM_CREST (set above) gates this compare to the up-slope only -> one trigger/period.
+     Direct-register set (like pwm.c) so it doesn't disturb the reused pCompareCfg=12000 duties. */
+  __HAL_HRTIM_SETCOMPARE(&hhrtim1, HRTIM_TIMERINDEX_TIMER_A, HRTIM_COMPAREUNIT_4, 20768);
   pDeadTimeCfg.Prescaler = HRTIM_TIMDEADTIME_PRESCALERRATIO_DIV8;
   pDeadTimeCfg.RisingValue = 0xC;
   pDeadTimeCfg.RisingSign = HRTIM_TIMDEADTIME_RISINGSIGN_POSITIVE;

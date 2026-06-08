@@ -109,7 +109,14 @@ void MX_ADC1_Init(void)
   sConfigInjected.QueueInjectedContext = DISABLE;
   sConfigInjected.ExternalTrigInjecConv = ADC_EXTERNALTRIGINJEC_HRTIM_TRG2;
   sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_RISING;
-  sConfigInjected.InjecOversamplingMode = DISABLE;
+  /* MANUAL EDIT (not from .ioc): 4x injected hardware oversampling. One HRTIM trigger -> 4
+     back-to-back conversions, hardware-averaged (right-shift 2 = /4) into JDR1. No DMA, no SW
+     averaging; cuts current-sense noise. The 4-sample burst is centered on the PWM crest via
+     Timer A CMP4 (see hrtim.c). /4 shift keeps the result 12-bit so downstream offset/gain math
+     is unchanged. NOTE: lives in generated adc.c -> a CubeMX/.ioc regen reverts it. */
+  sConfigInjected.InjecOversamplingMode = ENABLE;
+  sConfigInjected.InjecOversampling.Ratio = ADC_OVERSAMPLING_RATIO_4;
+  sConfigInjected.InjecOversampling.RightBitShift = ADC_RIGHTBITSHIFT_2;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
   {
     Error_Handler();
@@ -184,7 +191,14 @@ void MX_ADC2_Init(void)
   sConfigInjected.QueueInjectedContext = DISABLE;
   sConfigInjected.ExternalTrigInjecConv = ADC_EXTERNALTRIGINJEC_HRTIM_TRG2;
   sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_RISING;
-  sConfigInjected.InjecOversamplingMode = DISABLE;
+  /* MANUAL EDIT (not from .ioc): 4x injected hardware oversampling. One HRTIM trigger -> 4
+     back-to-back conversions, hardware-averaged (right-shift 2 = /4) into JDR1. No DMA, no SW
+     averaging; cuts current-sense noise. The 4-sample burst is centered on the PWM crest via
+     Timer A CMP4 (see hrtim.c). /4 shift keeps the result 12-bit so downstream offset/gain math
+     is unchanged. NOTE: lives in generated adc.c -> a CubeMX/.ioc regen reverts it. */
+  sConfigInjected.InjecOversamplingMode = ENABLE;
+  sConfigInjected.InjecOversampling.Ratio = ADC_OVERSAMPLING_RATIO_4;
+  sConfigInjected.InjecOversampling.RightBitShift = ADC_RIGHTBITSHIFT_2;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc2, &sConfigInjected) != HAL_OK)
   {
     Error_Handler();
@@ -268,7 +282,14 @@ void MX_ADC3_Init(void)
   sConfigInjected.QueueInjectedContext = DISABLE;
   sConfigInjected.ExternalTrigInjecConv = ADC_EXTERNALTRIGINJEC_HRTIM_TRG2;
   sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_RISING;
-  sConfigInjected.InjecOversamplingMode = DISABLE;
+  /* MANUAL EDIT (not from .ioc): 4x injected hardware oversampling. One HRTIM trigger -> 4
+     back-to-back conversions, hardware-averaged (right-shift 2 = /4) into JDR1. No DMA, no SW
+     averaging; cuts current-sense noise. The 4-sample burst is centered on the PWM crest via
+     Timer A CMP4 (see hrtim.c). /4 shift keeps the result 12-bit so downstream offset/gain math
+     is unchanged. NOTE: lives in generated adc.c -> a CubeMX/.ioc regen reverts it. */
+  sConfigInjected.InjecOversamplingMode = ENABLE;
+  sConfigInjected.InjecOversampling.Ratio = ADC_OVERSAMPLING_RATIO_4;
+  sConfigInjected.InjecOversampling.RightBitShift = ADC_RIGHTBITSHIFT_2;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc3, &sConfigInjected) != HAL_OK)
   {
     Error_Handler();
@@ -343,7 +364,14 @@ void MX_ADC4_Init(void)
   sConfigInjected.QueueInjectedContext = DISABLE;
   sConfigInjected.ExternalTrigInjecConv = ADC_EXTERNALTRIGINJEC_HRTIM_TRG2;
   sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_RISING;
-  sConfigInjected.InjecOversamplingMode = DISABLE;
+  /* MANUAL EDIT (not from .ioc): 4x injected hardware oversampling. One HRTIM trigger -> 4
+     back-to-back conversions, hardware-averaged (right-shift 2 = /4) into JDR1. No DMA, no SW
+     averaging; cuts current-sense noise. The 4-sample burst is centered on the PWM crest via
+     Timer A CMP4 (see hrtim.c). /4 shift keeps the result 12-bit so downstream offset/gain math
+     is unchanged. NOTE: lives in generated adc.c -> a CubeMX/.ioc regen reverts it. */
+  sConfigInjected.InjecOversamplingMode = ENABLE;
+  sConfigInjected.InjecOversampling.Ratio = ADC_OVERSAMPLING_RATIO_4;
+  sConfigInjected.InjecOversampling.RightBitShift = ADC_RIGHTBITSHIFT_2;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc4, &sConfigInjected) != HAL_OK)
   {
     Error_Handler();

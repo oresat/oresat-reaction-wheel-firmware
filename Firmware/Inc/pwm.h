@@ -7,8 +7,11 @@
 #define PWM_CNTR 24000
 #define HRTIM_DLL_MUL 32
 
-// 4x HRTIM clock freq, so that up/down set/reset can be changed
-#define PWM_CNTR_MARGIN (4*(HRTIM_DLL_MUL))
+// Up-down mode requires output set/reset compare values to stay >= 0xC0 ticks from the period
+// boundaries at CKPSC=0/MUL32 (RM0440 p918: max compare = TIMx_PER - 0xC0); a compare nearer the
+// crest/valley can drop its set/reset event. 0xC0 = 192 = 6*HRTIM_DLL_MUL -> clamps duty to
+// [192, 23808]. (Was 4*DLL_MUL=128, i.e. 64 ticks inside the forbidden zone.)
+#define PWM_CNTR_MARGIN (6*(HRTIM_DLL_MUL))
 #define PWM_CNTR_MAX_ALLOWED (PWM_CNTR - PWM_CNTR_MARGIN)
 #define PWM_CNTR_MIN_ALLOWED (PWM_CNTR_MARGIN)
 // Actual switching frequency: HRTIM counter clock (144 MHz × DLL_MUL) / PWM_CNTR / 2 (up-down).
