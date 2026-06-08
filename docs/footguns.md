@@ -73,6 +73,16 @@ the symbol name, before trusting or changing it. Getting this wrong shoot-throug
 **The on-chip USART bootloader is bypassed deliberately** ("FUCKS OUR SHIT UP"). Boot-pin handling is
 custom; don't re-enable the ST bootloader path expecting it to work.
 
+**The app is relinked to run behind the bootloader at `0x08008000` — via two edits to *generated*
+files that a CubeMX/CubeIDE regen silently reverts.** (1) `STM32G474VEHX_FLASH.ld` FLASH origin =
+`0x8008000`, LENGTH `480K` (not `0x8000000`/512K); (2) `Core/Src/system_stm32g4xx.c` — uncomment
+`#define USER_VECT_TAB_ADDRESS` (~line 110) **and** set `VECT_TAB_OFFSET 0x00008000U` (~line 125), so
+`SystemInit` does `SCB->VTOR = 0x08008000`. The VTOR write is gated behind `USER_VECT_TAB_ADDRESS`, so
+editing the offset *alone* is a no-op that still builds clean and even passes `objdump -h` (vector LMA
+is linker-set) — then dispatches every IRQ through the bootloader's table at runtime. Verify the real
+thing: `arm-none-eabi-objdump -d --disassemble=SystemInit …` must store `0x08008000` to VTOR. Full
+checklist in `docs/bootloader-integration.md`; working reference is `oresat-acs-fw-v7`.
+
 ## Build / tooling
 
 **A clean CMake build proves very little.** No `-Wall`/`-Wextra` in the build, and no tests. Run
