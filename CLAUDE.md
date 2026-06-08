@@ -92,7 +92,7 @@ For each PDF there is a `<name>.toc.md` (markdown outline with PDF page numbers)
 
 The system is structured around three independent ISR domains plus a foreground loop. Understanding which domain code runs in is essential before changing it.
 
-1. **Fast control loop — HRTIM1 repetition ISR @ 16 kHz** (`PWM_FREQ=192000` / `PWM_RCR=12`).
+1. **Fast control loop — HRTIM1 repetition ISR @ 16 kHz** (`PWM_SWITCHING_HZ=96000` / `PWM_CYCLES_PER_ISR=6`).
    Entry: `hrtim_repetition_callback()` in `Firmware/Src/control_ll.c`. Each tick:
    1. Kick off MA702 SPI angle read (non-blocking start via direct-register macro `__MA702_FAST_ANGLE_READ_START()`).
    2. Run `adc_update_callback()` — reads injected ADC (3-shunt phase currents + Vbus), applies offset cal & shunt-amp gain, runs over/undervoltage/overcurrent trips.

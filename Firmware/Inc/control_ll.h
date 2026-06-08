@@ -8,12 +8,14 @@ void controller_init();
 void controller_arm();
 void controller_disarm();
 
-#define ENC_MEAS_FREQ ((f32) PWM_FREQ/(f32) PWM_RCR)
-#define CURRENT_MEAS_FREQ ((f32) PWM_FREQ/(f32) PWM_RCR)
-#define PWM_UPDATE_FREQ ((f32) PWM_FREQ/(f32) PWM_RCR)
-
-#define LOOP_UPDATE_FREQ ((f32) PWM_FREQ / (f32) PWM_RCR)
-#define SECONDS_PER_LOOP (1.f/LOOP_UPDATE_FREQ)
+// Fast-loop ISR rate in Hz. All four aliases below are the same number;
+// kept as separate names so call sites read with the intent they're expressing
+// (encoder-update rate vs current-meas rate vs pwm-update rate vs generic loop rate).
+#define LOOP_UPDATE_FREQ  ((f32)PWM_SWITCHING_HZ / (f32)PWM_CYCLES_PER_ISR)
+#define ENC_MEAS_FREQ     LOOP_UPDATE_FREQ
+#define CURRENT_MEAS_FREQ LOOP_UPDATE_FREQ
+#define PWM_UPDATE_FREQ   LOOP_UPDATE_FREQ
+#define SECONDS_PER_LOOP  (1.f / LOOP_UPDATE_FREQ)
 
 
 typedef enum CONTROLLER_STATE {

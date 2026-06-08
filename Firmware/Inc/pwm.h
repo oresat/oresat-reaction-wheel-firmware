@@ -11,9 +11,13 @@
 #define PWM_CNTR_MARGIN (4*(HRTIM_DLL_MUL))
 #define PWM_CNTR_MAX_ALLOWED (PWM_CNTR - PWM_CNTR_MARGIN)
 #define PWM_CNTR_MIN_ALLOWED (PWM_CNTR_MARGIN)
-#define PWM_FREQ 192000
-//#define PWM_RCR 12
-#define PWM_RCR 6
+// Actual switching frequency: HRTIM counter clock (144 MHz × DLL_MUL) / PWM_CNTR / 2 (up-down).
+// 144e6 * 32 / 24000 / 2 = 96 kHz.
+#define PWM_SWITCHING_HZ   96000u
+
+// PWM cycles between fast-loop ISRs. Matches HW RepetitionCounter+1 in hrtim.c.
+// One ISR every 6 switching cycles → 16 kHz fast-loop ISR.
+#define PWM_CYCLES_PER_ISR 6u
 
 void hrtim_pwm_setup();
 

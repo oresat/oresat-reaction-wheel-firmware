@@ -28,10 +28,8 @@ void encoder_init() {
     is_first_run = true;
 }
 
-// Predict new encoder position (in turns) given a number of PWM cycles (NOTE not RCR cycles - n_periods=4 is one update!)
-static __fn_inline posvel_t encoder_predict(const u32 n_periods) {
-    f32 t_pred = (f32)n_periods * enc_meas_period / (f32)PWM_RCR;
-
+// Predict new pos/vel `t_pred` seconds into the future from the last estimate.
+static __fn_inline posvel_t encoder_predict(const f32 t_pred) {
     posvel_t posvel_estimate_ = posvel_estimate;
 
     return (posvel_t){
@@ -76,7 +74,7 @@ void encoder_update(u16 meas) {
     f32 enc_delta = circular_delta(enc_pos - last_enc_pos);
     last_enc_pos = enc_pos;
 
-    posvel_t posvel_predict = encoder_predict(PWM_RCR); // Get new pos/vel predictions
+    posvel_t posvel_predict = encoder_predict(enc_meas_period); // Get new pos/vel predictions
     posvel_predict.pos = fast_fmod_01(posvel_predict.pos); // Wrap prediction to 0-1
 
     // This could be changed to a +/- 0.5 saturation function
