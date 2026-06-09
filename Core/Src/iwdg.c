@@ -55,14 +55,18 @@ void MX_IWDG_Init(void)
 
 /* Override the __weak HAL_IncTick from stm32g4xx_hal.c so the SysTick ISR
  * also refreshes the IWDG every 1ms. Restores the v7 auto-kick that was lost
- * when CubeMX regenerated the HAL driver. The Instance guard skips the kick
- * during the few ticks between HAL_Init() and MX_IWDG_Init(). */
+ * when CubeMX regenerated the HAL driver.
+ *
+ * Kick via the peripheral address directly, NOT through hiwdg: the bootloader
+ * jumps here with SysTick still running and SystemInit points VTOR at this
+ * image's vector table immediately, so this ISR can fire during Reset_Handler's
+ * copy/fill loops -- before .bss is zeroed -- where hiwdg.Instance is leftover
+ * RAM garbage and the deref is a bus fault (a NULL check does not cover that
+ * window). Reload-while-stopped is a no-op, so no guard is needed at all. */
 void HAL_IncTick(void)
 {
   uwTick += uwTickFreq;
-  if (hiwdg.Instance != NULL) {
-    __HAL_IWDG_RELOAD_COUNTER(&hiwdg);
-  }
+  IWDG->KR = IWDG_KEY_RELOAD;
 }
 
 /* USER CODE END 1 */
