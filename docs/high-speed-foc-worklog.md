@@ -128,8 +128,9 @@ vector). Worth it even after 32 kHz — it's the scalable lever (no extra ADC/PI
 first, gate it, measure CPU.
 
 ### Cleanup items found along the way (low priority)
-- `encoder_calibration.c:306` `ENC_VAL_LOOPS_PER_POINT 32000` — hardcoded, does NOT rescale with
-  loop rate (now 1 s/point @32 kHz vs 2 s @16 kHz). Should derive from `LOOP_UPDATE_FREQ`.
+- ~~`encoder_calibration.c:306` `ENC_VAL_LOOPS_PER_POINT 32000` hardcoded~~ **FIXED** (2026-06-08):
+  now `(u32)(2.f * LOOP_UPDATE_FREQ)` = 2 s/point at any rate. (Found during the post-32 kHz delta
+  review; the encoder-validation dwell had silently halved.)
 - `inverter.c:31-45` comment block is stale (325 kHz, timer B/F CMP3, INA240) — doesn't match
   current HRTIM (timer A CMP4) or hardware (INA296). `ADC_POSTSCALER = 12-1` (`:54`) is vestigial
   (HRTIM postscaler is actually `0x0` in `hrtim.c`; conversions fire every crest).

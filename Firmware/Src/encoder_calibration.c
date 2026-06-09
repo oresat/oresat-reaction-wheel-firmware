@@ -303,7 +303,9 @@ control_law_t encoder_phase_cal_ctrl_law = {
 #define ENC_VAL_POINTS_LEN 12
 #define ENC_VAL_POINTS_START -M_PI_f32
 #define ENC_VAL_POINTS_END M_PI_f32
-#define ENC_VAL_LOOPS_PER_POINT 32000
+// 2 s settle per point. Derived from the loop rate so it doesn't silently change duration when
+// the fast-loop ISR rate changes (was hardcoded 32000 = 2 s @16 kHz, would be 1 s @32 kHz).
+#define ENC_VAL_LOOPS_PER_POINT ((u32)(2.f * LOOP_UPDATE_FREQ))
 
 static volatile f32 encoder_validation_points[ENC_VAL_POINTS_LEN + 1];
 static volatile u8 current_point = 0;
