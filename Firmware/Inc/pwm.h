@@ -31,6 +31,13 @@ void hrtim_pwm_start();
 
 void hrtim_pwm_stop();
 
+// Disable/enable only the six bridge outputs (hi-Z the bridge) while leaving the HRTIM counters,
+// repetition ISR, and ADC triggers running. For back-EMF coast-down measurement; see
+// docs/backemf-coastdown-implementation.md.
+void hrtim_outputs_disable();
+
+void hrtim_outputs_enable();
+
 void hrtim_pwm_set_dcycle_f32(f32 a_dcycle, f32 b_dcycle, f32 c_dcycle);
 
 //void hrtim_pwm_set_dcycle_u16(u16 a_dcycle, u16 b_dcycle, u16 c_dcycle);

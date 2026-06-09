@@ -1,6 +1,12 @@
 #!/bin/sh
 # Build BOTH images (app at repo root + bootloader/) with one command.
-# Usage: ./build.sh [BUILD_TYPE]      (default Debug; Release/RelWithDebInfo/MinSizeRel)
+# Usage: ./build.sh [BUILD_TYPE]      (default RelWithDebInfo; Debug/Release/MinSizeRel)
+#
+# Default is RelWithDebInfo, NOT Debug: at the 32 kHz control rate the armed fast loop
+# does not fit its 31.25 us budget in a -Og flash-resident build -- the pri-0 ISR
+# saturates, SysTick (the sole IWDG feeder) starves, and the board watchdog-reboots
+# ~512 ms after arming (measured 2026-06-09: optimized+CCM tick = 72% of budget; Debug
+# VEL_CONTROL barely fits, VEL_RAMP does not). Debug at 16 kHz is fine if you need -Og.
 #
 # The two are independent standalone CMake projects (different FPU ABIs, linker
 # scripts and vector-table bases); this just runs both. Build dirs follow the
@@ -8,17 +14,17 @@
 set -e
 cd "$(dirname "$0")"
 
-BUILD_TYPE="${1:-Debug}"
+BUILD_TYPE="${1:-RelWithDebInfo}"
 SUFFIX=$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')
 APP_BUILD="cmake-build-$SUFFIX"
 BL_BUILD="bootloader/cmake-build-$SUFFIX"
 
 echo "==== app ($BUILD_TYPE) -> $APP_BUILD ===="
-cmake -S . -B "$APP_BUILD" -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+cmake -S . -B "$APP_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 cmake --build "$APP_BUILD" -j
 
 echo "==== bootloader ($BUILD_TYPE) -> $BL_BUILD ===="
-cmake -S bootloader -B "$BL_BUILD" -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+cmake -S bootloader -B "$BL_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 cmake --build "$BL_BUILD" -j
 
 echo

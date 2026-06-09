@@ -2,6 +2,8 @@
 
 #include <stdlib.h>
 
+#include "backemf_cal.h"
+#include "cal_store.h"
 #include "can_comms.h"
 #include "closed_loop_controller.h"
 #include "control_ll.h"
@@ -49,6 +51,9 @@ static __fn_inline control_law_t* get_ctrl_law_for_state(fsm_state_t state) {
         case FSM_STATE_IDLE:
         case FSM_STATE_SYSTEM_ERROR:
         case FSM_STATE_CONTROLLER_ERROR:
+        case FSM_STATE_SAVE_CALIBRATION:    // cal-store RPC states: no law, never armed;
+        case FSM_STATE_ERASE_CALIBRATION:   // action runs in fsm_exit_state on the way back
+        case FSM_STATE_RESTORE_CALIBRATION: // to IDLE (CLEAR_ERRORS pattern)
             return NULL;
         case FSM_STATE_TORQUE_CONTROL:
             return &torque_ctrl_control_law;
@@ -74,6 +79,10 @@ static __fn_inline control_law_t* get_ctrl_law_for_state(fsm_state_t state) {
             return &encoder_single_point_cal_ctrl_law;
         case FSM_STATE_VEL_RAMP_CONTROL:
             return &vel_ramp_ctrl_control_law;
+        case FSM_STATE_BACKEMF_CAL:
+            return &backemf_cal_ctrl_law;
+        case FSM_STATE_BACKEMF_CAL_BIDIR:
+            return &backemf_cal_bidir_ctrl_law;
     }
 }
 
@@ -112,8 +121,13 @@ void fsm_exec() {
         fsm_enter_state(FSM_STATE_IDLE); // We'll enter the new one on the next FSM loop
     }
 
-    // If we're trying to clear errors
-    else if (fsm_requested_state == FSM_STATE_NONE && fsm_state == FSM_STATE_CLEAR_ERRORS) {
+    // Action states (clear-errors / cal-store RPCs): auto-request IDLE; the action itself fires
+    // in fsm_exit_state on the resulting transition.
+    else if (fsm_requested_state == FSM_STATE_NONE &&
+             (fsm_state == FSM_STATE_CLEAR_ERRORS ||
+              fsm_state == FSM_STATE_SAVE_CALIBRATION ||
+              fsm_state == FSM_STATE_ERASE_CALIBRATION ||
+              fsm_state == FSM_STATE_RESTORE_CALIBRATION)) {
         fsm_requested_state = FSM_STATE_IDLE;
     }
 }
@@ -141,9 +155,24 @@ void fsm_exit_state(fsm_state_t exit_state, bool cancelled) {
         case FSM_STATE_ENCODER_VALIDATION:
         case FSM_STATE_SHITTY_OFFSET_CAL:
         case FSM_STATE_VEL_RAMP_CONTROL:
+        case FSM_STATE_BACKEMF_CAL:
+        case FSM_STATE_BACKEMF_CAL_BIDIR:
             controller_disarm(); // Should be handled in the controller but we do it here anyways
             foc_capture_stop();  // freeze ring buffer for post-run readout
             fsm_last_state_exit_ok = controller_get_control_law()->control_law_finish(cancelled);
+            break;
+        // Cal-store RPC actions. Run on the exit transition (CLEAR_ERRORS pattern), motor is
+        // guaranteed disarmed (these states never arm). Result -> procedure_result on TPDO1.
+        // Flash ops here (FSM ISR) are stall-free: app executes from bank 1, cal page is bank 2
+        // (dual-bank read-while-write) — see cal_store.h.
+        case FSM_STATE_SAVE_CALIBRATION:
+            fsm_last_state_exit_ok = cal_store_save();
+            break;
+        case FSM_STATE_ERASE_CALIBRATION:
+            fsm_last_state_exit_ok = cal_store_erase();
+            break;
+        case FSM_STATE_RESTORE_CALIBRATION:
+            fsm_last_state_exit_ok = cal_store_restore();
             break;
         default: ;
     }

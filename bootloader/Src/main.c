@@ -83,6 +83,15 @@ static void MX_USART2_UART_Init(void);
 
 static const u32 main_prog_addr = 0x8008000; // where the main user code is stored
 
+/* Reset-cause hand-off: HAL_RCC_DeInit() in System_DeInit clears the RCC_CSR reset flags
+ * (RMVF), so the app can never read why the chip reset. Snapshot the flags at entry and park
+ * them in a magic-tagged mailbox at the top of RAM2 — outside both images' .data/.bss and
+ * both stacks. The app consumes it in app_main's "Reset cause:" banner (keep address+magic
+ * in sync with Firmware/Src/app_main.c). */
+#define RESET_CAUSE_MAILBOX ((volatile u32 *) 0x20017FF8)
+#define RESET_CAUSE_MAGIC   0x52435352u /* "RCSR" */
+static u32 boot_rcc_csr;
+
 /* USER CODE END 0 */
 
 /**
@@ -96,6 +105,8 @@ int main(void)
 
   // USE IT
   volatile u32 n = MAGIC_NUMBER;
+
+  boot_rcc_csr = RCC->CSR; // snapshot reset-cause flags before anything can clear them
 
   /* USER CODE END 1 */
 
@@ -484,6 +495,10 @@ void System_DeInit() {
   SysTick->LOAD = 0;
   SysTick->VAL  = 0;
   SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk;
+  /* Hand the entry-time reset-cause snapshot to the app (HAL_RCC_DeInit above just wiped the
+   * hardware flags). */
+  RESET_CAUSE_MAILBOX[0] = RESET_CAUSE_MAGIC;
+  RESET_CAUSE_MAILBOX[1] = boot_rcc_csr;
 }
 
 /* USER CODE END 4 */

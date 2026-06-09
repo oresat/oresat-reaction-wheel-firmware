@@ -33,6 +33,11 @@ setpoint. `setpoint_2`, `reserved_1`, `reserved_2` are read but currently unused
 | `FSM_STATE_ENCODER_VALIDATION` | 14 | `encoder_validation_ctrl_law` | — | after 12 points × 2 s | dumps table over UART1+UART2 |
 | `FSM_STATE_SHITTY_OFFSET_CAL` | 15 | `encoder_single_point_cal_ctrl_law` | — | after 4 s lock-in | **applies** single-point offset |
 | `FSM_STATE_VEL_RAMP_CONTROL` | 16 | `vel_ramp_ctrl_control_law` | target velocity [rev/s] | never | velocity, slew-limited |
+| `FSM_STATE_BACKEMF_CAL` | 17 | `backemf_cal_ctrl_law` | — (target in config.h) | spin+settle+coast (or hand-spin timeout) | logs coast capture for offline offset fit; see `backemf-coastdown-implementation.md` |
+| `FSM_STATE_SAVE_CALIBRATION` | 18 | none (action on exit) | — | immediate | live offset/dir → flash cal page; result → `procedure_result` |
+| `FSM_STATE_ERASE_CALIBRATION` | 19 | none (action on exit) | — | immediate | erases the cal page |
+| `FSM_STATE_RESTORE_CALIBRATION` | 20 | none (action on exit) | — | immediate | flash cal page → live offset/dir (also auto-runs at boot) |
+| `FSM_STATE_BACKEMF_CAL_BIDIR` | 21 | `backemf_cal_bidir_ctrl_law` | — (target in config.h) | fwd leg → drain → reverse leg | one-run fwd+rev coast capture — the gold-standard dataset for the offset fit |
 | `FSM_STATE_NONE`/`SYSTEM_ERROR`/`CONTROLLER_ERROR` | 0/2/3 | none | — | — | error/sentinel states |
 
 Closed-loop laws (torque/vel/pos/vel-ramp) delegate their `encoder_consumer`/`current_consumer`/

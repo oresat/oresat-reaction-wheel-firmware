@@ -92,6 +92,21 @@ SDO-rx COB-ID):
 Clear a latched fault: `0x4004:01` = `13` (`FSM_STATE_CLEAR_ERRORS`) — errors reset on exit and the
 FSM auto-returns to IDLE. Any nonzero `errors` otherwise pins the node in `CONTROLLER_ERROR` (3).
 
+**Calibration persistence** (same action-state pattern as CLEAR_ERRORS — request, action fires,
+auto-return to IDLE; success/failure lands in TPDO1 `procedure_result`):
+
+- `0x4004:01` = `18` (`SAVE_CALIBRATION`) — snapshot live encoder offset/dir → flash cal page
+  (skips the write if unchanged; refuses if dir-cal never ran).
+- `0x4004:01` = `19` (`ERASE_CALIBRATION`) — wipe the cal page.
+- `0x4004:01` = `20` (`RESTORE_CALIBRATION`) — re-apply the stored cal (also runs automatically
+  at every boot, so a typical commissioning is: dir-cal (9) → offset cal (10/15/17) → save (18),
+  and subsequent boots need nothing).
+
+Commissioning a wheel end-to-end: `0x4004:01` = `9` (dir cal, wait done) → `15` (bootstrap offset
+cal, wait done) → `21` (bidirectional back-EMF coast capture; fit currently offline over SWD —
+full runbook in backemf-coastdown-implementation.md) → `18` (save). Check `procedure_result` = 1
+after each. Subsequent boots auto-restore — no recal needed.
+
 ## Notes for host tooling
 
 - The EDS/profile lives at `CANopenSTM32/CANopenNode_STM32/DS301_profile.eds` (and `.xpd`) — load it

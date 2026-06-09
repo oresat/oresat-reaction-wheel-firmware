@@ -11,7 +11,10 @@
 # are marked __maybe_unused (typedefs.h); printf-family calls are format-checked via printf.h.
 #
 # Usage:
-#   ./lint.sh                 # uses cmake-build-debug
+#   ./lint.sh                 # uses cmake-build-debug (deliberately, even though the bench
+#                             # default is relwithdebinfo: optimized dirs add -fstrict-aliasing
+#                             # and surface 9 pre-existing type-punning warnings. Keep
+#                             # cmake-build-debug configured so its compile_commands stays fresh.)
 #   BUILD_DIR=cmake-build-release ./lint.sh
 #
 # Exit code is non-zero if any warning/error is found (suitable for a pre-commit / CI gate).

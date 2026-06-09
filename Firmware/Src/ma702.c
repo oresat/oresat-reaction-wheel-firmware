@@ -1,9 +1,87 @@
 #include "ma702.h"
 
 
+#include "config.h"
+#include "printf.h"
 #include "util.h"
 
 #define DEFAULT_MGL_THRESH_REG_VAL ((0b000 << 5) | (0b111 << 2))
+
+// ---- Generic MA732 register access (datasheet §SPI Communication, Figs 11/13) ----
+// Read: frame1 = (010 | 5-bit addr) << 8, idle >=750ns, frame2 (zeros, doubles as an angle-read
+// command) returns the register value in the response's MSB byte.
+static u8 ma732_read_reg(const u8 addr) {
+    u16 tx_buf[] = {(u16) (((0b010 << 5) | (addr & 0x1F)) << 8)};
+    u16 rx_buf[] = {0x0};
+
+    set_nCS(0);
+    HAL_SPI_TransmitReceive(&ENCODER_SPI_HANDLE, (u8 *) tx_buf, (u8 *) rx_buf, 1, 0xFFFF);
+    set_nCS(1);
+
+    // Spinlock to honor min reg read time (t_IdleReg >= 750ns)
+    for (u8 i = 0; i < 128; i++)
+        __asm__("nop");
+
+    tx_buf[0] = 0x0; // Reset to angle read; response carries the register value
+    rx_buf[0] = 0x0;
+
+    set_nCS(0);
+    HAL_SPI_TransmitReceive(&ENCODER_SPI_HANDLE, (u8 *) tx_buf, (u8 *) rx_buf, 1, 0xFFFF);
+    set_nCS(1);
+
+    for (u8 i = 0; i < 128; i++)
+        __asm__("nop");
+
+    return (u8) (rx_buf[0] >> 8);
+}
+
+// Write: frame1 = (100 | addr) << 8 | value, wait t_nvm >= 20ms (NON-VOLATILE write — the value
+// persists in the sensor across power cycles; endurance ~1k cycles, so callers must only write
+// on mismatch), frame2 returns the new value as acknowledge.
+static bool ma732_write_reg(const u8 addr, const u8 reg_val) {
+    u16 reg_cmd = (u16) ((((0b100 << 5) | (addr & 0x1F)) << 8) | reg_val);
+
+    u16 tx_buf[] = {reg_cmd};
+    u16 rx_buf[] = {0x0};
+
+    set_nCS(0);
+    HAL_SPI_TransmitReceive(&ENCODER_SPI_HANDLE, (u8 *) tx_buf, (u8 *) rx_buf, 1, 0xFFFF);
+    set_nCS(1);
+
+    HAL_Delay(21); // t_nvm: non-volatile write in progress
+
+    tx_buf[0] = 0x0; // Reset to angle read; response acknowledges the written value
+    rx_buf[0] = 0x0;
+
+    set_nCS(0);
+    HAL_SPI_TransmitReceive(&ENCODER_SPI_HANDLE, (u8 *) tx_buf, (u8 *) rx_buf, 1, 0xFFFF);
+    set_nCS(1);
+
+    for (u8 i = 0; i < 128; i++)
+        __asm__("nop");
+
+    return ((u8) (rx_buf[0] >> 8)) == reg_val;
+}
+
+#define MA732_REG_FW 0xE // filter window register (datasheet Table 7)
+
+// Option-bytes pattern for the MA732 filter window: read FW, write only if it differs from
+// MA732_FILTER_WINDOW_REG (config.h — cutoff/noise tradeoff table there). One NVM write per
+// sensor per value change, ever. Call from init (blocking: uses HAL_Delay), after ma702_preheat.
+bool ma732_ensure_filter_window() {
+    u8 fw = ma732_read_reg(MA732_REG_FW);
+    if (fw == MA732_FILTER_WINDOW_REG) {
+        printf("MA732 FW=%u (ok)\r\n", (unsigned) fw);
+        return true;
+    }
+
+    printf("MA732 FW=%u != %u, writing sensor NVM...\r\n",
+           (unsigned) fw, (unsigned) MA732_FILTER_WINDOW_REG);
+    bool ok = ma732_write_reg(MA732_REG_FW, MA732_FILTER_WINDOW_REG);
+    printf("MA732 FW write %s (now %u)\r\n", ok ? "OK" : "FAILED",
+           (unsigned) ma732_read_reg(MA732_REG_FW));
+    return ok;
+}
 
 // Set the register read to angle
 void ma702_preheat() {

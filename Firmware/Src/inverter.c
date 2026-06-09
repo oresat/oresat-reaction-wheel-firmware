@@ -221,6 +221,19 @@ __ccmram void inverter_get_adc_raw(u32 *A, u32 *B, u32 *C, u32 *vbus) {
     *vbus = (&VBUS_ADC_HANDLE)->Instance->JDR1;
 }
 
+// Raw phase-voltage readings (PHx_V dividers) from injected rank 2 of each current-sense ADC:
+// PHA_V=ADC1_IN3, PHB_V=ADC3_IN2, PHC_V=ADC2_IN4 (same ADCs as the shunts; see periphmap.h).
+// Used by back-EMF coast-down cal. Rank 2 is enabled by MANUAL EDITs in Core/Src/adc.c
+// (ScanConvMode=ENABLE + 2-conversion injected sequence; a CubeMX regen reverts them and this
+// reads stale zeros again). Values update every injected trigger (96 kHz) but are only
+// *meaningful* while the bridge is hi-Z (hrtim_outputs_disable()) — during normal PWM the phase
+// node is switching and this samples chop. See docs/backemf-coastdown-implementation.md §3.
+__ccmram void inverter_get_phase_voltages_raw(u32 *A, u32 *B, u32 *C) {
+    *A = (&PHASE_A_ADC_HANDLE)->Instance->JDR2;
+    *B = (&PHASE_B_ADC_HANDLE)->Instance->JDR2;
+    *C = (&PHASE_C_ADC_HANDLE)->Instance->JDR2;
+}
+
 __ccmram void inverter_get_offset_correction(i16 *A, i16 *B, i16 *C) {
     *A = INA240_offset_correction.A_offset;
     *B = INA240_offset_correction.B_offset;

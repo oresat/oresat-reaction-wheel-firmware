@@ -24,6 +24,10 @@ static volatile bool is_first_run = true; // Do we need to reset encoder vel on 
 static volatile f32 encoder_dir = 1; // Encoder direction - +1 or -1
 static volatile f32 phase_offset = 0.f; // Phase offset in electrical radians
 
+// Per-revolution angle-error LUT (see encoder.h). Default all-zeros + disabled = exact no-op.
+static volatile f32 enc_lut[ENC_LUT_N];
+static volatile bool enc_lut_enabled = false;
+
 void encoder_init() {
     is_first_run = true;
 }
@@ -59,6 +63,18 @@ __ccmram f32 fast_fmod_01(f32 x) {
 // IF POS_ESTIMATE EVER DIVERGES MORE THAN 0.5 TURNS FROM POS THEN THIS SHIT WILL GO UNSTABLE
 __ccmram void encoder_update(u16 meas) {
     f32 enc_pos = (f32)meas / (f32)ENCODER_CPR; // 0-1
+
+    // Per-rev angle-error correction, indexed by the RAW measurement (the only thing we have at
+    // runtime), wrap-safe lerp between bins. Applied before the PLL so position, velocity,
+    // multiturn and the electrical phase all benefit. ~15 cycles; no-op until a LUT is loaded.
+    if (enc_lut_enabled) {
+        f32 x = enc_pos * (f32)ENC_LUT_N;
+        u32 i = (u32)x;
+        f32 frac = x - (f32)i;
+        f32 a = enc_lut[i & (ENC_LUT_N - 1u)];
+        f32 b = enc_lut[(i + 1u) & (ENC_LUT_N - 1u)];
+        enc_pos = fast_fmod_01(enc_pos + a + frac * (b - a)); // |corr| << 1 -> stays in [-1,2)
+    }
 
     // If this is the first time we're running the estimator as part of the control loop, we need to reset the
     // pos/vel estimate so that it's not off by more than half a turn
@@ -130,6 +146,27 @@ void encoder_set_phase_offset(f32 offset) {
 
 f32 encoder_get_phase_offset() {
     return phase_offset;
+}
+
+void encoder_set_lut(const f32 *table) {
+    for (u32 i = 0; i < ENC_LUT_N; i++)
+        enc_lut[i] = table[i];
+    enc_lut_enabled = true;
+}
+
+void encoder_clear_lut() {
+    enc_lut_enabled = false;
+    for (u32 i = 0; i < ENC_LUT_N; i++)
+        enc_lut[i] = 0.f;
+}
+
+bool encoder_lut_enabled_get() {
+    return enc_lut_enabled;
+}
+
+void encoder_lut_copy(f32 *dst) {
+    for (u32 i = 0; i < ENC_LUT_N; i++)
+        dst[i] = enc_lut[i];
 }
 
 void encoder_set_direction(f32 dir) {

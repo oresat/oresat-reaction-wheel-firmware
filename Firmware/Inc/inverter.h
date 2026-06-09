@@ -22,4 +22,5 @@ bool inverter_get_calibrated();
 void inverter_blank_dma_buf();
 void inverter_get_offset_correction(i16 *A, i16 *B, i16 *C);
 void inverter_get_adc_raw(u32 *A, u32 *B, u32 *C, u32 *vbus);
+void inverter_get_phase_voltages_raw(u32 *A, u32 *B, u32 *C); // injected rank 2 (enabled via MANUAL EDITs in adc.c); meaningful only while bridge is hi-Z
 void inverter_set_processed(f32 A, f32 B, f32 C, f32 Vbus);

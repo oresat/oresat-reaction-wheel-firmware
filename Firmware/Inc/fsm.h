@@ -20,6 +20,13 @@ typedef enum fsm_state {
     FSM_STATE_ENCODER_VALIDATION = 14,
     FSM_STATE_SHITTY_OFFSET_CAL = 15,
     FSM_STATE_VEL_RAMP_CONTROL=16,
+    FSM_STATE_BACKEMF_CAL = 17,
+    // Cal-store "RPC" states (CLEAR_ERRORS pattern: no control law, action fires on the exit
+    // transition, auto-returns to IDLE; result lands in procedure_result via last_state_exit_ok)
+    FSM_STATE_SAVE_CALIBRATION = 18,
+    FSM_STATE_ERASE_CALIBRATION = 19,
+    FSM_STATE_RESTORE_CALIBRATION = 20,
+    FSM_STATE_BACKEMF_CAL_BIDIR = 21, // fwd + reverse coast capture in one run (gold-standard fit)
 } fsm_state_t;
 
 typedef enum fsm_status {
@@ -62,6 +69,11 @@ static const state_name_t state_names[] = {
         tmp(FSM_STATE_CLEAR_ERRORS),
         tmp(FSM_STATE_ENCODER_VALIDATION),
         tmp(FSM_STATE_SHITTY_OFFSET_CAL),
-        tmp(FSM_STATE_VEL_RAMP_CONTROL)
+        tmp(FSM_STATE_VEL_RAMP_CONTROL),
+        tmp(FSM_STATE_BACKEMF_CAL),
+        tmp(FSM_STATE_SAVE_CALIBRATION),
+        tmp(FSM_STATE_ERASE_CALIBRATION),
+        tmp(FSM_STATE_RESTORE_CALIBRATION),
+        tmp(FSM_STATE_BACKEMF_CAL_BIDIR)
 };
 #undef tmp

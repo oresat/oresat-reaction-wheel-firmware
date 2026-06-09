@@ -28,7 +28,7 @@ typedef struct {
     i32 shunt_drop;        // best-2-of-3: phase reconstructed this tick (-1 none, 0/1/2 = A/B/C)
 } foc_capture_t;
 
-#define FOC_CAPTURE_LEN 512u  // 512 × 92 B = 46 KB → 16 ms at 32 kHz ISR
+#define FOC_CAPTURE_LEN 256u  // 512 × 92 B = 46 KB → 16 ms at 32 kHz ISR
 
 typedef enum {
     FOC_CAPTURE_IDLE    = 0,  // not writing

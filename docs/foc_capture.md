@@ -130,7 +130,7 @@ the current state byte (for the post-read consistency check), the buffer (23 KB)
 **No halt.** Reads are background MEM-AP transactions — the CPU keeps running, PWM keeps updating,
 the FOC loop keeps controlling. See "Dump halt safety" below for why this matters.
 
-Defaults: ELF = `cmake-build-debug/oresat-acs-fw-v8.elf`, output = `foc_capture.bin`,
+Defaults: ELF = `cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf`, output = `foc_capture.bin`,
 OpenOCD config = `st_nucleo_g4.cfg`. Override via env vars (`ELF=...`, `OPENOCD_CFG=...`) or the
 positional arg (`tools/foc_capture.sh dump my_run.bin`).
 

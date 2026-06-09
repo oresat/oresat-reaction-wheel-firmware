@@ -13,6 +13,11 @@ static __fn_inline __fn_flatten void set_nCS(bool level) {
 
 void ma702_preheat();
 
+// MA732 only: verify the sensor's non-volatile filter-window register matches
+// MA732_FILTER_WINDOW_REG (config.h), writing it (20 ms NVM op + readback) on mismatch.
+// Init-context only (blocking). Returns false if the write failed to verify.
+bool ma732_ensure_filter_window();
+
 typedef enum ma702_field_strength_flag {
     FIELD_HIGH, FIELD_LOW, FIELD_IN_RANGE, FIELD_UNK
 } ma702_field_strength_flag_t;

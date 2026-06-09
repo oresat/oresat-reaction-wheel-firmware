@@ -61,6 +61,18 @@ upward to that, that *would* cause distortion.
 - **Verify on HW:** scope `debug_hrtim_isr` pin high-time ÷ 31.25 µs = CPU frac (est ~45–50%);
   watch for re-entry if it nears the period. Re-sweep the advance `2` (`foc.c:184`). Compare
   lumpiness vs 16 kHz at the same RPM.
+- **MEASURED 2026-06-09** (`isr_cycles_last/max`, DWT counters in control_ll.c, SWD-readable):
+  - RelWithDebInfo (CCM hot path, -Ofast): steady-state tick ≈ **3246 cycles = 22.5 µs = 72%**
+    of the 31.25 µs budget. Higher than the 45–50% estimate — headroom for Q1's per-PWM fast
+    path is thinner than hoped; the DMA-compare variant looks more attractive than the
+    96 kHz-ISR variant.
+  - **Debug (-Og, flash-resident) does NOT fit at 32 kHz**: arming any FOC state saturates the
+    pri-0 ISR → SysTick (pri 15, sole IWDG feeder) starves → IWDG reboot ~512 ms after arm.
+    (This was the "enter VEL_RAMP → reboot" mystery; vel_ramp wasn't special — its exec adds
+    <1% over torque/vel.) Bench optimized builds, or locally drop Debug to 16 kHz.
+  - The **arm tick costs ~141k cycles (~1 ms ≈ 31 dropped ticks)**: control_law_init runs
+    in-ISR and init_foc printfs two lines over blocking UART. Excluded from isr_cycles_max;
+    cleanup candidate: defer/gate the init printfs.
 
 ### Best-2-of-3 shunt selection (this session — default OFF, A/B gated)
 What: at high modulation, drop the CM-corrupted phase (smallest SVM magnitude → largest
@@ -79,15 +91,25 @@ Files:
 Why a runtime flag + the ring stays warm even when disabled: lets you toggle live on the bench
 without reflash and without a cold-ring transient.
 
-**⚠ Open question Q2-A (the make-or-break): pipeline alignment.** Currents are read live from
+**✅ Q2-A RESOLVED (measured 2026-06-09): pipeline alignment.** Currents are read live from
 `JDR1` (`inverter_get_adc_raw`) while the current crest's conversion is still in flight, so the
 sample reflects a duty written ~2 ISR ticks earlier. With the natural 1-tick call ordering (adc
 runs before pwm in the ISR), `SHUNT_SEL_DELAY_TICKS = 1` (one history slot back) is the
-predicted-correct value. **This is reasoned from estimated conversion timing, NOT measured.**
-If wrong, the feature drops the wrong phase and makes things worse — and at high speed the SVM
-sextant flips every ~2 ticks, so a 1-tick error ≈ 50% wrong.
+predicted-correct value — **and the bench measurement agrees: multi-edge torque-step
+(`tools/shuntsel_delay.sh`, docs/shuntsel-delay-calibration.md) measured K=2 with 1.6× fit
+margin → DELAY=1.** (Side observation from the same fit: closed-loop current τ ≈ 9.5–11 ticks
+vs the nominal 8 from `CURRENT_CONTROLLER_BANDWIDTH` — consistent with real L running ~25-35 %
+above `HARDCODE_PHASE_INDUCTANCE`.) The stakes if it had been wrong: at high speed the SVM
+sextant flips every ~2 ticks, so a 1-tick error ≈ 50 % wrong-phase drops. Re-measure if the loop
+rate, ISR ordering, ADC timing, or CMP4 changes.
 
-How to validate (offline, from a `foc_capture` dump with the feature ON):
+How to validate:
+- **Direct measurement (feature OFF, do this first):** `tools/shuntsel_delay.sh run` +
+  `shuntsel_delay_analyze.py` — torque-step while foc_capture records; counts the ticks between
+  the duty command and the measured-current response (K), recommends `DELAY = K − 1`. See
+  `docs/shuntsel-delay-calibration.md`.
+
+Then confirm offline, from a `foc_capture` dump with the feature ON:
 - For each row T, `shunt_drop` should equal `argmin(svm_A,svm_B,svm_C)` from row `T-2`
   (the duty written 2 ticks earlier). Scan a few DELAY values (0/1/2) and pick the one where
   reconstructed `Iq`/phase current is smoothest and the dropped phase tracks the extreme duty.

@@ -3,7 +3,7 @@
 
 Reads two files (the second is auto-discovered next to the first):
     BIN      - raw foc_capture_buf contents (FOC_CAPTURE_LEN × sizeof(foc_capture_t))
-    BIN.head - the foc_capture_idx value, written by foc_capture_dump.sh
+    BIN.head - the foc_capture_idx value, written by foc_capture.sh dump
 
 The .head file holds the total-writes-since-arm count, which the decoder uses
 to unwrap the ring:

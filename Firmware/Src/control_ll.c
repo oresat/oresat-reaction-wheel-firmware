@@ -39,6 +39,29 @@ volatile bool is_pwm_timings_valid = false;
 volatile bool shunt_selection_enabled = FOC_USE_SHUNT_SELECTION;
 volatile i8 last_shunt_drop_phase = -1; // -1 = none/disabled, 0/1/2 = A/B/C reconstructed (capture/debug)
 
+// Fast-loop ISR timing (see control_ll.h). Only meaningful while armed (the repetition
+// callback is unregistered otherwise).
+volatile u32 isr_cycles_last = 0;
+volatile u32 isr_cycles_max = 0;
+
+// Live-tunable ADC trigger position (Timer A CMP4, HRTIM ticks). Seeded from config; the fast
+// loop applies it on change in pwm_update_callback (CMP4 is preloaded, transfers at the REP
+// update -> glitchless). SWD-pokeable for the CMP4 sweep (tools/cmp4_sweep.sh); clamped to
+// >= 2 fHRTIM clocks from the 0/PWM_CNTR direction changes (RM0440 p918 cross-unit rule is 1).
+volatile u32 adc_trig_cmp4_ticks = ADC_TRIG_CMP4_TICKS;
+
+// ADC sample-point sweep accumulator (bench/SWD only — see docs/adc-sampling-tuning.md).
+// Host zeroes the block, then writes req_n = N; the fast loop then accumulates N ticks of the
+// PRE-CM-removal phase currents (CM removal / shunt selection would smear the per-phase edge
+// artifact being measured across all three) + Vbus, then stops. Host polls count == req_n and
+// reads the block. Idle cost: one load + branch per tick.
+volatile struct {
+    u32 req_n;    // host: 0 = idle, N = accumulate N ticks (write last, after zeroing the rest)
+    u32 count;    // fw: ticks accumulated so far
+    f32 sum[4];   // A, B, C [A], Vbus [V]
+    f32 sumsq[3]; // A^2, B^2, C^2
+} adcsweep = {0};
+
 // ibus
 static volatile f32 ibus = 0.0f;
 
@@ -124,6 +147,17 @@ __ccmram void pwm_update_callback() {
         shunt_untrusted_head++;
         shunt_untrusted_hist[shunt_untrusted_head & (SHUNT_SEL_HIST_LEN - 1u)] =
             svm_smallest_mag_phase(pwm_timings_buf);
+
+        // Apply the ADC trigger position on change (clamped; preloaded -> lands at REP update).
+        static u32 cmp4_applied = 0u; // 0 = never applied (real values clamp to >= 64)
+        u32 cmp4 = adc_trig_cmp4_ticks;
+        cmp4 = (cmp4 < 2u * HRTIM_DLL_MUL) ? 2u * HRTIM_DLL_MUL
+             : (cmp4 > PWM_CNTR - 2u * HRTIM_DLL_MUL) ? PWM_CNTR - 2u * HRTIM_DLL_MUL
+             : cmp4;
+        if (cmp4 != cmp4_applied) {
+            __HAL_HRTIM_SETCOMPARE(&HRTIM_HANDLE, HRTIM_TIMERINDEX_TIMER_A, HRTIM_COMPAREUNIT_4, cmp4);
+            cmp4_applied = cmp4;
+        }
     }
     debug_pwm_callback(false);
 }
@@ -182,6 +216,18 @@ __ccmram void adc_update_callback() {
     f32 C_i = VVCC_CORRECT(((i16) C_offset_corrected) - 2048, vvcc) * SHUNT_AMP_CONDUCTANCE;
 
     inverter_set_processed(A_i, B_i, C_i, Vbus);
+
+    // ADC sweep accumulator tap (bench): PRE-CM-removal currents — see decl at top of file.
+    {
+        u32 sweep_req = adcsweep.req_n;
+        if (sweep_req != 0u && adcsweep.count < sweep_req) {
+            adcsweep.sum[0] += A_i;  adcsweep.sumsq[0] += A_i * A_i;
+            adcsweep.sum[1] += B_i;  adcsweep.sumsq[1] += B_i * B_i;
+            adcsweep.sum[2] += C_i;  adcsweep.sumsq[2] += C_i * C_i;
+            adcsweep.sum[3] += Vbus;
+            adcsweep.count++;
+        }
+    }
 
     // Force Ia+Ib+Ic = 0. Default: symmetric common-mode removal (spreads the imbalance over
     // all three). With shunt selection on: drop the phase whose switching edge crowded the crest
@@ -278,12 +324,15 @@ __ccmram void encoder_update_callback() {
 
 __ccmram void hrtim_repetition_callback(HRTIM_HandleTypeDef* hhrtim, u32 timidx) {
     debug_hrtim_isr(true);
+    u32 isr_t0 = DWT->CYCCNT;
 
     n_loop_count++;
 
+    bool ran_init = false;
     if (control_law_needs_init && control_law.control_law_init != NULL) {
         control_law_needs_init = false;
         control_law.control_law_init();
+        ran_init = true;
     }
 
 
@@ -326,6 +375,13 @@ __ccmram void hrtim_repetition_callback(HRTIM_HandleTypeDef* hhrtim, u32 timidx)
     }
 
     //gpio_debug0(false);
+    u32 isr_dt = DWT->CYCCNT - isr_t0;
+    isr_cycles_last = isr_dt;
+    // The arm tick is excluded from the high-water mark: control_law_init runs in-ISR and
+    // init_foc's printfs make that one tick ~141k cycles (~1 ms, ≈31 dropped control ticks
+    // per arm — measured RelWithDebInfo 2026-06-09). Real cost, but it would permanently
+    // mask the steady-state max this counter exists to expose.
+    if (isr_dt > isr_cycles_max && !ran_init) isr_cycles_max = isr_dt;
     debug_hrtim_isr(false);
 }
 

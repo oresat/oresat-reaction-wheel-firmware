@@ -15,13 +15,13 @@
 # Full procedure: docs/bootloader-integration.md (Cold bootstrap).
 #
 # Usage: ./bootstrap-bin.sh [APP_BUILD_DIR] [BL_BUILD_DIR]
-#        defaults: cmake-build-debug  bootloader/cmake-build-debug
+#        defaults: cmake-build-relwithdebinfo  bootloader/cmake-build-relwithdebinfo
 # Build both first:  ./build.sh
 set -e
 cd "$(dirname "$0")"
 
-APP_BUILD="${1:-cmake-build-debug}"
-BL_BUILD="${2:-bootloader/cmake-build-debug}"
+APP_BUILD="${1:-cmake-build-relwithdebinfo}"
+BL_BUILD="${2:-bootloader/cmake-build-relwithdebinfo}"
 OBJCOPY="${OBJCOPY:-arm-none-eabi-objcopy}"
 APP_BASE=0x08008000          # MUST match the app linker ORIGIN (STM32G474VEHX_FLASH.ld)
 OUT=combined-bootstrap.bin

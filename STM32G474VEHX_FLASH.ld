@@ -41,13 +41,25 @@ _estack = ORIGIN(RAM) + LENGTH(RAM); /* end of "RAM" Ram type memory */
 _Min_Heap_Size = 0x800; /* required amount of heap */
 _Min_Stack_Size = 0x1600; /* required amount of stack */
 
-/* Memories definition */
+/* Memories definition.
+   FLASH is capped at 224K = the rest of BANK 1 (0x8008000..0x803FFFF; bootloader owns the first
+   32K). This is deliberate and load-bearing, not just headroom policing:
+     1. Bank 2 holds the persistent calibration page (0x0807F800, bank 2 page 127 — Firmware
+        cal_store.{h,c}). With the app image confined to bank 1, dual-bank read-while-write
+        guarantees cal_store's erase/program NEVER stall instruction fetch (they run from the
+        1 kHz FSM ISR), and no image-extent erase (flash.sh / CubeProgrammer DFU download) can
+        ever touch the cal page.
+     2. If the app outgrows 224K the build FAILS HERE, forcing a conscious decision (accept
+        flash-op stalls + move them out of ISR context, or shrink) instead of silently breaking
+        the RWW guarantee. Currently ~95K used — 2.3x headroom.
+   MANUAL EDIT on top of the existing 0x8008000 bootloader relink — a CubeMX/CubeIDE regen
+   reverts BOTH (see docs/footguns.md). */
 MEMORY
 {
   CCMRAM (xrw)    : ORIGIN = 0x10000000,   LENGTH = 32K
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 80K
   RAM2   (xrw)    : ORIGIN = 0x20014000,   LENGTH = 16K
-  FLASH    (rx)    : ORIGIN = 0x8008000,   LENGTH = 480K
+  FLASH    (rx)    : ORIGIN = 0x8008000,   LENGTH = 224K
 }
 
 /* Sections */

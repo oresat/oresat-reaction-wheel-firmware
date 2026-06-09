@@ -72,6 +72,17 @@ u32 controller_get_micros();
 extern volatile bool shunt_selection_enabled;   // A/B toggle, seeded from FOC_USE_SHUNT_SELECTION
 extern volatile i8 last_shunt_drop_phase;        // -1 none, 0/1/2 = phase reconstructed this tick
 
+// Fast-loop ISR duration in CPU cycles (DWT->CYCCNT deltas; counter enabled in app_main).
+// Budget = SystemCoreClock / LOOP_UPDATE_FREQ (4500 cycles at 144 MHz / 32 kHz). If `last`
+// hovers at/above budget the ISR tail-chains at priority 0, SysTick (priority 15, the sole
+// IWDG feeder) starves, and the watchdog reboots ~512 ms after arming. SWD-read these live
+// while armed; write 0 to isr_cycles_max to re-arm the high-water mark. `max` excludes the
+// arm tick (in-ISR control_law_init + its printfs, ~1 ms); `last` does not.
+// Measured 2026-06-09, RelWithDebInfo (CCM hot path): steady state ≈3.2k cycles = 72% of
+// the 32 kHz budget — Debug (-Og, flash-resident) does not fit and watchdog-reboots on arm.
+extern volatile u32 isr_cycles_last;
+extern volatile u32 isr_cycles_max;
+
 //void controller_set_current_valid(bool is_valid);
 
 void controller_set_new_pwm_timings(svm_vec_t *timings);

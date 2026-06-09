@@ -17,12 +17,12 @@
 #   tools/foc_capture.sh grab [BIN] [opts]   # arm→stop→dump→plot in one shot (GRAB_SECONDS dwell)
 #
 # Env overrides:
-#   ELF=...          path to oresat-acs-fw-v8.elf (default: cmake-build-debug/...)
+#   ELF=...          path to oresat-acs-fw-v8.elf (default: cmake-build-relwithdebinfo/...)
 #   OPENOCD_CFG=...  OpenOCD config file (default: st_nucleo_g4.cfg)
 set -euo pipefail
 cd "$(dirname "$0")/.."  # repo root
 
-ELF="${ELF:-cmake-build-debug/oresat-acs-fw-v8.elf}"
+ELF="${ELF:-cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf}"
 CFG="${OPENOCD_CFG:-st_nucleo_g4.cfg}"
 
 usage() {
@@ -48,7 +48,7 @@ sym_size() {
 require_elf() {
   if [[ ! -f "$ELF" ]]; then
     echo "error: ELF not found: $ELF" >&2
-    echo "  (set ELF=... or build with: cmake --build cmake-build-debug -j)" >&2
+    echo "  (set ELF=... or build with: cmake --build cmake-build-relwithdebinfo -j)" >&2
     exit 1
   fi
 }
@@ -89,10 +89,12 @@ cmd_stop() {
 
 cmd_status() {
   require_elf
-  local state_addr idx_addr
+  local state_addr idx_addr buf_size
   state_addr="$(sym_addr foc_capture_state)"
   idx_addr="$(sym_addr foc_capture_idx)"
-  [[ -n "$state_addr" && -n "$idx_addr" ]] || { echo "error: symbols not found" >&2; exit 1; }
+  buf_size="$(sym_size foc_capture_buf)"
+  [[ -n "$state_addr" && -n "$idx_addr" && -n "$buf_size" ]] || { echo "error: symbols not found" >&2; exit 1; }
+  local len=$(( buf_size / 92 ))  # FOC_CAPTURE_LEN, derived from ELF (92 B/sample)
 
   local tmp; tmp="$(mktemp -d)"
   trap "rm -rf '$tmp'" RETURN
@@ -111,8 +113,8 @@ cmd_status() {
   esac
   local samples
   if (( idx_val == 0 )); then samples=0
-  elif (( idx_val < 256 )); then samples=$idx_val
-  else samples=256
+  elif (( idx_val < len )); then samples=$idx_val
+  else samples=$len
   fi
   echo "state=$state_name idx=$idx_val (samples_in_buf=$samples)"
 }

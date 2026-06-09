@@ -28,6 +28,18 @@ static volatile f32 vvbus = 0.f;
 
 static volatile f32 ibus = 0.f;
 
+// Fixed-duty bench mode (SWD-driven; see docs/adc-sampling-tuning.md). When enabled, the PWM
+// producer outputs SVM({mod_alpha, mod_beta}) directly, bypassing the current PI. The CMP4
+// sweep requires constant DUTY: a closed current loop would servo the *sampled* current flat at
+// every trigger position and null exactly the waveform being measured. A small nonzero beta
+// separates the B/C duties so all three phase edges land at distinct ticks (3 fiducials).
+// Deliberately NOT cleared by the law's init: set it over SWD while IDLE/disarmed, then request
+// OPEN_LOOP_CONTROL — the law arms straight into fixed duty with no race. Clamped to
+// OPEN_LOOP_FIXED_MOD_LIMIT (config.h) so an SWD typo can't command large duty.
+volatile bool open_loop_fixed_mod_enabled = false;
+volatile f32 open_loop_fixed_mod_alpha = 0.f;
+volatile f32 open_loop_fixed_mod_beta = 0.f;
+
 void init_open_loop_current_controller() {
     f32 phase_resistance = HARDCODE_PHASE_RESISTANCE;
     f32 phase_inductance = HARDCODE_PHASE_INDUCTANCE;
@@ -53,6 +65,20 @@ __ccmram bool open_loop_current_cb(f32 A_i, f32 B_i, f32 C_i, f32 Vbus) {
 }
 
 __ccmram bool open_loop_pwm_cb(svm_vec_t* mag) {
+    // Fixed-duty bench mode: constant modulation vector, PI bypassed (see decl above).
+    if (open_loop_fixed_mod_enabled) {
+        ab_vec_t mod_fixed = {
+            clamp_f32(-OPEN_LOOP_FIXED_MOD_LIMIT, open_loop_fixed_mod_alpha, OPEN_LOOP_FIXED_MOD_LIMIT),
+            clamp_f32(-OPEN_LOOP_FIXED_MOD_LIMIT, open_loop_fixed_mod_beta, OPEN_LOOP_FIXED_MOD_LIMIT)
+        };
+        svm_vec_t out_fixed = SVM(mod_fixed);
+        if (!svm_output_valid(out_fixed))
+            controller_add_errors(CTRLR_ERR_MODULATION);
+        *mag = out_fixed;
+        v_current_ctrl_integral = (ab_vec_t){0.f, 0.f}; // keep the PI cold for a clean handback
+        return true;
+    }
+
     f32 vvbus_meas_ = vvbus_meas;
     ab_vec_t ialpha_beta_measured_ = ialpha_beta_measured;
     ab_vec_t ialpha_beta_setpoint_ = ialpha_beta_setpoint;

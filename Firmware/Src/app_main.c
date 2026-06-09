@@ -21,6 +21,7 @@
 #include "encoder_calibration.h"
 #include "dac.h"
 #include "dsp/controller_functions.h"
+#include "cal_store.h"
 #include "can_comms.h"
 #include "closed_loop_controller.h"
 #include "fsm.h"
@@ -64,12 +65,44 @@ __fn_noreturn void app_main() {
 
     __enable_irq();
 
+    // Free-running cycle counter — feeds isr_cycles_last/max (control_ll.c) so the fast-loop
+    // budget can be checked live over SWD.
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
     __maybe_unused volatile u32 n = MAGIC_NUMBER;
 
     blank_console();
     printf("        THIS FIRMWARE IS DEDICATED        \r\n");
     printf("     TO THE BRAVE MUJAHIDEEN FIGHTERS     \r\n");
     printf("             OF AFGHANISTAN               \r\n");
+
+    // The bootloader's exit path (System_DeInit -> HAL_RCC_DeInit) clears the hardware flags
+    // (RCC_CSR RMVF) before this app ever runs, so it snapshots RCC->CSR at its entry and
+    // parks it in a magic-tagged mailbox at the top of RAM2 — untouched by either image's
+    // .data/.bss (see bootloader/Src/main.c, keep address+magic in sync). Fall back to the
+    // live register if the mailbox is absent (old bootloader / direct-boot debug session).
+    // PIN tags along on most internal resets (NRST is pulled low), so the interesting bit is
+    // what accompanies it: IWDG = starved watchdog (fast-loop overrun or a spun fault handler),
+    // SOFT = NVIC_SystemReset (reboot SDO, option-byte write), OBL = option-byte reload.
+    volatile u32* const reset_cause_mailbox = (volatile u32*) 0x20017FF8;
+    u32 rcc_csr;
+    if (reset_cause_mailbox[0] == 0x52435352u) { // "RCSR"
+        rcc_csr = reset_cause_mailbox[1];
+        reset_cause_mailbox[0] = 0; // consume
+    } else {
+        rcc_csr = RCC->CSR;
+    }
+    printf("Reset cause:%s%s%s%s%s%s%s\r\n",
+           (rcc_csr & RCC_CSR_LPWRRSTF) ? " LPWR" : "",
+           (rcc_csr & RCC_CSR_WWDGRSTF) ? " WWDG" : "",
+           (rcc_csr & RCC_CSR_IWDGRSTF) ? " IWDG" : "",
+           (rcc_csr & RCC_CSR_SFTRSTF)  ? " SOFT" : "",
+           (rcc_csr & RCC_CSR_BORRSTF)  ? " BOR"  : "",
+           (rcc_csr & RCC_CSR_OBLRSTF)  ? " OBL"  : "",
+           (rcc_csr & RCC_CSR_PINRSTF)  ? " PIN"  : "");
+    __HAL_RCC_CLEAR_RESET_FLAGS();
 
     printf("Checking option bytes...\r\n");
 
@@ -136,11 +169,21 @@ __fn_noreturn void app_main() {
     ma702_preheat();
     ma702_preheat();
 
+    // MA732: make sure the sensor's NVM filter window matches config (writes once per sensor on
+    // mismatch — option-bytes pattern). Must run before anything consumes angle data seriously.
+    ma732_ensure_filter_window();
+
     printf("Setting up inverter...\r\n");
     inverter_setup();
 
     printf("Setting up encoder...\r\n");
     encoder_init();
+
+    // Apply persisted encoder cal (offset/dir) from the flash cal page, if a valid blob exists.
+    // Absence is normal pre-commissioning (bootstrap cals still work); host can SAVE/ERASE/
+    // RESTORE over CAN via FSM states 18/19/20. See cal_store.h.
+    printf("Loading cal store... ");
+    cal_store_restore();
 
     printf("Starting aux ADC...\r\n");
     aux_adc_start();

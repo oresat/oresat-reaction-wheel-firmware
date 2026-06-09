@@ -100,6 +100,31 @@ __fn_flatten __fn_inline void hrtim_pwm_stop() {
     //assert(HAL_HRTIM_ADCPostScalerConfig(&hhrtim1, HRTIM_ADCTRIGGER_4, 1 - 1) == HAL_OK);
 }
 
+// All six bridge outputs (3 complementary pairs) as one mask.
+#define HRTIM_ALL_OUTPUTS (HRTIM_OUTPUT_TA1 | HRTIM_OUTPUT_TA2 | \
+                           HRTIM_OUTPUT_TB1 | HRTIM_OUTPUT_TB2 | \
+                           HRTIM_OUTPUT_TE1 | HRTIM_OUTPUT_TE2)
+
+// Float the bridge (all six FETs off → phases hi-Z) WITHOUT touching the timer counters, the
+// repetition ISR, or the ADC triggers — unlike hrtim_pwm_stop(), which also stops the counters.
+// This is the back-EMF coast-down primitive: the fast loop keeps reading the encoder and the
+// injected ADCs while the motor freewheels into an open circuit.
+// Direct ODISR write (exactly what HAL_HRTIM_WaveformOutputStop does inside its lock) because
+// this is called from the fast-loop ISR: the HAL version takes __HAL_LOCK and would silently
+// no-op (HAL_BUSY) if the FSM tick happened to hold the handle lock mid-arm/disarm. Idempotent —
+// disabling already-disabled outputs is harmless. See docs/backemf-coastdown-implementation.md §2.
+__fn_flatten void hrtim_outputs_disable() {
+    hhrtim1.Instance->sCommonRegs.ODISR = HRTIM_ALL_OUTPUTS;
+}
+
+// Re-enable the six outputs (direct OENR write, same lock-free rationale). Counterpart to
+// hrtim_outputs_disable(); use to resume driving after a coast without a full
+// inverter_start()/timer restart. (controller_arm → hrtim_pwm_start also re-enables outputs, so
+// a normal disarm/re-arm cycle clears a lingering disable on its own.)
+__fn_flatten void hrtim_outputs_enable() {
+    hhrtim1.Instance->sCommonRegs.OENR = HRTIM_ALL_OUTPUTS;
+}
+
 __fn_flatten __fn_inline void hrtim_pwm_set_dcycle_u16(u16 a_dcycle, u16 b_dcycle, u16 c_dcycle) {
     //assert(a_dcycle >= PWM_CNTR_MIN_ALLOWED && a_dcycle <= PWM_CNTR_MAX_ALLOWED);
     //assert(b_dcycle >= PWM_CNTR_MIN_ALLOWED && b_dcycle <= PWM_CNTR_MAX_ALLOWED);

@@ -8,15 +8,15 @@
 #
 # Usage:
 #   ./flash.sh [APP_BUILD_DIR] [BL_BUILD_DIR]
-#       defaults: cmake-build-debug   bootloader/cmake-build-debug
+#       defaults: cmake-build-relwithdebinfo   bootloader/cmake-build-relwithdebinfo
 #   OPENOCD=~/openocd/bin/openocd ./flash.sh      # override the openocd binary
 #
 # Build first with ./build.sh (or your usual CLion build of each).
 set -e
 cd "$(dirname "$0")"
 
-APP_BUILD="${1:-cmake-build-debug}"
-BL_BUILD="${2:-bootloader/cmake-build-debug}"
+APP_BUILD="${1:-cmake-build-relwithdebinfo}"
+BL_BUILD="${2:-bootloader/cmake-build-relwithdebinfo}"
 OPENOCD="${OPENOCD:-$(command -v openocd || echo "$HOME/openocd/bin/openocd")}"
 CFG="$PWD/st_nucleo_g4.cfg"
 

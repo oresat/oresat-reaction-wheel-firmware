@@ -7,8 +7,9 @@ Input (positional, default: foc_capture.bin):
     -       read CSV from stdin
 
 By default draws a stacked, time-aligned multi-panel view tuned for the FOC inner
-loop: phase currents, dq meas-vs-setpoint, SVM duties, electrical velocity, Vbus
-(plus the dropped-shunt phase if best-2-of-3 selection was active). Saves a PNG;
+loop: phase currents, dq meas-vs-setpoint, modulation (mod_d/mod_q + |mod|), electrical
+velocity (Hz), encoder phase (0–1), Vbus (plus dropped-shunt phase when best-2-of-3
+selection is active). Saves a PNG;
 add --show for an interactive window.
 
 For the high-speed lumpiness hunt, two views answer the key question:
@@ -73,6 +74,24 @@ def load_columns(src):
     return list(df.columns), {c: df[c].to_numpy() for c in df.columns}
 
 
+def derive_columns(names, cols):
+    """Add convenience derived channels in place: electrical Hz, 0–1 phase, |mod|.
+    motor_vel/motor_phase are *electrical*, so pole pairs don't enter these — electrical
+    Hz = (rad/s)/2π, electrical turns = rad/2π. (1 Hz electrical = 1/pole_pairs rev/s
+    mechanical = 1/6 rev/s here.)"""
+    twopi = 2.0 * np.pi
+    if "motor_vel" in cols and "vel_hz" not in cols:
+        cols["vel_hz"] = cols["motor_vel"].astype(np.float64) / twopi
+        names.append("vel_hz")
+    if "motor_phase" in cols and "phase_01" not in cols:
+        cols["phase_01"] = np.mod(cols["motor_phase"].astype(np.float64) / twopi, 1.0)
+        names.append("phase_01")
+    if "mod_d" in cols and "mod_q" in cols and "mod_norm" not in cols:
+        cols["mod_norm"] = np.hypot(cols["mod_d"].astype(np.float64),
+                                    cols["mod_q"].astype(np.float64))
+        names.append("mod_norm")
+
+
 def make_x(cols, mode, rate):
     """Build the shared x-axis array + label."""
     if mode in ("ms", "s") and "loop_count" in cols:
@@ -105,6 +124,7 @@ def main() -> int:
     args = ap.parse_args()
 
     names, cols = load_columns(args.input)
+    derive_columns(names, cols)
     if args.list_cols:
         print(", ".join(names))
         return 0
@@ -159,6 +179,9 @@ def main() -> int:
             ax.set_yticks([-1, 0, 1, 2])
             ax.set_yticklabels(["none", "A", "B", "C"])
             ax.set_ylim(-1.4, 2.4)
+        if any(c == "mod_norm" for c, _ in series) and "mod_norm" in cols \
+                and np.nanmax(cols["mod_norm"]) > 0.5 * SVM_MOD_LIMIT:
+            ax.axhline(SVM_MOD_LIMIT, color="0.5", lw=0.9, ls=":")  # SVM saturation clamp ≈0.857
         ax.set_ylabel(ylabel, fontsize=9)
         ax.grid(True, alpha=0.3)
         ax.legend(loc="upper right", fontsize=8, ncol=max(1, len(series)))
