@@ -476,6 +476,14 @@ void System_DeInit() {
   HAL_RCC_DeInit();
   LL_USART_DeInit(USART1);
   LL_USART_DeInit(USART2);
+  /* HAL_RCC_DeInit() re-arms SysTick via HAL_InitTick(), so without this the app
+   * takes 1ms tick interrupts during its Reset_Handler copy/fill loops (its VTOR is
+   * live from SystemInit on, its statics are not) -- its HAL_IncTick IWDG kick then
+   * dereferenced un-zeroed .bss and bus-faulted. Hand off with the tick fully dead. */
+  SysTick->CTRL = 0;
+  SysTick->LOAD = 0;
+  SysTick->VAL  = 0;
+  SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk;
 }
 
 /* USER CODE END 4 */
