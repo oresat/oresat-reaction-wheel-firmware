@@ -63,6 +63,10 @@ tags
 TAGS
 .cache/
 
+# ---- Claude Code (claude.ai/code) ----
+# Session state and isolated worktrees live here (e.g. .claude/worktrees/*); never commit them.
+.claude/
+
 # ---- Python (resources/build_index.py tooling) ----
 __pycache__/
 *.py[cod]
