@@ -34,6 +34,11 @@ volatile svm_vec_t new_pwm_timings = {0.f, 0.f, 0.f};
 volatile bool is_pwm_timings_updated = false;
 volatile bool is_pwm_timings_valid = false;
 
+// Shunt selection (best-2-of-3 high-modulation phase-current reconstruction). Runtime flag
+// seeded from config so it can be A/B-toggled live over SWD without a reflash.
+volatile bool shunt_selection_enabled = FOC_USE_SHUNT_SELECTION;
+volatile i8 last_shunt_drop_phase = -1; // -1 = none/disabled, 0/1/2 = A/B/C reconstructed (capture/debug)
+
 // ibus
 static volatile f32 ibus = 0.0f;
 
@@ -64,6 +69,19 @@ void controller_set_pwm_timings_valid(bool is_valid);
 void controller_set_encoder_valid(bool is_valid);
 
 void controller_add_errors(u32 err);
+
+// Per-tick record of which phase will be CM-corrupted at the crest ADC sample: the one with
+// the smallest SVM magnitude → largest compare (= PWM_CNTR*(1-mag), pwm.c) → switching edge
+// nearest the crest. Written when the duty is latched; read SHUNT_SEL_DELAY_TICKS ticks later
+// in adc_update_callback, when that duty's resulting current comes back from the ADC.
+#define SHUNT_SEL_HIST_LEN 4u  // power of two; must exceed SHUNT_SEL_DELAY_TICKS
+static volatile u8 shunt_untrusted_hist[SHUNT_SEL_HIST_LEN] = {0};
+static volatile u32 shunt_untrusted_head = 0;
+
+static __fn_inline u8 svm_smallest_mag_phase(svm_vec_t m) {
+    if (m.A <= m.B) return (m.A <= m.C) ? 0u : 2u;
+    return (m.B <= m.C) ? 1u : 2u;
+}
 
 __ccmram void pwm_update_callback() {
     debug_pwm_callback(true);
@@ -102,6 +120,10 @@ __ccmram void pwm_update_callback() {
     if (controller_armed) {
         hrtim_pwm_set_dcycle_f32(pwm_timings_buf.A, pwm_timings_buf.B, pwm_timings_buf.C);
         is_pwm_timings_updated = false;
+        // Record the to-be-corrupted phase for these just-latched duties (consumed N ticks later).
+        shunt_untrusted_head++;
+        shunt_untrusted_hist[shunt_untrusted_head & (SHUNT_SEL_HIST_LEN - 1u)] =
+            svm_smallest_mag_phase(pwm_timings_buf);
     }
     debug_pwm_callback(false);
 }
@@ -161,10 +183,24 @@ __ccmram void adc_update_callback() {
 
     inverter_set_processed(A_i, B_i, C_i, Vbus);
 
-    f32 zero = A_i + B_i + C_i;
-    A_i -= zero / 3.f;
-    B_i -= zero / 3.f;
-    C_i -= zero / 3.f;
+    // Force Ia+Ib+Ic = 0. Default: symmetric common-mode removal (spreads the imbalance over
+    // all three). With shunt selection on: drop the phase whose switching edge crowded the crest
+    // ADC sample (decided SHUNT_SEL_DELAY_TICKS ticks ago, when its duty was latched) and rebuild
+    // it from the trusted two via KCL — keeps the two clean measurements untouched.
+    if (shunt_selection_enabled) {
+        u32 idx = (shunt_untrusted_head - (u32) SHUNT_SEL_DELAY_TICKS) & (SHUNT_SEL_HIST_LEN - 1u);
+        u8 drop = shunt_untrusted_hist[idx];
+        if (drop == 0u)      A_i = -(B_i + C_i);
+        else if (drop == 1u) B_i = -(A_i + C_i);
+        else                 C_i = -(A_i + B_i);
+        last_shunt_drop_phase = (i8) drop;
+    } else {
+        f32 zero = A_i + B_i + C_i;
+        A_i -= zero / 3.f;
+        B_i -= zero / 3.f;
+        C_i -= zero / 3.f;
+        last_shunt_drop_phase = -1;
+    }
 
     if (Vbus > DC_BUS_OVERVOLTAGE_THRESHOLD_V)
         controller_add_errors(CTRLR_ERR_VBUS_OVERVOLTAGE);

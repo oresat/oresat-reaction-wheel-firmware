@@ -42,9 +42,10 @@ DTYPE = np.dtype(
         ("mod_alpha", "<f4"), ("mod_beta", "<f4"),
         ("svm_A", "<f4"), ("svm_B", "<f4"), ("svm_C", "<f4"),
         ("Vbus", "<f4"),
+        ("shunt_drop", "<i4"),
     ]
 )
-assert DTYPE.itemsize == 88, f"struct size drift: {DTYPE.itemsize}"
+assert DTYPE.itemsize == 92, f"struct size drift: {DTYPE.itemsize}"
 
 
 def main() -> int:

@@ -18,9 +18,12 @@
 // 144e6 * 32 / 24000 / 2 = 96 kHz.
 #define PWM_SWITCHING_HZ   96000u
 
-// PWM cycles between fast-loop ISRs. Matches HW RepetitionCounter+1 in hrtim.c.
-// One ISR every 6 switching cycles → 16 kHz fast-loop ISR.
-#define PWM_CYCLES_PER_ISR 6u
+// PWM cycles between fast-loop ISRs. MUST match HW RepetitionCounter+1 in hrtim.c
+// (MX_HRTIM1_Init, the shared pTimeBaseCfg.RepetitionCounter for TIMER_A/B/E) — these are
+// two independent constants with no compile-time link; if they drift, TIMER_A's ISR/duty-latch
+// rate and the loop-period math here disagree and the FOC dt is silently wrong.
+// One ISR every 3 switching cycles → 32 kHz fast-loop ISR (was 6 → 16 kHz).
+#define PWM_CYCLES_PER_ISR 3u
 
 void hrtim_pwm_setup();
 

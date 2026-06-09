@@ -68,6 +68,10 @@ bool controller_is_armed();
 u32 controller_get_loop_count();
 u32 controller_get_micros();
 
+// Best-2-of-3 shunt selection (see control_ll.c / docs/high-speed-foc-worklog.md).
+extern volatile bool shunt_selection_enabled;   // A/B toggle, seeded from FOC_USE_SHUNT_SELECTION
+extern volatile i8 last_shunt_drop_phase;        // -1 none, 0/1/2 = phase reconstructed this tick
+
 //void controller_set_current_valid(bool is_valid);
 
 void controller_set_new_pwm_timings(svm_vec_t *timings);

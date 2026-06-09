@@ -226,6 +226,7 @@ __ccmram bool foc_gen_pwm_cb(svm_vec_t *mag) {
             .svm_B = pwm_output.B,
             .svm_C = pwm_output.C,
             .Vbus  = vvbus_meas_,
+            .shunt_drop = last_shunt_drop_phase,
         };
         foc_capture_idx = idx + 1;  // monotonic; ring wrap is at the index
     }

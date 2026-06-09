@@ -79,3 +79,18 @@ static const bool FOC_USE_bEMF_FF = false;
 static const bool FOC_USE_wL_FF = false;
 static const bool FOC_USE_R_FF = false;
 static const bool FOC_USE_DECOUPLING = true;
+
+// --- High-modulation phase-current reconstruction ("best 2 of 3" shunt selection) ---
+// At high modulation the phase whose PWM edge crowds the crest ADC sample point sees a
+// common-mode kick and reads wrong. When enabled, that phase (smallest SVM magnitude →
+// largest compare → edge nearest the crest) is dropped each tick and reconstructed from
+// the trusted two via KCL (Ia+Ib+Ic=0), instead of the symmetric (zero/3) CM removal.
+// EXPERIMENTAL, A/B-gated — seeds the runtime `shunt_selection_enabled` flag (control_ll).
+// See docs/high-speed-foc-worklog.md. Validate on a scope before trusting it.
+static const bool FOC_USE_SHUNT_SELECTION = false;
+// Pipeline lag (in ISR ticks) between writing a duty and reading the current it produced.
+// Currents are read live from JDR1 (inverter_get_adc_raw) while the current crest's
+// conversion is still in flight, so the sample reflects a duty written ~2 ticks earlier;
+// with the natural 1-tick call ordering (adc before pwm) that means 1 history slot back.
+// 0..3, default 1. ** MUST be confirmed on the bench ** — worklog open question Q2-A.
+#define SHUNT_SEL_DELAY_TICKS 1

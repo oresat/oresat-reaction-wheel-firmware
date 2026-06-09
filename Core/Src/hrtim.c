@@ -145,7 +145,10 @@ void MX_HRTIM1_Init(void)
     Error_Handler();
   }
   pTimeBaseCfg.Period = 24000;
-  pTimeBaseCfg.RepetitionCounter = 6-1;
+  // RepetitionCounter+1 = PWM cycles per fast-loop ISR. MUST stay equal to PWM_CYCLES_PER_ISR
+  // (pwm.h); shared by TIMER_A/B/E via this same pTimeBaseCfg, so all three latch new duties
+  // together on the rep event. 3-1 → ISR/duty-latch every 3 cycles = 32 kHz (was 6-1 = 16 kHz).
+  pTimeBaseCfg.RepetitionCounter = 3-1;
   if (HAL_HRTIM_TimeBaseConfig(&hhrtim1, HRTIM_TIMERINDEX_TIMER_A, &pTimeBaseCfg) != HAL_OK)
   {
     Error_Handler();

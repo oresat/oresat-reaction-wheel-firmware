@@ -14,7 +14,7 @@
 // are 4-byte aligned). Matches tools/decode_foc_capture.py's dtype.
 typedef struct {
     u32 loop_count;        // controller_get_loop_count() at capture time
-    f32 Ia, Ib, Ic;        // phase currents, after zero-sum correction (A)
+    f32 Ia, Ib, Ic;        // phase currents, after zero-sum correction OR best-2-of-3 reconstruction (A)
     f32 Ialpha, Ibeta;     // Clarke output (A)
     f32 Id_meas, Iq_meas;  // Park output, this tick's measurement (A)
     f32 Id_set, Iq_set;    // d/q current setpoint (A)
@@ -25,9 +25,10 @@ typedef struct {
     f32 mod_alpha, mod_beta; // inv-Park output (modulation)
     f32 svm_A, svm_B, svm_C; // SVM output → goes to PWM duty (modulation, 0..1)
     f32 Vbus;              // bus voltage at sample time (V)
+    i32 shunt_drop;        // best-2-of-3: phase reconstructed this tick (-1 none, 0/1/2 = A/B/C)
 } foc_capture_t;
 
-#define FOC_CAPTURE_LEN 256u  // 256 × 88 B = 22.5 KB → 16 ms at 16 kHz ISR
+#define FOC_CAPTURE_LEN 256u  // 256 × 92 B = 23 KB → 8 ms at 32 kHz ISR
 
 typedef enum {
     FOC_CAPTURE_IDLE    = 0,  // not writing
