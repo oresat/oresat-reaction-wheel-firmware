@@ -48,11 +48,12 @@ DTYPE = np.dtype(
 assert DTYPE.itemsize == 92, f"struct size drift: {DTYPE.itemsize}"
 
 
-def main() -> int:
-    if len(sys.argv) != 2:
-        sys.stderr.write(__doc__)
-        return 2
-    bin_path = Path(sys.argv[1])
+def load(bin_path):
+    """Read a foc_capture .bin (+ optional sibling .bin.head) and return the
+    samples as a chronological structured ndarray (oldest first), handling the
+    ring-buffer unwrap. Shared by main() and tools/plot_foc_capture.py so the
+    unwrap logic lives in exactly one place."""
+    bin_path = Path(bin_path)
     head_path = bin_path.with_suffix(bin_path.suffix + ".head")
 
     buf = np.fromfile(bin_path, dtype=DTYPE)
@@ -74,7 +75,14 @@ def main() -> int:
         nonzero = np.where(buf["loop_count"] != 0)[0]
         data = buf if not len(nonzero) else buf[: nonzero[-1] + 1]
         sys.stderr.write(f"no .head file; trimming to {len(data)} non-zero samples\n")
+    return data
 
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        sys.stderr.write(__doc__)
+        return 2
+    data = load(sys.argv[1])
     w = csv.writer(sys.stdout)
     w.writerow(DTYPE.names)
     for row in data:

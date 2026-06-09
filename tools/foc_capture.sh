@@ -13,6 +13,8 @@
 #   tools/foc_capture.sh status              # print state + idx
 #   tools/foc_capture.sh dump [OUT_BIN]      # buffer + idx -> OUT_BIN(+.head)
 #   tools/foc_capture.sh decode [BIN]        # OUT_BIN -> CSV on stdout
+#   tools/foc_capture.sh plot [BIN] [opts]   # decode + plot (tools/plot_foc_capture.py)
+#   tools/foc_capture.sh grab [BIN] [opts]   # arm→stop→dump→plot in one shot (GRAB_SECONDS dwell)
 #
 # Env overrides:
 #   ELF=...          path to oresat-acs-fw-v8.elf (default: cmake-build-debug/...)
@@ -29,14 +31,18 @@ usage() {
 }
 
 # Look up an ELF symbol's address (printed as 0xHEX) — empty if not found.
+# NB: no early `exit` in awk — that closes the pipe mid-stream and objdump dies
+# with SIGPIPE (141), which `set -o pipefail` + `set -e` turn into a fatal script
+# abort inside the $(...) capture. The `!f` guard keeps first-match-only semantics
+# while letting objdump finish writing.
 sym_addr() {
   arm-none-eabi-objdump -t "$ELF" \
-    | awk -v sym="$1" '$NF == sym {print "0x"$1; exit}'
+    | awk -v sym="$1" '$NF == sym && !f {print "0x"$1; f=1}'
 }
 # Look up an ELF symbol's size (printed as DECIMAL).
 sym_size() {
   arm-none-eabi-objdump -t "$ELF" \
-    | awk -v sym="$1" '$NF == sym {printf "%d\n", strtonum("0x"$(NF-1)); exit}'
+    | awk -v sym="$1" '$NF == sym && !f {printf "%d\n", strtonum("0x"$(NF-1)); f=1}'
 }
 
 require_elf() {
@@ -154,12 +160,38 @@ cmd_decode() {
   python3 tools/decode_foc_capture.py "$bin"
 }
 
+cmd_plot() {
+  # First non-option arg is the bin (default foc_capture.bin); rest pass through.
+  local bin="foc_capture.bin"
+  if [[ $# -gt 0 && "$1" != -* ]]; then bin="$1"; shift; fi
+  python3 tools/plot_foc_capture.py "$bin" "$@"
+}
+
+cmd_grab() {
+  # All-in-one: arm → (optional GRAB_SECONDS dwell) → stop → dump → plot. The ring is
+  # only ~8 ms deep, so this freezes the most-recent ~8 ms; set GRAB_SECONDS=N to land
+  # that window N seconds after arming (e.g. just after a host setpoint step). The first
+  # non-option arg is the bin; remaining args (--show, --xy, --groups, ...) pass to plot.
+  local bin="foc_capture.bin"
+  if [[ $# -gt 0 && "$1" != -* ]]; then bin="$1"; shift; fi
+  cmd_arm
+  if [[ -n "${GRAB_SECONDS:-}" && "${GRAB_SECONDS}" != "0" ]]; then
+    echo "grab: dwell ${GRAB_SECONDS}s before stop"
+    sleep "${GRAB_SECONDS}"
+  fi
+  cmd_stop
+  cmd_dump "$bin"
+  python3 tools/plot_foc_capture.py "$bin" "$@"
+}
+
 case "${1:-}" in
   arm)    shift; cmd_arm    "$@" ;;
   stop)   shift; cmd_stop   "$@" ;;
   status) shift; cmd_status "$@" ;;
   dump)   shift; cmd_dump   "$@" ;;
   decode) shift; cmd_decode "$@" ;;
+  plot)   shift; cmd_plot   "$@" ;;
+  grab)   shift; cmd_grab   "$@" ;;
   -h|--help|"") usage 0 ;;
   *) echo "unknown subcommand: $1" >&2; usage ;;
 esac
