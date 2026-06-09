@@ -474,6 +474,8 @@ static void MX_GPIO_Init(void)
 
 void System_DeInit() {
   HAL_RCC_DeInit();
+  LL_USART_DeInit(USART1);
+  LL_USART_DeInit(USART2);
 }
 
 /* USER CODE END 4 */
