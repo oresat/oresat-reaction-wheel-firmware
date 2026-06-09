@@ -131,17 +131,26 @@ control_law_t encoder_dir_cal_ctrl_law = {
 static volatile u32 phase_cal_n_loop_start = 0;
 static volatile u32 phase_cal_n_loop_end = 0;
 
-static const u32 phase_cal_n_loops_spin = (u32) (2.f *
-                                                 (ENCODER_PHASE_CAL_ROTATION_DIST / ENCODER_PHASE_CAL_ROTATION_VEL) *
-                                                 LOOP_UPDATE_FREQ);
+static const u32 phase_cal_n_loops_per_leg = (u32) ((ENCODER_PHASE_CAL_ROTATION_DIST / ENCODER_PHASE_CAL_ROTATION_VEL) *
+                                                    LOOP_UPDATE_FREQ);
+static const u32 phase_cal_n_loops_spin = 2u * phase_cal_n_loops_per_leg;
+
+// Commanded cruise speed during the constant-velocity portion of each leg, in electrical rad/s (for
+// the velocity gate). The trapezoid's ramps mean the peak (cruise) speed must exceed the nominal
+// rev/s so the leg still covers ROTATION_DIST in the same total time — i.e. heat-neutral vs. the old
+// position-triangle, which cruised at exactly ROTATION_VEL.
+static const f32 phase_cal_cruise_evel = (ENCODER_PHASE_CAL_ROTATION_VEL / (1.f - ENCODER_PHASE_CAL_RAMP_FRAC)) *
+                                         (f32) MOTOR_NUM_POLEPAIRS * 2.f * M_PI_f32;
+static const f32 phase_cal_vel_gate = ENCODER_PHASE_CAL_VEL_GATE_FRAC * phase_cal_cruise_evel;
 
 static const u32 phase_cal_n_loop_lockin = (u32) (1.f * LOOP_UPDATE_FREQ); // Lockin start direction for one second
 
-static volatile f32 error_accum = 0.f;
-static volatile u32 error_accum_count = 0;
-
-static volatile f32 enc_pos_start = 0.f;
-static volatile f32 enc_pos_end = 0.f;
+// Accumulate (commanded - measured) electrical-phase error separately per sweep direction so the two
+// means can be averaged explicitly in finish (cancels friction even if the gated sample counts differ).
+static volatile f32 error_accum_fwd = 0.f;
+static volatile u32 error_count_fwd = 0;
+static volatile f32 error_accum_rev = 0.f;
+static volatile u32 error_count_rev = 0;
 
 static const f32 erad_total = MOTOR_NUM_POLEPAIRS * 2.f * M_PI_f32 * ENCODER_PHASE_CAL_ROTATION_DIST;
 static const f32 erad_start = 0;
@@ -163,57 +172,73 @@ void encoder_phase_cal_init() {
     phase_cal_n_loop_start = _n_loop_start;
     phase_cal_n_loop_end = _n_loop_end;
 
-    error_accum = 0.f;
-    error_accum_count = 0;
+    error_accum_fwd = 0.f;
+    error_count_fwd = 0;
+    error_accum_rev = 0.f;
+    error_count_rev = 0;
 
     //erad_start = wrap_pm_pi(0 - erad_total / 2);
 }
 
-const u32 capture_data_every = (u32) (LOOP_UPDATE_FREQ / 1000); // 1ms sampling
-static volatile u32 n = 0;
+// Normalized trapezoidal motion profile. `u` in [0,1] is the fraction of a leg's elapsed time; `a` in
+// (0,0.5) is the fraction of the leg spent in each (accel / decel) ramp. Returns the fraction of the
+// leg's distance covered, [0,1]: velocity ramps 0->peak over [0,a], holds over [a,1-a], ramps back to
+// 0 over [1-a,1]. Peak normalized velocity is 1/(1-a) so the area (distance) integrates to exactly 1.
+static __fn_inline f32 trapezoid_pos(f32 u, f32 a) {
+    f32 vpk = 1.f / (1.f - a);
+    if (u < a)
+        return vpk * u * u / (2.f * a);   // accel ramp: ½·(vpk/a)·u²
+    if (u <= 1.f - a)
+        return vpk * (u - 0.5f * a);      // cruise
+    f32 w = 1.f - u;                       // decel ramp (mirror of accel)
+    return 1.f - vpk * w * w / (2.f * a);
+}
 
 
 __ccmram void encoder_phase_cal_exec_cb() {
     u32 n_loops = controller_get_loop_count() - phase_cal_n_loop_start;
 
-    f32 enc_pos = encoder_get_multiturn_pos_raw();
-
     f32 phase_pos;
 
-
-    if (n_loops == phase_cal_n_loop_lockin) {
-        enc_pos_start = enc_pos;
+    // End of lock-in: seed a coarse one-point offset so the fine correction below stays small and
+    // wrap-safe. The bidirectional sweep then refines it (see encoder_phase_cal_finish).
+    if (n_loops == phase_cal_n_loop_lockin)
         encoder_set_phase_offset(encoder_get_pos_vel().pos);
-    }
 
-    if (n_loops == phase_cal_n_loops_spin + phase_cal_n_loop_lockin)
-        enc_pos_end = enc_pos;
-
-    if (n_loops < phase_cal_n_loop_lockin)
+    if (n_loops < phase_cal_n_loop_lockin) {
         phase_pos = erad_start;
+    } else {
+        u32 s = n_loops - phase_cal_n_loop_lockin;          // index within the spin phase
+        bool outbound = (s < phase_cal_n_loops_per_leg);
+        u32 s_leg = outbound ? s : (s - phase_cal_n_loops_per_leg);
+        f32 u = clamp_f32(0.f, (f32) s_leg / (f32) phase_cal_n_loops_per_leg, 1.f); // 0..1 within leg
 
-    else {
-        u32 n_loops_spin_phase = n_loops - phase_cal_n_loop_lockin;
+        // Trapezoidal velocity profile (fix 3): finite acceleration instead of the old position-
+        // triangle's instantaneous velocity reversals, so we stop impulse-exciting the rotor/field
+        // resonance. Outbound covers 0->DIST, inbound DIST->0.
+        f32 leg_frac = trapezoid_pos(u, ENCODER_PHASE_CAL_RAMP_FRAC);
+        f32 pos_mechanical = ENCODER_PHASE_CAL_ROTATION_DIST * (outbound ? leg_frac : 1.f - leg_frac);
+        f32 pos_electrical = pos_mechanical * MOTOR_NUM_POLEPAIRS * 2.f * M_PI_f32;
+        phase_pos = wrap_pm_pi(pos_electrical);
 
-        f32 percent_complete = (f32) n_loops_spin_phase / (f32) phase_cal_n_loops_spin;
-        f32 travel_dist;
+        // Accumulate the phase error only in the constant-velocity cruise, moving in the expected
+        // direction at speed (fix 2): rejects the accel/decel ramps, the v~=0 turnaround stiction
+        // band, and post-step ringing. Keep the two directions separate (fix 4). If dir-cal hasn't
+        // run, the measured phase moves the "wrong" way and the gate rejects everything -> finish bails.
+        posvel_t enc = encoder_get_phase();
+        f32 leg_sign = outbound ? 1.f : -1.f;
+        bool in_cruise = (u >= ENCODER_PHASE_CAL_RAMP_FRAC) && (u <= 1.f - ENCODER_PHASE_CAL_RAMP_FRAC);
+        bool vel_ok = (leg_sign * enc.vel) > phase_cal_vel_gate;
 
-        if (percent_complete < 0.5f)
-            travel_dist = 2 * percent_complete;
-        else
-            travel_dist = 2 * (1.f - percent_complete);
-
-        f32 current_pos_mechanical = travel_dist * ENCODER_PHASE_CAL_ROTATION_DIST;
-        f32 current_pos_electrical = current_pos_mechanical * MOTOR_NUM_POLEPAIRS * 2.f * M_PI_f32;
-        phase_pos = wrap_pm_pi(current_pos_electrical);
-
-        if ((++n) == capture_data_every) {
-            f32 enc_phase = encoder_get_phase().pos;
-            f32 elec_phase = phase_pos;
-            f32 error = wrap_pm_pi(elec_phase - enc_phase);
-            error_accum += error;
-            error_accum_count++;
-            n = 0;
+        if (in_cruise && vel_ok) {
+            f32 error = wrap_pm_pi(phase_pos - enc.pos);
+            if (outbound) {
+                error_accum_fwd += error;
+                error_count_fwd++;
+            } else {
+                error_accum_rev += error;
+                error_count_rev++;
+            }
         }
     }
 
@@ -236,14 +261,30 @@ bool encoder_phase_cal_finish(bool was_cancelled) {
     open_loop_ctrl_law.control_law_finish(was_cancelled);
     if (was_cancelled) return false;
 
-    f32 phase_offset = error_accum / (f32) error_accum_count;
+    // Need clean cruise samples in both directions, otherwise friction can't be cancelled. Bailing
+    // here (rather than applying a one-sided result) is also the failure signature when encoder
+    // dir-cal hasn't run: the velocity gate then rejects every sample.
+    if (error_count_fwd == 0 || error_count_rev == 0) {
+        printf("Phase cal failed: no cruise samples (fwd=%u rev=%u) - run dir cal first?\r\n",
+               (unsigned) error_count_fwd, (unsigned) error_count_rev);
+        return false;
+    }
 
+    // Average the two directions' means (fix 4): mean_fwd = offset + friction, mean_rev = offset -
+    // friction, so 0.5*(mean_fwd + mean_rev) cancels friction regardless of unequal sample counts.
+    f32 mean_fwd = error_accum_fwd / (f32) error_count_fwd;
+    f32 mean_rev = error_accum_rev / (f32) error_count_rev;
+    f32 phase_offset = 0.5f * (mean_fwd + mean_rev);
 
     f32 phase_offset_mechanical = (phase_offset / encoder_get_direction()) / (2.f * M_PI_f32 * MOTOR_NUM_POLEPAIRS);
-    printf("Fine-tuned phase offset: %.5f rad electrical, %.5f rad mechanical\r\n", phase_offset,
-           phase_offset_mechanical);
-    //encoder_set_phase_offset(encoder_get_phase_offset() - phase_offset_mechanical);
-    //printf("Accum: %.3f, Phase offset: %.3f\r\n", enc_pos_accum, phase_offset);
+
+    // Apply it (fix 1). Sign: encoder_get_phase() ~ E*(pos - offset)*dir with E = 2pi*polepairs, so
+    // d(phase)/d(offset) = -E*dir; nudging offset by -error/(E*dir) drives the mean error to zero.
+    encoder_set_phase_offset(encoder_get_phase_offset() - phase_offset_mechanical);
+
+    printf("Phase cal: offset %.5f rad-e (%.6f rev-m) | fwd %.5f rev %.5f | n=%u/%u\r\n",
+           phase_offset, phase_offset_mechanical, mean_fwd, mean_rev,
+           (unsigned) error_count_fwd, (unsigned) error_count_rev);
 
     return true;
 }

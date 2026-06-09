@@ -56,6 +56,8 @@ static const f32 ENCODER_DIR_CAL_ROTATION_TOLERANCE = 0.1f; // 10% error ok
 
 static const f32 ENCODER_PHASE_CAL_ROTATION_DIST = 4.f; // rev
 static const f32 ENCODER_PHASE_CAL_ROTATION_VEL = 0.5f; // rev/s
+static const f32 ENCODER_PHASE_CAL_RAMP_FRAC = 0.2f;     // fraction of each sweep leg spent in the accel/decel ramp (trapezoidal profile)
+static const f32 ENCODER_PHASE_CAL_VEL_GATE_FRAC = 0.5f; // only accumulate offset error when |speed| exceeds this fraction of cruise speed
 
 
 static const f32 MOTOR_KV = 6300.f;
