@@ -71,7 +71,7 @@ static const u8 CANID_WHEEL4 = 0x48;
 
 static const f32 VEL_RAMP_RATE = 20.f; //rev/s^2
 
-static const f32 VEL_GAIN = 0.002f; // Nm/rev/s
+static const f32 VEL_GAIN = 0.001f; // Nm/rev/s
 static const f32 VEL_INTEGRATOR_GAIN = 0.001f; // Nm/rev
 static const f32 VEL_INTEGRATOR_LIMIT = 1.f * MOTOR_TORQUE_CONSTANT; // Nm
 
@@ -115,6 +115,14 @@ static const f32 BACKEMF_LUT_MAX_ABS = 0.01f;     // |entry| bound [mech turns] 
                                                   // eccentricity-class errors are ~10x smaller)
 static const f32 BACKEMF_LUT_MAX_EMPTY_FRAC = 0.25f; // refuse the table if angular coverage is
                                                   // this sparse (keeps any previous LUT)
+#define BACKEMF_LUT_MAX_HARMONIC 4u               // keep only 1..K cycles/rev in the LUT. Real
+                                                  // encoder error is low-order (eccentricity =
+                                                  // 1/rev + small 2/rev); the TRAPEZOIDAL back-EMF
+                                                  // wobbles the measured angle at 6*polepairs =
+                                                  // 36/rev, which would otherwise bake into the
+                                                  // table as fake encoder error and inject real
+                                                  // 6f_e ripple into FOC. Spatial low-pass kills
+                                                  // it regardless of amplitude (lut-design §3.5).
 
 static const bool FOC_USE_bEMF_FF = false;
 static const bool FOC_USE_wL_FF = false;

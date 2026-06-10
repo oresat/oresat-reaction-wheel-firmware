@@ -546,10 +546,27 @@ artifact and are never applied by firmware.
   This implements `encoder-lut-design.md` §5's apply with the back-EMF capture method (its §3–4
   constant-velocity capture is superseded, as predicted by §7 of this doc).
 
+**FIXED 2026-06-09 — trapezoid-wobble contamination of the LUT** (user observed "more ripple
+with LUT on" — correct):
+- δ assumes a sinusoidal back-EMF; with 5th/7th harmonics the αβ vector's angle **wobbles at
+  6θ_e = 6·p = 36 cycles/mech-rev**, amplitude up to ~(e₅+e₇)/e₁ rad. The raw 128-bin LUT
+  captured ~88% of that as FAKE encoder error → applying it injected real 6f_e ripple into FOC.
+- Fix: **spatial-harmonic limit** — the table is Fourier-reconstructed keeping only harmonics
+  **1..`BACKEMF_LUT_MAX_HARMONIC` (4)** cycles/rev (real encoder error is 1/rev eccentricity +
+  small 2/rev; the wobble at 36/rev is rejected regardless of amplitude). This is exactly
+  `encoder-lut-design.md` §3.5's defense, restored. Also subsumes zero-meaning (no DC term) and
+  smooths bin noise/interp seams. **Re-run cal 21 after flashing to rebuild a clean table.**
+- A/B verification: `tools/backemf_capture.sh lut-enable 0|1` toggles the runtime correction
+  over SWD (table/blob untouched). Constant-speed `foc_capture` Iq spectra with LUT on/off:
+  1/rev line should DROP with LUT on (eccentricity correction + sign both confirmed); a rising
+  6f_e line with LUT on would indicate residual contamination. NB the on-board fit is
+  deliberately LUT-independent (recomputes from raw), so re-running 21 canNOT validate the
+  applied table — only this A/B can.
+
 **Still TODO:**
 - **Bench validation of the whole self-cal chain** (runbook above), incl. one offline-vs-on-board
-  fit cross-check via the SWD tooling, and the MA732 FW=51 first-boot NVM write (re-check σ and
-  offset stability at the new filter setting).
+  fit cross-check via the SWD tooling, the MA732 FW=51 first-boot NVM write (re-check σ and
+  offset stability at the new filter setting), and the LUT A/B ripple check above.
 - **STANDING TODO (user-requested): trapezoidal back-EMF → torque-ripple compensation.** First
   step is free: extract 5th/7th harmonic content from the existing coast captures (fit-script
   `--harmonics` mode). Mitigation = dq 6th-harmonic current shaping; at flight speed 6f_e

@@ -168,6 +168,19 @@ cmd_poke_offset() {
   ocd -c "init" -c "mww $addr $hex"
 }
 
+# A/B-toggle the runtime LUT correction (encoder.c enc_lut_enabled) without touching the table
+# or the flash blob. For ripple verification: spin at constant speed, foc_capture grab, flip,
+# grab again, compare Iq spectra (1/rev line = eccentricity correction working; 6*f_e line
+# rising with LUT on = contaminated table). Flip while IDLE, then re-enter the control state.
+cmd_lut_enable() {
+  require_elf
+  local val="${1:?usage: lut-enable 0|1}"
+  local addr; addr="$(sym_addr enc_lut_enabled)"
+  [[ -n "$addr" ]] || { echo "error: enc_lut_enabled symbol not found (old firmware?)" >&2; exit 1; }
+  echo "lut-enable: $val @ $addr"
+  ocd -c "init" -c "mwb $addr $val"
+}
+
 case "${1:-}" in
   status)      shift; cmd_status      "$@" ;;
   dump)        shift; cmd_dump        "$@" ;;
@@ -175,6 +188,7 @@ case "${1:-}" in
   grab)        shift; cmd_grab        "$@" ;;
   show-offset) shift; cmd_show_offset "$@" ;;
   poke-offset) shift; cmd_poke_offset "$@" ;;
+  lut-enable)  shift; cmd_lut_enable  "$@" ;;
   -h|--help|"") usage 0 ;;
   *) echo "unknown subcommand: $1" >&2; usage ;;
 esac

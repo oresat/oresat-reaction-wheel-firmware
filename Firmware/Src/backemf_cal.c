@@ -390,15 +390,37 @@ static bool backemf_fit_and_apply() {
             lut_table[i] = (lut_table[p] * (f32) dq + lut_table[q] * (f32) dp) / (f32) (dp + dq);
         }
 
-        // Zero-mean (the mean belongs to the scalar offset, which the fit already set)
-        f32 mean = 0.f;
-        for (u32 i = 0; i < ENC_LUT_N; i++) mean += lut_table[i];
-        mean /= (f32) ENC_LUT_N;
-        f32 maxabs = 0.f;
-        for (u32 i = 0; i < ENC_LUT_N; i++) {
-            lut_table[i] -= mean;
-            maxabs = max_f32(maxabs, abs_f32(lut_table[i]));
+        // Spatial-harmonic limit: keep ONLY 1..BACKEMF_LUT_MAX_HARMONIC cycles/rev. Real encoder
+        // error is low-order (eccentricity = 1/rev + a small 2/rev); the trapezoidal back-EMF
+        // makes the measured alpha-beta vector wobble at 6*polepairs = 36 cycles/rev, which the
+        // raw bins capture as FAKE encoder error — applying it would inject genuine 6f_e current
+        // ripple into FOC. A Fourier reconstruction without the DC term is also inherently
+        // zero-mean (the mean belongs to the scalar offset) and smooths bin noise + interp seams.
+        {
+            f32 ak[BACKEMF_LUT_MAX_HARMONIC], bk[BACKEMF_LUT_MAX_HARMONIC];
+            for (u32 h = 0; h < BACKEMF_LUT_MAX_HARMONIC; h++) {
+                f32 a = 0.f, b = 0.f;
+                for (u32 i = 0; i < ENC_LUT_N; i++) {
+                    sincos_t sc = sincos_f32(2.f * M_PI_f32 * (f32) (h + 1u) * (f32) i / (f32) ENC_LUT_N);
+                    a += lut_table[i] * sc.cos;
+                    b += lut_table[i] * sc.sin;
+                }
+                ak[h] = a * (2.f / (f32) ENC_LUT_N);
+                bk[h] = b * (2.f / (f32) ENC_LUT_N);
+            }
+            for (u32 i = 0; i < ENC_LUT_N; i++) {
+                f32 v = 0.f;
+                for (u32 h = 0; h < BACKEMF_LUT_MAX_HARMONIC; h++) {
+                    sincos_t sc = sincos_f32(2.f * M_PI_f32 * (f32) (h + 1u) * (f32) i / (f32) ENC_LUT_N);
+                    v += ak[h] * sc.cos + bk[h] * sc.sin;
+                }
+                lut_table[i] = v;
+            }
         }
+
+        f32 maxabs = 0.f;
+        for (u32 i = 0; i < ENC_LUT_N; i++)
+            maxabs = max_f32(maxabs, abs_f32(lut_table[i]));
 
         if (maxabs > BACKEMF_LUT_MAX_ABS) {
             printf("BEMF fit: LUT rejected, max |entry| %.5f turns > %.5f (keeping previous)\r\n",
@@ -406,8 +428,9 @@ static bool backemf_fit_and_apply() {
             lut_ok = false;
         } else {
             encoder_set_lut(lut_table);
-            printf("BEMF fit: LUT installed, %u/%u bins measured, peak %.5f turns (%.2f deg mech)\r\n",
-                   (unsigned) (ENC_LUT_N - empty), (unsigned) ENC_LUT_N, maxabs, maxabs * 360.f);
+            printf("BEMF fit: LUT installed, %u/%u bins measured, harmonics 1-%u, peak %.5f turns (%.2f deg mech)\r\n",
+                   (unsigned) (ENC_LUT_N - empty), (unsigned) ENC_LUT_N,
+                   (unsigned) BACKEMF_LUT_MAX_HARMONIC, maxabs, maxabs * 360.f);
         }
     } else {
         printf("BEMF fit: LUT skipped, %u/%u bins empty (keeping previous)\r\n",
