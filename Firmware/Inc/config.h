@@ -6,7 +6,8 @@
 
 // DCBus
 static const f32 DC_BUS_OVERVOLTAGE_THRESHOLD_V = 4.3f * 2.f; // V
-static const f32 DC_BUS_UNDERVOLTAGE_THRESHOLD_V = 2.7f; // TODO ************ REMEMBER TO CHANGE THIS ************
+static const f32 DC_BUS_UNDERVOLTAGE_THRESHOLD_V = 5.0f; // V — 2S pack at 2.5 V/cell: only plausible
+                                                         // as a wiring/EPS fault, never normal sag
 
 // IBus
 static const f32 IBUS_OVERCURRENT_THRESHOLD_A = 5.f; // A
