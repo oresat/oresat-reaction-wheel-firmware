@@ -2,6 +2,8 @@
 
 #include "typedefs.h"
 
+//#define IS_CORRECTED_VOLTAGE_DIVIDER
+
 // DCBus
 static const f32 DC_BUS_OVERVOLTAGE_THRESHOLD_V = 4.3f * 2.f; // V
 static const f32 DC_BUS_UNDERVOLTAGE_THRESHOLD_V = 2.7f; // TODO ************ REMEMBER TO CHANGE THIS ************
@@ -19,7 +21,17 @@ static const f32 MOTOR_CURRENT_TRIP_LIMIT = 15.f; // A
 static const f32 SHUNT_AMP_GAIN = -50.f; // V/V
 static const f32 SHUNT_VALUE_OHM = 0.002f; // Ohm
 static const f32 SHUNT_AMP_CONDUCTANCE = 1 / (SHUNT_AMP_GAIN * SHUNT_VALUE_OHM); // A/V
-static const f32 VSNS_VOLTAGE_DIVIDER = 3240.f / (3240.f + 5100.f); // V/V
+
+#ifdef IS_CORRECTED_VOLTAGE_DIVIDER
+#define VBUS_DIVIDER_R_HI 8200.f
+#define VBUS_DIVIDER_R_LO 2700.f
+#else
+#define VBUS_DIVIDER_R_HI 5100.f
+#define VBUS_DIVIDER_R_LO 3300.f
+#endif
+
+static const f32 VSNS_VOLTAGE_DIVIDER = VBUS_DIVIDER_R_LO / (VBUS_DIVIDER_R_LO + VBUS_DIVIDER_R_HI); // V/V
+
 //static const f32 VSNS_VOLTAGE_DIVIDER = 0.4; // V/V
 
 // Safety

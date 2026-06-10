@@ -35,6 +35,12 @@
 
 #include "printf.h"
 
+// MANUAL EDIT (not upstream mpaland): printf_()/vprintf_() format into a stack buffer and hand
+// the whole message to the deferred console (console.c) instead of streaming char-by-char into
+// a blocking UART write. ISR-context printf no longer waits on the wire (~10.9 µs/char at
+// 921600 baud); see console.h for routing/drop semantics.
+#include "console.h"
+
 
 // define this globally (e.g. gcc -DPRINTF_INCLUDE_CONFIG_H ...) to include the
 // printf_config.h header file
@@ -863,8 +869,7 @@ int printf_(const char* format, ...)
 {
   va_list va;
   va_start(va, format);
-  char buffer[1];
-  const int ret = _vsnprintf(_out_char, buffer, (size_t)-1, format, va);
+  const int ret = vprintf_(format, va);
   va_end(va);
   return ret;
 }
@@ -892,8 +897,15 @@ int snprintf_(char* buffer, size_t count, const char* format, ...)
 
 int vprintf_(const char* format, va_list va)
 {
-  char buffer[1];
-  return _vsnprintf(_out_char, buffer, (size_t)-1, format, va);
+  // MANUAL EDIT: format to a stack buffer, then route the whole message through the deferred
+  // console (ring from ISRs, direct from thread). Truncates at CONSOLE_LINE_MAX-1 chars.
+  char buffer[CONSOLE_LINE_MAX];
+  const int ret = _vsnprintf(_out_buffer, buffer, CONSOLE_LINE_MAX, format, va);
+  if (ret > 0) {
+    const size_t len = ((size_t)ret < (size_t)CONSOLE_LINE_MAX) ? (size_t)ret : (size_t)(CONSOLE_LINE_MAX - 1u);
+    console_write(buffer, (u32)len);
+  }
+  return ret;
 }
 
 

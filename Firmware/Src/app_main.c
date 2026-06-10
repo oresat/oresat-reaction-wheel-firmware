@@ -6,6 +6,7 @@
 #include "stm32g4xx_hal_dac.h"
 #include "typedefs.h"
 
+#include "console.h"
 #include "printf.h"
 #include "stm32g4xx_hal.h"
 
@@ -114,6 +115,7 @@ __fn_noreturn void app_main() {
         bool wrote_ok = write_option_bytes();
         printf("Writing option bytes %s\r\n", wrote_ok ? "SUCCESS" : "FAIL");
         check_option_bytes_ok();
+        console_flush(); // last bytes off the wire before the reset eats them
         HAL_NVIC_SystemReset();
     }
 
@@ -269,6 +271,8 @@ __fn_noreturn void app_main() {
     //set_open_loop_current_setpoint((ab_vec_t) {1.0f, 0.0f});
 
 
+    foc_print_gains(); // compile-time constants; printed once here instead of every arm tick
+
     printf("Entering main tpdo update loop...\r\n");
     //fsm_request_state(FSM_STATE_ENCODER_DIR_CAL);
 
@@ -287,6 +291,7 @@ __fn_noreturn void app_main() {
     //f32 j = 0;
     //HAL_Delay(10);
     while (1) {
+        console_pump(); // drain ISR-context printf output (FSM transitions, cal results, ...)
         update_tpdo_od_vals();
         canopen_process();
         process_sdo_vals();

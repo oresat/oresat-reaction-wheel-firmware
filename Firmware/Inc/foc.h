@@ -9,6 +9,8 @@
 #include "config.h"
 
 void init_foc();
+
+void foc_print_gains(); // boot-time gains banner (moved out of the in-ISR init_foc)
 void set_iq_setpoint(f32 iq);
 ab_vec_t get_alpha_beta_currents();
 dq_vec_t get_idq_measured();

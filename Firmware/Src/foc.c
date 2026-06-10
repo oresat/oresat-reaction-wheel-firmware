@@ -47,22 +47,21 @@ static volatile f32 ibus = 0.f;
 static volatile f32 last_Ia = 0.f, last_Ib = 0.f, last_Ic = 0.f;
 
 
+// Boot-time print of the (compile-time) current-controller gains. This used to live in
+// init_foc(), i.e. inside the priority-0 arm tick, where the two lines cost ~141k cycles of
+// blocked UART ≈ 31 dropped control ticks at every arm — for values that never change.
+void foc_print_gains() {
+    printf("FOC current ctrl Kp: %.5f, Ki: %.5f (HARDCODE_PHASE_R/L)\r\n",
+           current_ctrl_kp, current_ctrl_ki);
+}
+
 void init_foc() {
     // TODO LOL
     //if (!is_phase_inductance_calibrated() || !is_phase_resistance_calibrated()) return false;
     //f32 phase_resistance = get_calibrated_phase_resistance();
     //f32 phase_inductance = get_calibrated_phase_inductance();
-
-    f32 phase_resistance = HARDCODE_PHASE_RESISTANCE;
-    f32 phase_inductance = HARDCODE_PHASE_INDUCTANCE;
-
-    f32 p_gain = CURRENT_CONTROLLER_BANDWIDTH * phase_inductance;
-    f32 RL_pole = phase_resistance / phase_inductance;
-    //current_ctrl_kp = p_gain;
-    //current_ctrl_ki = RL_pole * p_gain;
-
-    printf("FOC Kp: %.5f, FOC Ki: %.5f\r\n", p_gain, RL_pole * p_gain);
-    printf("FOC hardcode Kp: %.5f, FOC Ki: %.5f\r\n", current_ctrl_kp, current_ctrl_ki);
+    //current_ctrl_kp = CURRENT_CONTROLLER_BANDWIDTH * phase_inductance;
+    //current_ctrl_ki = (phase_resistance / phase_inductance) * current_ctrl_kp;
 
     idq_measured = (dq_vec_t) {0.f, 0.f};
     v_current_ctrl_integral = (dq_vec_t) {0.f, 0.f};

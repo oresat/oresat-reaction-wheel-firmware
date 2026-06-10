@@ -194,9 +194,11 @@ static __fn_inline void dac_debug2_V(f32 V) {
 void uart_transmit(USART_TypeDef *uart, u8 *buf, u8 len);
 
 static __fn_inline void uart_transmit_one(USART_TypeDef *uart, char ch) {
+    // TXE alone paces back-to-back bytes (TDR + shift register pipeline). The old trailing
+    // TC wait spent a full byte-time of dead spin per char and bought nothing mid-stream —
+    // only "is the LAST byte fully out" needs TC, and console_flush() covers that case.
     while (LL_USART_IsActiveFlag_TXE_TXFNF(uart) == 0);
     LL_USART_TransmitData8(uart, ch);
-    while (LL_USART_IsActiveFlag_TC(uart) == 0);
 }
 
 static __fn_inline void uart_transmit_buf(USART_TypeDef *uart, char *buf, u32 len) {

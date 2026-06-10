@@ -2,6 +2,7 @@
 
 #include "aux_adc.h"
 #include "closed_loop_controller.h"
+#include "console.h"
 #include "control_ll.h"
 #include "OD.h"
 #include "periphmap.h"
@@ -191,6 +192,7 @@ void process_sdo_vals() {
 
     if (sdo_reboot_request == 1) {
         controller_disarm();
+        console_flush(); // last bytes off the wire before the reset eats them
         HAL_NVIC_SystemReset();
     }
 }

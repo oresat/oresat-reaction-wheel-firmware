@@ -71,8 +71,10 @@ upward to that, that *would* cause distortion.
     (This was the "enter VEL_RAMP → reboot" mystery; vel_ramp wasn't special — its exec adds
     <1% over torque/vel.) Bench optimized builds, or locally drop Debug to 16 kHz.
   - The **arm tick costs ~141k cycles (~1 ms ≈ 31 dropped ticks)**: control_law_init runs
-    in-ISR and init_foc printfs two lines over blocking UART. Excluded from isr_cycles_max;
-    cleanup candidate: defer/gate the init printfs.
+    in-ISR and init_foc printfs two lines over blocking UART. Excluded from isr_cycles_max.
+    **FIXED 2026-06-09**: ISR printf is now deferred (console.c ring + foreground pump; see
+    docs/footguns.md) and the init_foc gain prints moved to boot (`foc_print_gains`) — the arm
+    tick is now an ordinary tick. Captures no longer have the 1 ms post-arm gap.
 
 ### Best-2-of-3 shunt selection (this session — default OFF, A/B gated)
 What: at high modulation, drop the CM-corrupted phase (smallest SVM magnitude → largest

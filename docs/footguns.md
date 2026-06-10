@@ -12,14 +12,22 @@ setpoints, `u32 controller_errors`) can be read torn. In practice the torn reads
 (a one-cycle-stale float), but don't *assume* atomicity — if you add a multi-field shared struct that
 must be consistent, guard it (disable the HRTIM IRQ briefly, or double-buffer).
 
-**`printf` is blocking, and the FSM transition path calls it from inside the 1 kHz FSM ISR.**
-`_putchar` → `uart_transmit_one` spins on TXE then TC (`util.h`). `fsm_enter_state`/`fsm_exit_state`
-each `printf` a line (`fsm.c:121,151`), and `control_law_finish()` runs there too — so **every state
-transition blocks the FSM ISR for the whole UART transmit** (milliseconds at typical baud). During
-that, the CAN tick (pri 2) and foreground starve; only the fast loop (pri 0) preempts. Worse,
-`encoder_validation_finish` / `encoder_dir_cal_finish` do multi-line `uart_transmit_buf` dumps from
-this ISR context. Fine for bench bring-up; do **not** add `printf` to the fast loop, and be aware
-state changes hiccup CAN.
+**`printf` from ISRs is deferred, not blocking — but it can DROP.** Since 2026-06: `printf`
+formats into a stack buffer and routes through `console_write()` (`console.c`). From ISR context
+the message is memcpy'd into a 2 KB RAM ring (≈1 µs under PRIMASK) and the foreground loop pumps
+it to the UART — FSM-transition prints no longer stall the TIM17 ISR (~1 ms each before), and the
+old in-ISR `init_foc` gain prints (~31 dropped fast-loop ticks at every arm) moved to boot. The
+trades: **a full ring silently drops the whole message** (counted in `console_dropped`,
+SWD-visible; the pump prints `[console: N dropped]` after the fact), lines truncate at 255 chars,
+and ISR output is delayed by up to one foreground pass. Thread-mode `printf` (boot, foreground)
+is still synchronous. If the box wedges before the pump runs, the un-drained text — plus the last
+~2 KB of console history — is recoverable over SWD: `tools/console_tail.sh`. Call
+`console_flush()` before any `NVIC_SystemReset` you add, or the last lines die with the reset.
+Two deliberate exceptions still write the UART raw from TIM17 ISR context:
+`encoder_validation_finish` / `encoder_dir_cal_finish` bulk-dump via `uart_transmit_buf`
+(end-of-procedure data export; would flood the ring) — multi-ms FSM stalls by design; don't add
+new ones. A `printf` in the fast loop is now *survivable* (it used not to be) but still costs
+format time (~1-3 µs) and will flood/drop at 32 kHz — use `foc_capture` for per-tick data.
 
 **Changing TPDO rate resets CAN communication.** `set_tpdo_send_rate()` calls
 `canopen_app_resetCommunication()` (`can_comms.c:207`), and `fsm_enter_state` calls it on *every*
