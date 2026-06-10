@@ -46,6 +46,20 @@ static volatile f32 ibus = 0.f;
 // can include them in the per-tick capture snapshot.
 static volatile f32 last_Ia = 0.f, last_Ib = 0.f, last_Ic = 0.f;
 
+// 6f_e BEMF harmonic feedforward coefficients [V*s/rad] (see config.h block). Set by the bidir
+// cal's pass-5 demod / cal_store restore; survive init_foc (they're calibration, not loop
+// state). Zeros = exact no-op. Runtime enable is SWD-toggleable for A/B (shunt_sel pattern).
+static volatile bemf_h6_coeff_t bemf_h6_coeff = {0.f, 0.f, 0.f, 0.f};
+volatile bool bemf_harmonic_ff_enabled = FOC_USE_BEMF_HARMONIC_FF;
+
+void foc_set_bemf_harmonic_coeffs(const bemf_h6_coeff_t *c) {
+    bemf_h6_coeff = *c;
+}
+
+void foc_get_bemf_harmonic_coeffs(bemf_h6_coeff_t *out) {
+    *out = bemf_h6_coeff;
+}
+
 
 // Boot-time print of the (compile-time) current-controller gains. This used to live in
 // init_foc(), i.e. inside the priority-0 arm tick, where the two lines cost ~141k cycles of
@@ -150,6 +164,23 @@ __ccmram bool foc_gen_pwm_cb(svm_vec_t *mag) {
 
     if (FOC_USE_bEMF_FF) {
         Vdq_ff.q += vel_ * (2.f / 3.f) * (MOTOR_TORQUE_CONSTANT / (f32) MOTOR_NUM_POLEPAIRS);
+    }
+
+    // 6f_e back-EMF harmonic feedforward: supply the trapezoid's harmonic e_dq so it stops
+    // driving 6th-harmonic current through the (tiny) motor impedance — the loop can't reach
+    // 6f_e (= 1.8 kHz at 50 rev/s vs 637 Hz BW). Coefficients [V*s/rad] are demodulated from
+    // the bidir coast capture against THIS same encoder phase + signed elec velocity, so the
+    // reconstruction is convention-proof by construction. Zero coefficients = exact no-op.
+    // The 6θ argument MUST be advanced by the compute->apply latency (the same ~2-tick advance
+    // pwm_phase gets below): a 6th-harmonic phasor rotates 6x faster, so un-advanced it lags
+    // 6ωτ — 49° at 60 rev/s, leaving 2·sin(3ωτ) ≈ 80% of the disturbance uncancelled
+    // (sweep-measured: residual matched that curve point-for-point). Coefficients themselves
+    // are latency-free (measured during coast, no PWM in the loop).
+    if (bemf_harmonic_ff_enabled) {
+        f32 ff_phase = current_phase + vel_ * (BACKEMF_FF_ADVANCE_TICKS / (f32) ENC_MEAS_FREQ);
+        sincos_t sc6 = sincos_f32(wrap_pm_pi(6.f * ff_phase));
+        Vdq_ff.d += vel_ * (bemf_h6_coeff.Ad * sc6.cos + bemf_h6_coeff.Bd * sc6.sin);
+        Vdq_ff.q += vel_ * (bemf_h6_coeff.Aq * sc6.cos + bemf_h6_coeff.Bq * sc6.sin);
     }
 
     dq_vec_t idq_err = {idq_setpoint_.d - idq.d, idq_setpoint_.q - idq.q};

@@ -43,6 +43,13 @@ static volatile f32 leg_target = 0.f;  // current leg's signed spin target [rev/
 // Capture storage (linear, no wrap; SWD-dumped by tools/backemf_capture.sh)
 volatile backemf_sample_t backemf_capture_buf[BACKEMF_CAPTURE_LEN];
 volatile u32 backemf_capture_idx = 0;
+
+// Runtime-adjustable decimation (SWD: tools/backemf_capture.sh decim N). Default 64 = 500 Hz,
+// sized so a bidir cal's coast fits the buffer. Poke to 1 for a full-rate (32 kHz) spindown
+// burst — 1024 samples = 32 ms ≈ 10 elec cycles at 50 rev/s, resolving BEMF harmonics to h53
+// alias-free (the 500 Hz default undersamples h11/h13 stroboscopically). Sticky until reboot;
+// NOT reset by init so it can be poked before requesting the state.
+volatile u32 backemf_capture_decim = BACKEMF_CAPTURE_DECIM;
 volatile f32 backemf_meta_phase_offset = 0.f;
 volatile f32 backemf_meta_enc_dir = 0.f;
 volatile f32 backemf_meta_omega_cut = 0.f;
@@ -180,7 +187,7 @@ __ccmram void backemf_cal_exec_cb() {
             if (omega_abs >= BACKEMF_CAL_OMEGA_MIN) {
                 saw_motion = true;
 
-                if (++decim_ctr >= BACKEMF_CAPTURE_DECIM) {
+                if (++decim_ctr >= backemf_capture_decim) {
                     decim_ctr = 0;
                     u32 idx = backemf_capture_idx;
                     if (idx < cap) {
@@ -435,6 +442,75 @@ static bool backemf_fit_and_apply() {
     } else {
         printf("BEMF fit: LUT skipped, %u/%u bins empty (keeping previous)\r\n",
                (unsigned) empty, (unsigned) ENC_LUT_N);
+    }
+
+    // Pass 5: 6θ_e harmonic feedforward coefficients. Demodulate the coast e_dq (the hi-Z
+    // terminal voltage IS the BEMF) against the FINAL runtime angle — new offset plus the
+    // just-installed LUT — so the runtime reconstruction in foc_gen_pwm_cb phase-aligns by
+    // construction (all sign/dir conventions cancel: we project v/omega_signed onto
+    // {cos 6θ', sin 6θ'} and replay omega*(A c + B s) against the same θ'). Normalizing by
+    // signed omega makes both bidir legs consistent and the coefficients speed-invariant.
+    {
+        const f32 off_new = off_used + delta_mech;
+        f32 Sxd = 0, Sxq = 0, Sc = 0, Ss = 0;
+        f32 Sxdc = 0, Sxds = 0, Sxqc = 0, Sxqs = 0;
+        u32 nh = 0;
+
+        for (u32 i = 0; i < n; i++) {
+            f32 om = backemf_capture_buf[i].omega_mech;
+            if (abs_f32(om) < BACKEMF_CAL_OMEGA_MIN) continue;
+            f32 va = (f32) backemf_capture_buf[i].va_raw - za;
+            f32 vb = (f32) backemf_capture_buf[i].vb_raw - zb;
+            f32 vc = (f32) backemf_capture_buf[i].vc_raw - zc;
+            f32 valpha = (2.f / 3.f) * (va - 0.5f * vb - 0.5f * vc);
+            f32 vbeta = (vb - vc) * one_over_sqrt3;
+            if (valpha * valpha + vbeta * vbeta < BACKEMF_FIT_MIN_VMAG * BACKEMF_FIT_MIN_VMAG)
+                continue;
+
+            f32 pos = (f32) backemf_capture_buf[i].enc_raw / (f32) ENCODER_CPR;
+            if (lut_ok) { // mirror the runtime LUT lerp so θ' == what foc.c will see
+                f32 x = pos * (f32) ENC_LUT_N;
+                u32 bi = (u32) x;
+                f32 fr = x - (f32) bi;
+                pos += lut_table[bi & (ENC_LUT_N - 1u)] * (1.f - fr) +
+                       lut_table[(bi + 1u) & (ENC_LUT_N - 1u)] * fr;
+            }
+            f32 thp = wrap_pm_pi(erad * (pos - off_new)) * dir;
+            f32 wes = erad * dir * om;
+
+            sincos_t sct = sincos_f32(thp);
+            f32 xd = (valpha * sct.cos + vbeta * sct.sin) / wes;  // e_d/omega [counts*s/rad]
+            f32 xq = (vbeta * sct.cos - valpha * sct.sin) / wes;
+            sincos_t sc6 = sincos_f32(wrap_pm_pi(6.f * thp));
+
+            Sxd += xd; Sxq += xq; Sc += sc6.cos; Ss += sc6.sin;
+            Sxdc += xd * sc6.cos; Sxds += xd * sc6.sin;
+            Sxqc += xq * sc6.cos; Sxqs += xq * sc6.sin;
+            nh++;
+        }
+
+        if (nh >= 200) {
+            f32 fn = (f32) nh;
+            f32 scale = 2.f / fn * PHASE_V_COUNTS_TO_VOLTS;
+            bemf_h6_coeff_t cfs = {
+                    .Ad = (Sxdc - (Sxd / fn) * Sc) * scale,
+                    .Bd = (Sxds - (Sxd / fn) * Ss) * scale,
+                    .Aq = (Sxqc - (Sxq / fn) * Sc) * scale,
+                    .Bq = (Sxqs - (Sxq / fn) * Ss) * scale,
+            };
+            f32 m = max_f32(max_f32(abs_f32(cfs.Ad), abs_f32(cfs.Bd)),
+                            max_f32(abs_f32(cfs.Aq), abs_f32(cfs.Bq)));
+            if (m <= BACKEMF_FF_MAX_COEFF) {
+                foc_set_bemf_harmonic_coeffs(&cfs);
+                printf("BEMF fit: h6 FF coeffs [uV*s] d:(%+.1f,%+.1f) q:(%+.1f,%+.1f), n=%u\r\n",
+                       cfs.Ad * 1e6f, cfs.Bd * 1e6f, cfs.Aq * 1e6f, cfs.Bq * 1e6f, (unsigned) nh);
+            } else {
+                printf("BEMF fit: h6 FF coeffs REJECTED (max %.1f uV*s > %.0f; keeping previous)\r\n",
+                       m * 1e6f, BACKEMF_FF_MAX_COEFF * 1e6f);
+            }
+        } else {
+            printf("BEMF fit: h6 FF skipped (only %u gated samples)\r\n", (unsigned) nh);
+        }
     }
 
     printf("BEMF fit: D=%+.4f rad elec (%.2f deg), k=%+.1f us, n=%u fwd / %u rev\r\n",

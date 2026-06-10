@@ -117,6 +117,10 @@ def main():
                     help="PHx_V divider ratio V_pin/V_phase (1.0 = unknown; angles unaffected)")
     ap.add_argument("--force-dir", type=float, choices=(1.0, -1.0), default=None,
                     help="override encoder direction (default: auto-pick the self-consistent one)")
+    ap.add_argument("--harmonics", action="store_true",
+                    help="report per-phase BEMF harmonic content (flux-normalized) and exit. "
+                         "Use a full-rate capture (backemf_capture.sh decim 1) to resolve h>9 "
+                         "alias-free; the 500 Hz default only sees them stroboscopically.")
     ap.add_argument("--csv", action="store_true", help="dump per-sample CSV to stdout and exit")
     ap.add_argument("--plot", action="store_true", help="write <first-bin>.png diagnostics")
     ap.add_argument("--show", action="store_true", help="plt.show() interactively (implies --plot)")
@@ -179,6 +183,100 @@ def main():
         print("         channels, wrong --pole-pairs, or garbage data. Do not trust this fit.", file=sys.stderr)
 
     theta_e, omega_e, v_d, v_q, delta = delta_for(use_dir)
+
+    if args.harmonics:
+        # Per-phase BEMF harmonic table via synchronous LS demod against theta_e, in the FLUX
+        # domain (v/omega_e) so the decaying coast speed doesn't bias the ratios. e_k/e_1 is the
+        # VOLTAGE-domain ratio (= k*psi_k/psi_1), speed-invariant.
+        #
+        # Verdict machinery for "is harmonic k real?":
+        #  * noise floor = median demod amplitude at BETWEEN-harmonic orders (k = n.5) — a real
+        #    machine has no energy there, so it measures the method's own noise;
+        #  * per-phase consistency — a symmetric machine must show ~equal |e_k| on A/B/C; large
+        #    spread (like the decimated capture's h13 = 8.8/8.2/1.8%) marks an aliasing artifact;
+        #  * undersampling warning — at decim 64 the capture sees h>9 only stroboscopically.
+        names = "ABC"
+        vmtx = np.stack([np.concatenate([r["va"] for r in runs]),
+                         np.concatenate([r["vb"] for r in runs]),
+                         np.concatenate([r["vc"] for r in runs])])
+        the_g, we_g = theta_e[gate], omega_e[gate]
+        f_e_mean = float(np.abs(we_g).mean()) / (2 * np.pi)
+        dt = float(np.median(np.diff(np.concatenate([r["t"] for r in runs]))))
+        samp_per_cyc = 1.0 / (dt * f_e_mean) if dt > 0 else float("inf")
+        n_cyc = (sum(r["t"][-1] - r["t"][0] for r in runs)) * f_e_mean
+
+        def dem(x, k):
+            # Joint-fit the probe with the FUNDAMENTAL (+DC): over a short non-integer window
+            # (full-rate burst ~10 cycles) the fundamental's spectral leakage otherwise lands in
+            # every probe and fakes a ~5% "floor". Co-estimating h1 removes the dominant leaker;
+            # residual leakage from h5 (7% * sinc-ish) sets the true detection floor (~0.5%).
+            cols = [np.cos(k * the_g), np.sin(k * the_g), np.ones_like(the_g)]
+            if k != 1:
+                cols += [np.cos(the_g), np.sin(the_g)]
+            A = np.vstack(cols).T
+            sol, *_ = np.linalg.lstsq(A, x, rcond=None)
+            return float(np.hypot(sol[0], sol[1]))
+
+        ks = list(range(2, 20))
+        floor_ks = [3.5, 5.5, 7.5, 9.5, 11.5, 13.5]
+        xph = [vmtx[ch][gate] / we_g for ch in range(3)]
+        e1 = np.array([dem(xph[ch], 1) for ch in range(3)])
+        amp = np.array([[dem(xph[ch], k) for k in ks] for ch in range(3)])      # [3, nk]
+        flo = np.array([[dem(xph[ch], k) for k in floor_ks] for ch in range(3)])
+        floor_pct = 100 * float(np.median(flo / e1[:, None]))
+
+        psi1 = e1 * (args.vref / 4095.0) / args.divider
+        print(f"\nBEMF harmonics: {ng} gated samples, ~{n_cyc:.0f} elec cycles, "
+              f"{samp_per_cyc:.1f} samples/cycle, f_e ~{f_e_mean:.0f} Hz")
+        if samp_per_cyc < 2.5:
+            print("  WARNING: stroboscopic sampling (decim too high) — h>9 magnitudes unreliable;"
+                  " re-capture with `backemf_capture.sh decim 1`")
+        print(f"  psi1 A/B/C = {psi1[0]*1e6:.1f}/{psi1[1]*1e6:.1f}/{psi1[2]*1e6:.1f} uV*s/rad"
+              f"   |   noise floor ~{floor_pct:.2f}% of fundamental")
+        print(f"  {'k':>4}{'phA%':>8}{'phB%':>8}{'phC%':>8}{'spread':>8}  verdict")
+        for j, k in enumerate(ks):
+            pct = 100 * amp[:, j] / e1
+            mean, spread = pct.mean(), pct.max() - pct.min()
+            if mean < 3 * floor_pct:
+                verdict = "-"
+            elif spread < 0.5 * mean:
+                verdict = "REAL"
+            else:
+                verdict = "SUSPECT (inter-phase spread - artifact?)"
+            print(f"  {k:>4}{pct[0]:>8.2f}{pct[1]:>8.2f}{pct[2]:>8.2f}{spread:>8.2f}  {verdict}")
+
+        # dq-frame drive terms: what actually pushes 6f_e / 12f_e current at run time
+        xd, xq = v_d[gate] / we_g, v_q[gate] / we_g
+        vscale = (args.vref / 4095.0) / args.divider
+        print("  dq-frame harmonic drive (per rad/s of omega_e, + volts at this capture's speed):")
+        for m in (6, 12):
+            ed, eq = dem(xd, m) * vscale, dem(xq, m) * vscale
+            wm = float(np.abs(we_g).mean())
+            print(f"    {m}θ: e_d {ed*1e6:6.2f} uV*s ({ed*wm*1e3:5.1f} mV)   "
+                  f"e_q {eq*1e6:6.2f} uV*s ({eq*wm*1e3:5.1f} mV)")
+
+        if args.plot or args.show:
+            import matplotlib
+            if not args.show:
+                matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(10, 5))
+            w = 0.27
+            for ch in range(3):
+                ax.bar(np.array(ks) + (ch - 1) * w, 100 * amp[ch] / e1[ch], w, label=f"ph{names[ch]}")
+            ax.axhline(floor_pct, color="gray", ls="--", lw=1, label=f"noise floor {floor_pct:.2f}%")
+            ax.set(xlabel="harmonic k (of f_e)", ylabel="e_k / e_1 [%]",
+                   title=f"BEMF harmonic spectrum ({samp_per_cyc:.1f} samp/cyc)")
+            ax.set_xticks(ks)
+            ax.legend()
+            ax.grid(alpha=0.3, axis="y")
+            out = str(args.bins[0]) + ".harmonics.png"
+            fig.tight_layout()
+            fig.savefig(out, dpi=120)
+            print(f"  wrote {out}")
+            if args.show:
+                plt.show()
+        return
 
     if args.csv:
         print("run,t,enc_turns,omega_mech,valpha,vbeta,vmag,theta_e,omega_e,v_d,v_q,delta,gated")

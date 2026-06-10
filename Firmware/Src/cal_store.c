@@ -3,11 +3,13 @@
 #include <string.h>
 
 #include "encoder.h"
+#include "foc.h"
 #include "printf.h"
 #include "stm32g4xx_hal.h"
 
 #define CAL_STORE_MAGIC   0x41434131u // "ACA1"
-#define CAL_STORE_VERSION 1u
+#define CAL_STORE_VERSION 2u          // v2: + bemf_h6[4] FF coefficients (v1 blobs are
+                                      // rejected at restore -> one recal+save after upgrading)
 
 _Static_assert(CAL_STORE_LUT_N == ENC_LUT_N, "blob LUT size must match the encoder's table");
 
@@ -63,6 +65,11 @@ static bool blob_valid(const cal_blob_t *b) {
             if (!(b->lut[i] > -0.02f && b->lut[i] < 0.02f))
                 return false;
     }
+    if (b->flags & 2u) { // 6f_e FF coeffs present: bounded (also rejects NaN)
+        for (u32 i = 0; i < 4; i++)
+            if (!(b->bemf_h6[i] > -1e-3f && b->bemf_h6[i] < 1e-3f))
+                return false;
+    }
     return true;
 }
 
@@ -101,8 +108,17 @@ bool cal_store_save() {
     staging.encoder_dir = encoder_get_direction();
     staging.psi_m = 0.f;
     if (encoder_lut_enabled_get()) {
-        staging.flags = 1u;
+        staging.flags |= 1u;
         encoder_lut_copy(staging.lut);
+    }
+    bemf_h6_coeff_t hc;
+    foc_get_bemf_harmonic_coeffs(&hc);
+    if (hc.Ad != 0.f || hc.Bd != 0.f || hc.Aq != 0.f || hc.Bq != 0.f) {
+        staging.flags |= 2u;
+        staging.bemf_h6[0] = hc.Ad;
+        staging.bemf_h6[1] = hc.Bd;
+        staging.bemf_h6[2] = hc.Aq;
+        staging.bemf_h6[3] = hc.Bq;
     }
     staging.crc = blob_crc(&staging);
 
@@ -150,15 +166,25 @@ bool cal_store_restore() {
 
     encoder_set_direction(b->encoder_dir);
     encoder_set_phase_offset(b->phase_offset);
-    // The blob is authoritative for the LUT too: apply it, or clear any live table if absent.
-    // (Restore paths run disarmed/at boot, so swapping the table under the PLL is safe.)
+    // The blob is authoritative for the LUT and FF coeffs: apply, or clear if absent.
+    // (Restore paths run disarmed/at boot, so swapping these under the PLL/FOC is safe.)
     if (b->flags & 1u)
         encoder_set_lut(b->lut);
     else
         encoder_clear_lut();
 
-    printf("cal_store: restored offset %.6f turns, dir %+.0f%s\r\n",
-           b->phase_offset, b->encoder_dir, (b->flags & 1u) ? " +LUT" : "");
+    bemf_h6_coeff_t hc = {0.f, 0.f, 0.f, 0.f};
+    if (b->flags & 2u) {
+        hc.Ad = b->bemf_h6[0];
+        hc.Bd = b->bemf_h6[1];
+        hc.Aq = b->bemf_h6[2];
+        hc.Bq = b->bemf_h6[3];
+    }
+    foc_set_bemf_harmonic_coeffs(&hc);
+
+    printf("cal_store: restored offset %.6f turns, dir %+.0f%s%s\r\n",
+           b->phase_offset, b->encoder_dir,
+           (b->flags & 1u) ? " +LUT" : "", (b->flags & 2u) ? " +h6FF" : "");
     return true;
 }
 

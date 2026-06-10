@@ -33,6 +33,7 @@ typedef struct backemf_sample {
 // Linear (non-wrapping) capture: buf[0..idx) are valid, idx saturates at LEN. Read over SWD.
 extern volatile backemf_sample_t backemf_capture_buf[BACKEMF_CAPTURE_LEN];
 extern volatile u32 backemf_capture_idx;
+extern volatile u32 backemf_capture_decim; // runtime decimation (SWD-pokeable; sticky to reboot)
 
 // Run metadata for the offline fit (values in effect during the run). SWD-read with the buffer.
 extern volatile f32 backemf_meta_phase_offset; // encoder phase offset (mech turns) during run

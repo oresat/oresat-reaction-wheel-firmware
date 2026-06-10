@@ -38,7 +38,7 @@ static const f32 VSNS_VOLTAGE_DIVIDER = VBUS_DIVIDER_R_LO / (VBUS_DIVIDER_R_LO +
 static const f32 MAX_CURRENT_LEAKAGE_AMOUNT = 1.0f; // 100mA max phase current imbalance allowed
 
 // Encoder
-static const f32 ENCODER_ESTIMATOR_BANDWIDTH = 1000.f; // tau (1/s)
+static const f32 ENCODER_ESTIMATOR_BANDWIDTH = 2000.f; // tau (1/s)
 static const u16 ENCODER_CPR = 16384;
 
 // Motor calibration parameters
@@ -136,10 +136,36 @@ static const f32 BACKEMF_LUT_MAX_EMPTY_FRAC = 0.25f; // refuse the table if angu
                                                   // 6f_e ripple into FOC. Spatial low-pass kills
                                                   // it regardless of amplitude (lut-design §3.5).
 
-static const bool FOC_USE_bEMF_FF = false;
-static const bool FOC_USE_wL_FF = false;
-static const bool FOC_USE_R_FF = false;
+static const bool FOC_USE_bEMF_FF = true;
+static const bool FOC_USE_wL_FF = true;
+static const bool FOC_USE_R_FF = true;
 static const bool FOC_USE_DECOUPLING = true;
+
+// --- 6f_e back-EMF harmonic voltage feedforward ---
+// The trapezoidal BEMF (measured e5/e1 = 7.5%, e7/e1 = 2.0%) drives 6th-harmonic dq currents
+// through the tiny motor impedance, and the current loop (BW 4000 rad/s = 637 Hz) can't reach
+// 6f_e. Sweep-verified 2026-06-09: |i6| is speed-proportional (trapezoid-driven, slope 103
+// uA/(rad/s)) over a ~15 mA dead-time-class floor (10.4 ns GaN — no DT comp needed). Fix: add
+// the measured harmonic e_dq back as voltage feedforward,
+//   v_dq_ff = omega_e * (A*cos(6*theta_e) + B*sin(6*theta_e))   per axis,
+// four coefficients [V*s/rad] demodulated PER WHEEL from the bidir coast capture (state 21,
+// pass 5) and persisted in the cal blob (flags bit1). Seeds the runtime
+// `bemf_harmonic_ff_enabled` flag — SWD A/B-toggleable like shunt selection.
+static const bool FOC_USE_BEMF_HARMONIC_FF = true;
+// PHx_V divider counts -> phase volts. ASSUMES the phase dividers match the VBUS divider
+// (user-confirmed for the current board; if IS_CORRECTED_VOLTAGE_DIVIDER ever changes ONLY the
+// VBUS divider on a rework, split this out). Nominal 3.3 V ref — a ±1% scale error rescales a
+// 7.5% correction by 1%, irrelevant.
+static const f32 PHASE_V_COUNTS_TO_VOLTS = (3.3f / 4095.f) / VSNS_VOLTAGE_DIVIDER;
+static const f32 BACKEMF_FF_MAX_COEFF = 100e-6f; // |A|,|B| sanity bound [V*s/rad]; measured e5
+                                                 // implies ~13 uV*s — 100 means garbage data
+static const f32 BACKEMF_FF_ADVANCE_TICKS = 1.7f; // phase-advance the 6θ injection by the
+                                                 // compute->apply latency (same 2-tick advance
+                                                 // pwm_phase uses). A 6th-harmonic phasor spins
+                                                 // 6x faster: un-advanced it lags 6ωτ — 49° at
+                                                 // 60 rev/s, leaving 80% of the disturbance
+                                                 // (sweep-measured 2026-06-09). Trim here if a
+                                                 // residual linear-in-ω*|drive| term remains.
 
 // --- High-modulation phase-current reconstruction ("best 2 of 3" shunt selection) ---
 // At high modulation the phase whose PWM edge crowds the crest ADC sample point sees a

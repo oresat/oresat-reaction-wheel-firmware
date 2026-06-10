@@ -45,9 +45,31 @@ speed. Question on the table: is switching or dead time wrong? **No** — see be
 (`fDTG = fHRTIM/8` is wrong; RM0440 p891/p1028: `tDTG = 2^DTPRSC·(tHRTIM/8)`, DIV8 = DTPRSC 0).
 So `tDTG = (1/144MHz)/8 = 0.868 ns`, `RisingValue/FallingValue = 0xC = 12` → **dead time ≈ 10.4 ns**.
 Correct/slightly-generous for GaN (no reverse recovery); distortion ~0.1% of period and not
-speed-dependent. (Verify vs LMG2100R044 datasheet min dead time, but it's in the sane range.)
+speed-dependent.
+
+**VERIFIED 2026-06-09, three levels + datasheet cross-check:**
+- Source (`hrtim.c:216-236`): DTPRSC=DIV8(=0), rising=falling=0xC, both signs POSITIVE,
+  applied to TIMER A/B/E; `DeadTimeInsertion=ENABLED`.
+- RM0440 (p891/p911/p1028): `tDTG = 2^DTPRSC × tHRTIM/8`; fHRTIM = 144 MHz (HSE16×18/2,
+  AHB/APB2 ÷1) → tDTG = 868 ps → **tDTR = tDTF = 12 × 868 ps = 10.42 ns**.
+- Live silicon (SWD): DTAR=DTBR=DTER=`0x000C000C`, OUTxR.DTEN=1 on all three timers;
+  TIMxCR2.UDM=1 (center-aligned, 96 kHz period) — DTG clocks off the kernel clock, so the
+  dead time is mode/CKPSC-independent.
+- LMG2100R044 datasheet (SNOSDF9B §7.3/7.4): **NO internal overlap protection** — HI=LI=1
+  turns BOTH FETs on ("will result in a shoot-through condition, which can permanently
+  damage the device"). The HRTIM positive-sign dead time is the ONLY shoot-through barrier.
+  Delay matching t_MON/t_MOFF = 2 ns typ / **8 ns max** → effective dead time at the FETs =
+  10.42 ns ± mismatch: **~8–12 ns typical, ≥2.4 ns at the worst-case spec corner** — still
+  non-overlapping everywhere. TI's own designs: 8 ns (datasheet §8.2.1 sample), 16.6 ns
+  (TIDA-010936 motor drive); §7.3 explicitly targets "<10 ns" dead times. 3rd-quadrant loss
+  during DT (V_SD≈2 V) ≈ tens of mW at our currents/96 kHz — negligible.
+- Flight hardening candidate: the DTxR write-once LOCK bits (value+sign, rising+falling) are
+  currently UNLOCKED — locking after config would make the only shoot-through barrier
+  un-clobberable until reset.
+
 NB: a naive reading of the HAL comment gives 667 ns — if anyone ever "fixes" the dead time
-upward to that, that *would* cause distortion.
+upward to that, that *would* cause distortion (but not damage). The DANGEROUS edit direction
+is sign=NEGATIVE (deliberate overlap) or DT=0 — the gate driver provides no safety net.
 
 ## DONE
 

@@ -32,16 +32,16 @@
 typedef struct cal_blob {
     u32 magic;                 // CAL_STORE_MAGIC
     u16 version;               // CAL_STORE_VERSION; bump on layout change
-    u16 flags;                 // bit0: LUT populated (future). 0 today.
+    u16 flags;                 // bit0: LUT populated. bit1: 6f_e BEMF-harmonic FF coeffs present.
     f32 phase_offset;          // encoder phase offset, mech turns
     f32 encoder_dir;           // +1.f / -1.f
     f32 psi_m;                 // flux linkage [V*s], informational; 0 = unknown
-    f32 lut[CAL_STORE_LUT_N];  // mech-angle error map [turns], indexed by measured angle. Zeroed
-                               // until the on-board fit lands (see encoder-lut-design.md).
+    f32 bemf_h6[4];            // 6f_e harmonic FF coefficients {Ad,Bd,Aq,Bq} [V*s/rad] (v2)
+    f32 lut[CAL_STORE_LUT_N];  // mech-angle error map [turns], indexed by measured angle
     u32 crc;                   // CRC-32 (reflected, poly 0xEDB88320) over all preceding bytes
 } cal_blob_t;
 
-_Static_assert(sizeof(cal_blob_t) == 536, "cal blob layout changed — bump CAL_STORE_VERSION");
+_Static_assert(sizeof(cal_blob_t) == 552, "cal blob layout changed — bump CAL_STORE_VERSION");
 _Static_assert(sizeof(cal_blob_t) % 8 == 0, "blob must be a whole number of flash doublewords");
 
 // True if a valid (magic+version+CRC) blob is present in the cal page.

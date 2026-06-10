@@ -573,9 +573,46 @@ high-frequency hash visually prominent.) Remaining nuance: the 8 ms window can't
 1–4 cyc/rev at 50 rev/s; a high-speed A/B pair (150–300 rev/s → 1–2.5 revs/window) would show
 the 1/rev line directly and validate flight-speed playback.
 
+**RESOLVED 2026-06-09 — the 6f_e ripple thread (trapezoidal BEMF):**
+- Sweep (6 speeds, 15–90 rev/s, `tools/ripple_sweep.py`): |i6| = 102.7 µA/(rad/s)·ω_e + 15.2 mA.
+  The 15 mA floor ≈ the predicted 21 mA from the **register-verified 10.4 ns GaN dead time**
+  (DTG 0xC × 0.868 ns — the HAL "DIV8" name inverts reality, fDTG = fHRTIM×8) → dead-time
+  compensation permanently unnecessary. Slope = 0.77× the R-only e5 prediction, exactly right
+  once Z(5f_e) and the PI's effective impedance are included → ≥95% of the ripple is
+  trapezoid-driven. Coast harmonics (per-phase `--harmonics`): e5 = 7.1–7.5% consistent (real),
+  h13 = 8.8/8.2/1.8% inconsistent (decimation artifact — confirm once with a `decim 1` full-rate
+  spindown).
+- **Fix built — 6f_e BEMF harmonic voltage feedforward**: `v_dq_ff = ω_e·(A·cos6θ + B·sin6θ)`
+  per axis in `foc_gen_pwm_cb` (runtime `bemf_harmonic_ff_enabled`, SWD-toggleable). The four
+  coefficients are demodulated on-board in cal-21 **pass 5** against the final runtime angle
+  (post-fit offset + installed LUT → phase-aligned by construction) and persisted in **cal blob
+  v2** (`bemf_h6[4]`, flags bit1<<1; **v1 blobs are version-rejected — one recal+save after
+  flashing**). Activation: `9 → 15 → 21 → 18`; verify by re-running the sweep — the slope should
+  collapse toward the dead-time floor.
+
+**e13 verdict (decim-1 full-rate spindown, 2026-06-09): ARTIFACT.** h13 collapsed 8.8% → 0.11%
+(h11/h17/h19 likewise ≤0.3%). Mechanism: stroboscopic sampling aliases the high-k demod basis to
+near-DC where it correlates with real low-frequency content; per-phase inconsistency was the
+tell. Clean spectrum (floor 0.68% after the tool learned to co-fit the fundamental against
+short-window leakage): **h5 = 6.6–7.2% and h7 = 2.3% real** (the trapezoid), h2 = 2.4% real
+(N/S magnet asymmetry — low-order dq, partially inside the current loop's band, no action),
+h3 = 2.6% real (triplen — zero-sequence, cannot flow in wye, ignore). dq 6θ drive
+triple-confirmed: e_d ≈ 15.1, e_q ≈ 7.5 µV·s; 12θ ≈ 0.5 µV·s → an h12 FF will never be needed.
+
+**FF VALIDATED 2026-06-09 — the collapse (sweep_*_ADVANCE.bin):** cal-21's on-board coeffs
+(d 16.2 / q 8.9 µV·s) matched the offline demod (15.1/7.5) across independent captures. First
+FF sweep exposed a missing **6θ phase advance**: an un-advanced harmonic phasor lags 6ωτ (the
+same ~2-tick compute→apply latency `pwm_phase` already corrects for the fundamental — this
+measurement explains that constant's old TODO), residual = 2·sin(3ωτ), matched point-for-point.
+With `BACKEMF_FF_ADVANCE_TICKS = 2.0`: |i6| slope **102.7 → 16.8 µA/(rad/s) (84% cancelled)**,
+60 rev/s ripple 255 → 46.5 mA (180% → 33% of load current), intercept ≈ the GaN dead-time
+floor. Optional trim: residuals indicate true τ ≈ 1.7 ticks → setting the constant to 1.7
+should reach ~25–30 mA; beyond that is the genuine floor.
+
 **Still TODO:**
-- High-speed LUT A/B pair (above); full-runbook end-to-end validation; one offline-vs-on-board
-  fit cross-check via the SWD tooling; MA732 FW=51 σ recheck.
+- Optional `BACKEMF_FF_ADVANCE_TICKS` 2.0 → 1.7 trim (one 60 rev/s capture to verify);
+  high-speed LUT A/B pair; offline-vs-on-board fit cross-check (DONE implicitly via coeff
+  match); MA732 FW=51 σ recheck.
 - **STANDING TODO (user-requested): trapezoidal back-EMF → torque-ripple compensation.** First
   step is free: extract 5th/7th harmonic content from the existing coast captures (fit-script
   `--harmonics` mode). Mitigation = dq 6th-harmonic current shaping; at flight speed 6f_e

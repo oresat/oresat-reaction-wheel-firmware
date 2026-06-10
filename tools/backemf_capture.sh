@@ -181,6 +181,18 @@ cmd_lut_enable() {
   ocd -c "init" -c "mwb $addr $val"
 }
 
+# Set the capture decimation (ticks between samples; sticky until reboot). 64 = 500 Hz default
+# (bidir cal). 1 = full 32 kHz burst: 1024 samples = 32 ms ~= 10 elec cycles @ 50 rev/s —
+# resolves BEMF harmonics to h53 alias-free. Poke BEFORE requesting state 17/21.
+cmd_decim() {
+  require_elf
+  local val="${1:?usage: decim <ticks, 1=full rate, 64=default>}"
+  local addr; addr="$(sym_addr backemf_capture_decim)"
+  [[ -n "$addr" ]] || { echo "error: backemf_capture_decim not found (old firmware?)" >&2; exit 1; }
+  echo "decim: $val ticks (sample rate = $((32000 / val)) Hz) @ $addr"
+  ocd -c "init" -c "mww $addr $val"
+}
+
 case "${1:-}" in
   status)      shift; cmd_status      "$@" ;;
   dump)        shift; cmd_dump        "$@" ;;
@@ -189,6 +201,7 @@ case "${1:-}" in
   show-offset) shift; cmd_show_offset "$@" ;;
   poke-offset) shift; cmd_poke_offset "$@" ;;
   lut-enable)  shift; cmd_lut_enable  "$@" ;;
+  decim)       shift; cmd_decim       "$@" ;;
   -h|--help|"") usage 0 ;;
   *) echo "unknown subcommand: $1" >&2; usage ;;
 esac

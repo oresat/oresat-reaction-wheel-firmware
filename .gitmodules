@@ -1,0 +1,3 @@
+[submodule "tools/orbuculum"]
+	path = tools/orbuculum
+	url = https://github.com/orbcode/orbuculum
