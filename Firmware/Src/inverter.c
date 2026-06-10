@@ -19,29 +19,15 @@
 #include "config.h"
 
 /*
- * This is the main file for the inverter + current sense. It controls:
- * - ADC setup and timing
- * - HRTIM setup
- * - HRTIM enable/disable and duty cycle setting
- * - ADC current and voltage sense processing
- * - ADC offset management
- * - Encoder triggering & data acq
+ * Inverter + current sense: ADC acquisition/processing, HRTIM enable/disable + duty, shunt-amp
+ * offset management.
  *
- *
- * ADC 1-4 are used, each in DMA mode, with the respective HRTIM trigger starting a DMA conv.
- * We're switching at ~325kHz (3us), with all ADCs using fast channels
- * ADC1-3 is direct connection to INA240 output, which is nominally ~3.3kohm, but we're running that bitch at 200ns sample, which is going to bite us in the ass but oh well
- * Theoretically, we should be aligning our sample point so that it's exactly Tsample/2 before the halfway of the PWM period
- * But who cares. That's a later problem.
- *
- * Actually - we have the opportunity to do that sample thingy now
- * ADC1 is trig'd by timer B compare 3
- * ADC3 is trig'd by timer F compare 3
- * ADC2 is trig'd by timer E compare 3
- * ADC4 is trig'd by timer B compare 2
- *
- * ADC4 is connected to a 5.1k // 3.24k voltage divider for vsense, effectively 2k. But we'll still run that bitch at 200ns sample.
- *
+ * Current board (the header previously described the v7 INA240/325 kHz/Timer-B layout):
+ * - Switching 96 kHz, fast loop 32 kHz (PWM_CYCLES_PER_ISR = 3).
+ * - In-line phase shunts (2 mΩ) into INA296 (gain -50), sampled by the injected ADC groups,
+ *   all triggered from HRTIM Timer A CMP4 at the crest (ADC_TRIG_CMP4_TICKS, crest-gated by
+ *   ADROM) with 4x hardware oversampling — see docs/adc-sampling-tuning.md.
+ * - Vbus divider per config.h (IS_CORRECTED_VOLTAGE_DIVIDER selects the board rev).
  */
 
 

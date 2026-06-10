@@ -50,9 +50,8 @@ static const gpio_pin_t boot0_pin = {GPIOB, GPIO_PIN_8};
 // SPI
 #define ENCODER_SPI_HANDLE hspi3
 
-// TIM
-#define ENCODER_TIM_HANDLE htim1
-#define SYSTICK_HANDLE TIM15
+// TIM (TIM1/TIM15 entries removed — neither peripheral exists in the .ioc; timekeeping is the
+// Cortex SysTick, the encoder is SPI, not timer-quadrature)
 #define AUX_ADC_TRIG_HANDLE htim7
 #define CAN_TIM_HANDLE htim4
 #define CONTROLLER_FSM_TIM_HANDLE htim17

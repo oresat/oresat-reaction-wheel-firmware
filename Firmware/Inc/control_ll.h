@@ -67,7 +67,6 @@ bool controller_is_armed();
 
 
 u32 controller_get_loop_count();
-u32 controller_get_micros();
 
 // Best-2-of-3 shunt selection (see control_ll.c / docs/high-speed-foc-worklog.md).
 extern volatile bool shunt_selection_enabled;   // A/B toggle, seeded from FOC_USE_SHUNT_SELECTION

@@ -75,22 +75,8 @@ static void ccm_scrub_run() {
     }
 }
 
-bool run_state(fsm_state_t state) {
-    printf("Starting %s\r\n", state_names[state].string);
-    fsm_request_state(state);
-
-    while (fsm_get_current_state() != state);
-    while (fsm_get_current_state() == state);
-
-    if (fsm_get_last_state_exit_ok())
-        return true;
-
-    char err[256];
-    STRINGIFY_CONTROLLER_ERRORS(err, 256, controller_get_errors());
-    printf("Controller errors: %s\r\n", err);
-
-    return false;
-}
+// (run_state() used to live here: an unbounded foreground busy-wait on FSM state — an error
+// diversion made its target unreachable and wedged the loop. Zero callers; deleted.)
 
 volatile u32 MAGIC_NUMBER = 0xFFEEDDCC;
 
@@ -128,7 +114,7 @@ __fn_noreturn void app_main() {
     printf("     TO THE BRAVE MUJAHIDEEN FIGHTERS     \r\n");
     printf("             OF AFGHANISTAN               \r\n");
 
-    printf("Build2\r\n");
+    //printf("Build2\r\n");
 
     // The bootloader's exit path (System_DeInit -> HAL_RCC_DeInit) clears the hardware flags
     // (RCC_CSR RMVF) before this app ever runs, so it snapshots RCC->CSR at its entry and

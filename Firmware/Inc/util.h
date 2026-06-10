@@ -15,9 +15,7 @@ void user_assert_fail(uint8_t *file, uint32_t line);
 
 #define assert(expr) ((expr) ? (void)0U : user_assert_fail((uint8_t *)__FILE__, __LINE__))
 
-u32 micros();
 
-void delay_us(u32 us);
 
 static inline void STRINGIFY_CONTROLLER_STATE(char *buf, u32 max_size, CONTROLLER_STATE_t state) {
     snprintf(buf, max_size, "%s",
