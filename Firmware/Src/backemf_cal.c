@@ -354,7 +354,8 @@ static bool backemf_fit_and_apply() {
     f32 k = (Sn * Swd - Sw * Sd) / den;
     f32 D = wrap_pm_pi(cmean + (Sd - k * Sw) / Sn);
 
-    if (abs_f32(D) > BACKEMF_FIT_MAX_DELTA || abs_f32(k) > BACKEMF_FIT_MAX_K) {
+    if (!f32_finite_bits(D) || !f32_finite_bits(k) ||
+        abs_f32(D) > BACKEMF_FIT_MAX_DELTA || abs_f32(k) > BACKEMF_FIT_MAX_K) {
         printf("BEMF fit: REJECTED D=%.4f rad k=%.1f us (bounds %.2f rad / %.0f us) - bad bootstrap?\r\n",
                D, k * 1e6f, BACKEMF_FIT_MAX_DELTA, BACKEMF_FIT_MAX_K * 1e6f);
         return false;
@@ -364,6 +365,7 @@ static bool backemf_fit_and_apply() {
     // empirically per the method doc §7 on 2026-06-09).
     f32 delta_mech = (D / dir) / erad;
     encoder_set_phase_offset(off_used + delta_mech);
+    encoder_set_offset_cal_valid(true); // gates passed — this offset is a real calibration
 
     // Pass 3: LUT — bin the residual by RAW mech angle, convert to mech-turn corrections.
     for (u32 i = 0; i < ENC_LUT_N; i++) { lut_sum[i] = 0.f; lut_cnt[i] = 0; }

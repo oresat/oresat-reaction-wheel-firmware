@@ -49,8 +49,18 @@ static volatile f32 dir_cal_enc_pos_start = 0.f;
 
 static volatile f32 last_enc_pos = 0.f;
 
+// Snapshot of the live direction (+ provenance flag) taken at init, restored on any failed or
+// cancelled run. Without this, init's +1 probe value stayed live after a failure — on a
+// dir = -1 wheel that silently mirrors commutation and turns the velocity loop into positive
+// feedback (flight-review P1-11).
+static volatile f32 dir_cal_prev_dir = 1.f;
+static volatile bool dir_cal_prev_valid = false;
+
 void encoder_dir_cal_init() {
-    encoder_set_direction(1.f);
+    dir_cal_prev_dir = encoder_get_direction();
+    dir_cal_prev_valid = encoder_get_dir_cal_valid();
+    encoder_set_direction(1.f); // probe value for the measurement, not a result
+    encoder_set_dir_cal_valid(false);
     encoder_init();
     open_loop_ctrl_law.control_law_init();
 
@@ -89,7 +99,7 @@ __ccmram bool encoder_dir_cal_is_complete() {
 
 bool encoder_dir_cal_finish(bool was_cancelled) {
     open_loop_ctrl_law.control_law_finish(was_cancelled);
-    if (was_cancelled) return false;
+    if (was_cancelled) goto rollback;
 
     f32 enc_distance = encoder_get_multiturn_pos_raw() - dir_cal_enc_pos_start;
 
@@ -98,12 +108,16 @@ bool encoder_dir_cal_finish(bool was_cancelled) {
 
     f32 enc_distance_abs = abs_f32(enc_distance);
 
-    if (enc_distance_abs < enc_distance_min || enc_distance_abs > enc_distance_max)
-        return false;
+    if (enc_distance_abs < enc_distance_min || enc_distance_abs > enc_distance_max) {
+        printf("Dir cal failed: distance %.3f outside [%.3f, %.3f]\r\n",
+               enc_distance, enc_distance_min, enc_distance_max);
+        goto rollback;
+    }
 
     encoder_set_direction(
             enc_distance > 0 ? 1.f : -1.f
     );
+    encoder_set_dir_cal_valid(true);
 
     printf("Distance %.3f\r\n", enc_distance);
     char buf[64];
@@ -111,6 +125,12 @@ bool encoder_dir_cal_finish(bool was_cancelled) {
     uart_transmit_buf(COMMS_UART_HANDLE, buf, len);
 
     return true;
+
+rollback:
+    // Put back what was live before init's probe value took over.
+    encoder_set_direction(dir_cal_prev_dir);
+    encoder_set_dir_cal_valid(dir_cal_prev_valid);
+    return false;
 }
 
 control_law_t encoder_dir_cal_ctrl_law = {
@@ -157,8 +177,16 @@ static const f32 erad_start = 0;
 
 static volatile bool first_run = true;
 
+// Snapshot of the live offset (+ provenance flag), restored on failure/cancel — exec applies a
+// coarse one-point seed MID-RUN (end of lock-in), which must not survive a failed procedure.
+static volatile f32 phase_cal_prev_offset = 0.f;
+static volatile bool phase_cal_prev_valid = false;
+
 // Guaranteed to be called loop-synchronously with exec/is_complete/etc
 void encoder_phase_cal_init() {
+    phase_cal_prev_offset = encoder_get_phase_offset();
+    phase_cal_prev_valid = encoder_get_offset_cal_valid();
+    encoder_set_offset_cal_valid(false);
     encoder_init();
     open_loop_ctrl_law.control_law_init();
     if (first_run) {
@@ -259,7 +287,7 @@ __ccmram bool encoder_phase_cal_is_complete() {
 // Not guarenteed to be called loop-synchronously with exec/is_complete/etc
 bool encoder_phase_cal_finish(bool was_cancelled) {
     open_loop_ctrl_law.control_law_finish(was_cancelled);
-    if (was_cancelled) return false;
+    if (was_cancelled) goto rollback;
 
     // Need clean cruise samples in both directions, otherwise friction can't be cancelled. Bailing
     // here (rather than applying a one-sided result) is also the failure signature when encoder
@@ -267,7 +295,7 @@ bool encoder_phase_cal_finish(bool was_cancelled) {
     if (error_count_fwd == 0 || error_count_rev == 0) {
         printf("Phase cal failed: no cruise samples (fwd=%u rev=%u) - run dir cal first?\r\n",
                (unsigned) error_count_fwd, (unsigned) error_count_rev);
-        return false;
+        goto rollback;
     }
 
     // Average the two directions' means (fix 4): mean_fwd = offset + friction, mean_rev = offset -
@@ -281,12 +309,23 @@ bool encoder_phase_cal_finish(bool was_cancelled) {
     // Apply it (fix 1). Sign: encoder_get_phase() ~ E*(pos - offset)*dir with E = 2pi*polepairs, so
     // d(phase)/d(offset) = -E*dir; nudging offset by -error/(E*dir) drives the mean error to zero.
     encoder_set_phase_offset(encoder_get_phase_offset() - phase_offset_mechanical);
+    encoder_set_offset_cal_valid(true);
+    // The 6f_e FF coefficients are phase-referenced to the offset they were demodulated
+    // against — a Δoffset of x rad-e misphases the 6θ injection by 6x, partially re-injecting
+    // the disturbance (flight-review P2-13). Zeros are an exact no-op; state 21 re-fits them.
+    foc_set_bemf_harmonic_coeffs(&(bemf_h6_coeff_t){0.f, 0.f, 0.f, 0.f});
 
     printf("Phase cal: offset %.5f rad-e (%.6f rev-m) | fwd %.5f rev %.5f | n=%u/%u\r\n",
            phase_offset, phase_offset_mechanical, mean_fwd, mean_rev,
            (unsigned) error_count_fwd, (unsigned) error_count_rev);
 
     return true;
+
+rollback:
+    // The mid-run coarse seed must not outlive a failed procedure.
+    encoder_set_phase_offset(phase_cal_prev_offset);
+    encoder_set_offset_cal_valid(phase_cal_prev_valid);
+    return false;
 }
 
 
@@ -411,9 +450,13 @@ __ccmram bool encoder_single_point_cal_is_complete() {
 
 bool encoder_single_point_cal_finish(bool was_cancelled) {
     open_loop_ctrl_law.control_law_finish(was_cancelled);
-    if (was_cancelled) return false;
+    if (was_cancelled) return false; // nothing applied mid-run — no rollback needed
     encoder_set_phase_offset(enc_val_cal);
-    printf("Fuck you: %.3f\r\n", enc_val_cal);
+    encoder_set_offset_cal_valid(true);
+    // Offset changed → any live 6f_e FF coefficients are now misphased; zero them (state 21
+    // re-fits — see encoder_phase_cal_finish for the rationale).
+    foc_set_bemf_harmonic_coeffs(&(bemf_h6_coeff_t){0.f, 0.f, 0.f, 0.f});
+    printf("Single-point offset cal: %.3f\r\n", enc_val_cal);
     return true;
 }
 
