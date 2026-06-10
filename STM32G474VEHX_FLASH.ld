@@ -38,10 +38,13 @@ ENTRY(Reset_Handler)
 /* Highest address of the user mode stack */
 /* Stack lives at the top of RAM2 (SRAM2): its own AHB bus-matrix slave, so the
    per-tick ISR stacking (8 int + 18 lazy FPU words) never arbitrates against DMA
-   or .data/.bss traffic in SRAM1. The top 8 bytes (0x20017FF8: "RCSR" magic + value)
-   are the bootloader's reset-cause mailbox — keep address in sync with
-   bootloader/Src/main.c and the app_main.c read. Nothing else may allocate in RAM2. */
-_estack = ORIGIN(RAM2) + LENGTH(RAM2) - 8;
+   or .data/.bss traffic in SRAM1. The top 0x58 bytes are reserved warm-reset-surviving
+   diagnostic cells the stack must NOT grow into (it grows DOWN from _estack — the first
+   frames pushed land immediately below it): 0x20017FF8 bootloader RCSR mailbox,
+   0x20017FC0 crash record, 0x20017FB8 boot counter, 0x20017FB0 flash-ECC NMI latch,
+   0x20017FA8 option-byte attempt counter. Keep in sync with Firmware/Inc/crash_record.h
+   and bootloader/Src/main.c. Nothing else may allocate in RAM2. */
+_estack = ORIGIN(RAM2) + LENGTH(RAM2) - 0x58;
 
 _Min_Heap_Size = 0x400; /* required amount of heap */
 _Min_Stack_Size = 0x800; /* required amount of stack */
