@@ -33,6 +33,8 @@
 #include "bootloader.h"
 #include "CO_app_STM32.h"
 
+void iwdg_foreground_alive(void); // Core/Src/iwdg.c — foreground heartbeat for the IWDG gate
+
 bool run_state(fsm_state_t state) {
     printf("Starting %s\r\n", state_names[state].string);
     fsm_request_state(state);
@@ -301,6 +303,7 @@ __fn_noreturn void app_main() {
     //f32 j = 0;
     //HAL_Delay(10);
     while (1) {
+        iwdg_foreground_alive(); // watchdog gate heartbeat — see Core/Src/iwdg.c
         console_pump(); // drain ISR-context printf output (FSM transitions, cal results, ...)
         update_tpdo_od_vals();
         canopen_process();

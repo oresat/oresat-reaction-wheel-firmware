@@ -139,8 +139,17 @@ void inverter_amp_offset_correction() {
     for (u32 i = n_samples; i > 0; i--) {
         //if (i%1000 == 0) printf("%d ", i);
         OFFSET_CORRECTION_FLAG = false;
-        while (!OFFSET_CORRECTION_FLAG);
-        //printf("%f ", ADC_DMA_buf.A_raw);
+        while (!OFFSET_CORRECTION_FLAG) {
+            // If the HRTIM repetition interrupt never fires (start failure, clock fault) this
+            // spun forever — BEFORE canopen_init, with the SysTick-fed IWDG blind to the
+            // foreground hang: a silent, CAN-less brick (flight-review P1-8). Bail instead;
+            // inverter_is_calibrated stays false, so arming is refused with a CAN-visible
+            // CTRLR_ERR_INVERTER_CALIBRATION_INVALID. Nominal run is ~625 ms @ 32 kHz.
+            if (HAL_GetTick() - t_start > 2000u) {
+                printf("Amp offset cal TIMED OUT (no HRTIM ticks) — arming will be refused\r\n");
+                goto cleanup;
+            }
+        }
         // Wait for a new ADC cycle
         A_accum += ((i16) ADC_DMA_buf.A_raw) - 2048;
         B_accum += ((i16) ADC_DMA_buf.B_raw) - 2048;
@@ -158,14 +167,19 @@ void inverter_amp_offset_correction() {
     i16 B_accum_avg_i16 = (i16) round_f32(B_accum_avg);
     i16 C_accum_avg_i16 = (i16) round_f32(C_accum_avg);
 
-    // Call the sane range -100 to 100
-    if ((A_accum_avg_i16 < -100) || (A_accum_avg_i16 > 100) ||
-        (B_accum_avg_i16 < -100) || (B_accum_avg_i16 > 100) ||
-        (C_accum_avg_i16 < -100) || (C_accum_avg_i16 > 100)) {
-        assert(false);
-        //return;
+    // Sane range: ±50 mV (≈62 counts at 3.3 V/4095) — a healthy INA296 mid-rails within a few
+    // mV; outside that the channel is damaged. Do NOT install the offsets or mark calibrated
+    // (the old code asserted-and-continued, flying ~0.8 A-per-100-counts of bias baked into
+    // both the FOC loop and the trip math — flight-review P2-4). Unarmed telemetry still
+    // works; arming is refused with CTRLR_ERR_INVERTER_CALIBRATION_INVALID.
+    const i16 offset_bound = (i16) (0.050f / (3.3f / 4095.f)); // 62 counts
+    if ((A_accum_avg_i16 < -offset_bound) || (A_accum_avg_i16 > offset_bound) ||
+        (B_accum_avg_i16 < -offset_bound) || (B_accum_avg_i16 > offset_bound) ||
+        (C_accum_avg_i16 < -offset_bound) || (C_accum_avg_i16 > offset_bound)) {
+        printf("Amp offset cal REJECTED: %d/%d/%d counts (bound ±%d) — arming will be refused\r\n",
+               A_accum_avg_i16, B_accum_avg_i16, C_accum_avg_i16, offset_bound);
+        goto cleanup;
     }
-
 
     INA240_offset_correction.A_offset = A_accum_avg_i16;
     INA240_offset_correction.B_offset = B_accum_avg_i16;
@@ -176,6 +190,7 @@ void inverter_amp_offset_correction() {
 
     inverter_is_calibrated = true;
 
+cleanup:
     inverter_stop();
 
     HAL_HRTIM_TIMxUnRegisterCallback(&hhrtim1, HAL_HRTIM_REPETITIONEVENTCALLBACK_CB_ID);

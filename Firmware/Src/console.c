@@ -38,14 +38,37 @@ static u8 console_ring[CONSOLE_RING_LEN];
 static volatile u32 console_head = 0; // total bytes queued (producers)
 static volatile u32 console_tail = 0; // total bytes drained (consumer)
 volatile u32 console_dropped = 0;
+volatile u32 console_tx_timeouts = 0;
+
+// A TXE spin that never came true means the UART is wedged (SEU on UE / the APB clock-enable
+// bit — the flag physically cannot stay 0 on a healthy clocked peripheral). The console must
+// not wedge the foreground with it: every host-facing service lives there, and the IWDG can't
+// see a foreground hang (flight-review P1-8). After one timed-out byte this latch makes all
+// further output a cheap single-check drop; it self-heals the moment TXE reads set again.
+#define CONSOLE_TX_TIMEOUT_SPINS 200000u // ~8 ms at ~6 cycles/iteration; byte time is 10.9 µs
+static volatile bool console_uart_wedged = false;
 
 // Thread-side TX byte. Spin on TXE with interrupts ON (a full byte-time is 10.9 µs — far too
 // long to mask), then recheck-and-write under a ~tens-of-ns PRIMASK window: the encoder-cal
 // finish() dumps write this UART directly from TIM17 context, and one of them preempting
 // between a bare TXE check and the TDR write would clobber the byte in TDR.
 static void console_tx_byte(u8 b) {
+    if (console_uart_wedged) {
+        if (LL_USART_IsActiveFlag_TXE_TXFNF(DEBUG_UART_HANDLE) == 0) {
+            console_tx_timeouts++;
+            return; // still dead — drop without re-spinning the full timeout
+        }
+        console_uart_wedged = false; // recovered
+    }
     for (;;) {
-        while (LL_USART_IsActiveFlag_TXE_TXFNF(DEBUG_UART_HANDLE) == 0);
+        u32 spins = 0;
+        while (LL_USART_IsActiveFlag_TXE_TXFNF(DEBUG_UART_HANDLE) == 0) {
+            if (++spins > CONSOLE_TX_TIMEOUT_SPINS) {
+                console_uart_wedged = true;
+                console_tx_timeouts++;
+                return; // byte dropped
+            }
+        }
         u32 primask = __get_PRIMASK();
         __disable_irq();
         if (LL_USART_IsActiveFlag_TXE_TXFNF(DEBUG_UART_HANDLE) != 0) {
@@ -118,5 +141,9 @@ void console_pump(void) {
 
 void console_flush(void) {
     console_pump();
-    while (LL_USART_IsActiveFlag_TC(DEBUG_UART_HANDLE) == 0); // last byte fully off the wire
+    // Last byte fully off the wire — bounded so a wedged UART can't block a reset path.
+    u32 spins = 0;
+    while (LL_USART_IsActiveFlag_TC(DEBUG_UART_HANDLE) == 0)
+        if (++spins > CONSOLE_TX_TIMEOUT_SPINS)
+            return;
 }

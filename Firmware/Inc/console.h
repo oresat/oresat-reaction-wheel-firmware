@@ -26,3 +26,6 @@ void console_flush(void);
 
 // Messages dropped because the ring was full. SWD-visible; console_pump() prints and clears.
 extern volatile u32 console_dropped;
+
+// Bytes dropped because the UART TXE spin timed out (wedged peripheral). SWD-visible.
+extern volatile u32 console_tx_timeouts;
