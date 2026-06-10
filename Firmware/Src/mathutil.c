@@ -157,23 +157,8 @@ __fn_const i32 round_f32(const f32 x) {
     return (i32) roundf(x);
 }
 
-__fn_const f32 abs_f32(const f32 x) {
-    return fabsf(x);
-}
-
-__fn_const __fn_leaf f32 min_f32(f32 a, f32 b) {
-    if (a < b) return a;
-    return b;
-}
-
-__fn_const __fn_leaf f32 max_f32(f32 a, f32 b) {
-    if (a > b) return a;
-    return b;
-}
-
-__fn_const __fn_flatten f32 clamp_f32(f32 lower, f32 x, f32 upper) {
-    return max_f32(min_f32(upper, x), lower);
-}
+// min/max/clamp/abs_f32 moved to mathutil.h as static inline — out-of-line in flash
+// they cost the fast loop a veneer call per use.
 
 __fn_const __fn_flatten f32 fast_atan2(f32 y, f32 x) {
     f32 abs_y = abs_f32(y);

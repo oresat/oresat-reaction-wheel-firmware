@@ -74,13 +74,23 @@ i32 round_f32(f32 x);
 
 f32 fast_atan2(f32 y, f32 x);
 
-f32 min_f32(f32 a, f32 b);
+// One-liners defined here, not in mathutil.c: out-of-line they cost the fast loop a
+// CCM→flash veneer call (showed up as __clamp_f32_veneer in the 2026-06-09 per-line profile).
+static __fn_inline __fn_const f32 min_f32(const f32 a, const f32 b) {
+    return a < b ? a : b;
+}
 
-f32 max_f32(f32 a, f32 b);
+static __fn_inline __fn_const f32 max_f32(const f32 a, const f32 b) {
+    return a > b ? a : b;
+}
 
-f32 clamp_f32(f32 lower, f32 x, f32 upper);
+static __fn_inline __fn_const f32 clamp_f32(const f32 lower, const f32 x, const f32 upper) {
+    return max_f32(min_f32(upper, x), lower);
+}
 
-f32 abs_f32(f32 x);
+static __fn_inline __fn_const f32 abs_f32(const f32 x) {
+    return fabsf(x); // vabs.f32 inline at any -O level
+}
 
 
 static const f32 M_PI_f32 = 3.14159265358979323846f;

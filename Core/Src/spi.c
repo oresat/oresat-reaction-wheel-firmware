@@ -44,7 +44,15 @@ void MX_SPI3_Init(void)
   hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi3.Init.NSS = SPI_NSS_SOFT;
-  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
+  /* /16 → 9 MHz SCK (APB1 = 144 MHz), hand-edited from CubeMX's /64 = 2.25 MHz — this
+     project never regenerates from CubeMX. At 2.25 MHz a 16-bit MA702 frame took 1024 CPU
+     cycles and the fast loop spun ~600 of them in __MA702_FAST_ANGLE_READ_FINISH (13.5% of
+     CPU, per-line PC profile 2026-06-09). At 9 MHz the frame (256 cycles) completes under
+     the ADC work that overlaps it. MA702/MA732 SPI is rated to 25 MHz, so /16 is ~3x
+     derated; /8 = 18 MHz is the next step if the spin ever reappears. NOTE: no CRC/parity
+     on the angle frame — bad signal integrity at higher SCK would inject silent angle
+     noise, so bench-check encoder smoothness after changing this. */
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
