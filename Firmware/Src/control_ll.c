@@ -402,11 +402,23 @@ void controller_arm() {
     controller_set_pwm_timings_valid(true);
     controller_set_new_pwm_timings(&((svm_vec_t){0.5f, 0.5f, 0.5f}));
 
+    // Clear stale consumer-handshake flags from any previous law/abort. A latched
+    // is_currents_updated (consumer returned false, or a law with a NULL consumer) otherwise
+    // trips PHASE_CURRENT_USAGE_MISSING on tick 1 of every future arm — and that error path
+    // disarms before the only line that clears the flag, so the wheel stays torque-dead until
+    // reboot (flight-review P1-3).
+    is_currents_updated = false;
+    is_encoder_updated = false;
+
     inverter_start();
     controller_armed = true;
 }
 
 void controller_disarm() {
+    // Bridge off FIRST via the lock-free ODISR write: the HAL teardown below goes through
+    // __HAL_LOCK and can silently no-op (HAL_BUSY) under handle-lock contention — this
+    // register write always lands. Idempotent; re-arm re-enables via WaveformOutputStart.
+    hrtim_outputs_disable();
     inverter_stop();
 
     assert(HAL_HRTIM_TIMxUnRegisterCallback(&hhrtim1, HAL_HRTIM_REPETITIONEVENTCALLBACK_CB_ID) == HAL_OK);
