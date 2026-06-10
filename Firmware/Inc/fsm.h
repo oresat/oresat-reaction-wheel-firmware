@@ -39,6 +39,10 @@ void fsm_init();
 
 void fsm_request_state(fsm_state_t new_state);
 
+// True for states whose entry arms closed-loop FOC off the encoder dir/offset — they refuse
+// to enter (and SDO ingestion refuses to request) without valid cal. See encoder_cal_valid().
+bool fsm_state_requires_encoder_cal(fsm_state_t state);
+
 fsm_state_t fsm_get_current_state();
 
 fsm_status_t fsm_get_current_status();
@@ -46,6 +50,10 @@ fsm_status_t fsm_get_current_status();
 void fsm_exec();
 
 bool fsm_get_last_state_exit_ok();
+
+// Executes a parked cal-store save/erase/restore (states 18/19/20). Call from the foreground
+// loop — the ops block on flash for tens of ms and must not run in ISR context.
+void fsm_run_pending_calstore_op();
 
 typedef struct state_name {
     const char string[32];
@@ -77,3 +85,12 @@ static const state_name_t state_names[] = {
         tmp(FSM_STATE_BACKEMF_CAL_BIDIR)
 };
 #undef tmp
+
+// Bounds-checked name lookup — the raw array indexed with a host-supplied state value reads
+// past the table (host can write any u8 to OD 0x4004).
+static inline const char* fsm_state_name(fsm_state_t state) {
+    u32 i = (u32) state;
+    if (i >= sizeof(state_names) / sizeof(state_names[0]))
+        return "FSM_STATE_OUT_OF_RANGE";
+    return state_names[i].string;
+}

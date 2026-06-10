@@ -112,8 +112,6 @@ control_law_t vel_ctrl_control_law = {
         .control_law_finish = vel_ctrl_finish
 };
 
-control_law_t pos_ctrl_control_law;
-
 static volatile f32 ramped_vel_setpoint = 0.f;
 
 void vel_ramp_ctrl_init() {

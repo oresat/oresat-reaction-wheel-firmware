@@ -305,6 +305,7 @@ __fn_noreturn void app_main() {
         update_tpdo_od_vals();
         canopen_process();
         process_sdo_vals();
+        fsm_run_pending_calstore_op(); // blocking flash ops live here, not in the FSM ISR
 
         //if (HAL_GetTick() - t0 > 1) {
         //    set_open_loop_current_setpoint(

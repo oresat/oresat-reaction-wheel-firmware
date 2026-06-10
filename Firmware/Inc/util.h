@@ -89,8 +89,8 @@ static error_name_t errors[32] = {
     tmp(CTRLR_ERR_PHASE_CURRENT_LEAKAGE),
     tmp(CTRLR_ERR_ENCODER_READING_USAGE_MISSING),
     tmp(CTRLR_ERR_MOTOR_UNBALANCED_PHASES),
-    {"", 0},
-    {"", 0},
+    tmp(CTRLR_ERR_MODULATION),       // was missing — bit 21 decoded as nothing
+    tmp(CTRLR_ERR_NOT_CALIBRATED),
     {"", 0},
     {"", 0},
     {"", 0},

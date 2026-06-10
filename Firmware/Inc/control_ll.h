@@ -55,6 +55,7 @@ typedef enum CONTROLLER_ERRORS {
     CTRLR_ERR_ENCODER_READING_USAGE_MISSING=1<<19,
     CTRLR_ERR_MOTOR_UNBALANCED_PHASES=1<<20,
     CTRLR_ERR_MODULATION=1<<21,
+    CTRLR_ERR_NOT_CALIBRATED=1<<22, // closed-loop state requested without valid encoder dir/offset cal
 } CONTROLLER_ERRORS_t;
 
 //void controller_request_state(CONTROLLER_STATE_t state);

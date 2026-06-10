@@ -8,7 +8,6 @@ void set_pos_setpoint(f32 pos);
 void set_vel_ramp_setpoint(f32 vel_ramp);
 
 extern control_law_t torque_ctrl_control_law;
-extern control_law_t pos_ctrl_control_law;
 extern control_law_t vel_ctrl_control_law;
 extern control_law_t vel_ramp_ctrl_control_law;
 
