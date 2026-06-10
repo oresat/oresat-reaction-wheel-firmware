@@ -24,6 +24,14 @@ void init_od();
 
 void init_sdo();
 
+void init_od_extensions();
+
+// Last disarmed velocity estimate [rev/s mech] from the foreground SPI sampler — the bumpless
+// seed for vel/vel-ramp law entry (the PLL is frozen while disarmed).
+f32 get_disarmed_vel();
+
+void publish_boot_diagnostics(u32 rcc_csr);
+
 fsm_state_t get_sdo_requested_state();
 
 void set_sdo_requested_state(fsm_state_t state);

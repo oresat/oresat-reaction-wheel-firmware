@@ -32,6 +32,7 @@
 #include "OD.h"
 #include "bootloader.h"
 #include "CO_app_STM32.h"
+#include "crash_record.h"
 
 void iwdg_foreground_alive(void); // Core/Src/iwdg.c — foreground heartbeat for the IWDG gate
 
@@ -114,6 +115,21 @@ __fn_noreturn void app_main() {
            (rcc_csr & RCC_CSR_OBLRSTF) ? " OBL" : "",
            (rcc_csr & RCC_CSR_PINRSTF) ? " PIN" : "");
     __HAL_RCC_CLEAR_RESET_FLAGS();
+
+    // Boot counter (RAM2 cell, survives warm resets, lost on power cycle): turns "the wheel
+    // rebooted" into "the wheel has rebooted N times since power-on" — the boot-loop signature.
+    noinit_cell_set(BOOT_COUNT_CELL,
+                    noinit_cell_valid(BOOT_COUNT_CELL) ? noinit_cell_get(BOOT_COUNT_CELL) + 1u : 1u);
+    printf("Boot count since power-on: %lu\r\n", (unsigned long) noinit_cell_get(BOOT_COUNT_CELL));
+
+    // Crash record from the fault handlers (left in place until the next fault overwrites it,
+    // so it stays readable over CAN via 0x4006 — see publish_boot_diagnostics).
+    if (CRASH_RECORD->magic == CRASH_RECORD_MAGIC) {
+        printf("LAST FAULT: kind %lu cfsr 0x%08lx hfsr 0x%08lx pc 0x%08lx lr 0x%08lx errs 0x%08lx\r\n",
+               (unsigned long) CRASH_RECORD->kind, (unsigned long) CRASH_RECORD->cfsr,
+               (unsigned long) CRASH_RECORD->hfsr, (unsigned long) CRASH_RECORD->stacked_pc,
+               (unsigned long) CRASH_RECORD->stacked_lr, (unsigned long) CRASH_RECORD->controller_errors);
+    }
 
     printf("Checking option bytes...\r\n");
 
@@ -259,6 +275,10 @@ __fn_noreturn void app_main() {
     printf("Setting up CAN with node ID 0x%X...\r\n", NODE_CANID);
     canopen_init(NODE_CANID);
     HAL_TIM_Base_Start_IT(&CAN_TIM_HANDLE);
+
+    // Reset cause + boot count + last-fault summary → the spare 0x4006 floats, so all of the
+    // above is readable over the only in-flight interface (encoding in can-interface.md).
+    publish_boot_diagnostics(rcc_csr);
 
 
     printf("Init complete!\r\n\r\n");

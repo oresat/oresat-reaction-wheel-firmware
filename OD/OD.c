@@ -13,7 +13,9 @@ OD_ATTR_RAM OD_RAM_t OD_RAM = {
     .x1003_predefined_error_field = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
     .x1005_cob_id_sync = 0x80,
     .x1006_communication_cycle_period = 0x0,
-    .x1014_cob_id_emergency_message = 0xBC,
+    .x1014_cob_id_emergency_message = 0x80, /* manual edit (generator baked 0xBC = wheel 1's
+        COB-ID into ALL wheels): CANopenNode adds the node ID only when the stored value is
+        exactly 0x80, so per-wheel EMCY needs the base value here (flight-review RE-1) */
     .x1015_inhibit_time_emcy = 0x0,
     .x1016_consumer_heartbeat_time_sub0 = 1,
     .x1016_consumer_heartbeat_time = {0x3E8},

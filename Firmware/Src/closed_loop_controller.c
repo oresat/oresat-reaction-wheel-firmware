@@ -50,10 +50,6 @@ __ccmram void set_torque_setpoint(f32 torque_nm) {
 }
 
 
-void set_pos_setpoint(f32 pos) {
-}
-
-
 control_law_t torque_ctrl_control_law = {
         .encoder_consumer = closed_loop_encoder_consumer,
         .current_consumer = closed_loop_current_consumer,
