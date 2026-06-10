@@ -213,27 +213,34 @@ __fn_noreturn void app_main() {
     printf("Reading CAN ID strapping...\r\n");
     u8 NODE_CANID;
     u8 wheel_number; {
-        HAL_GPIO_WritePin(DEBUG0_GPIO_Port,DEBUG0_Pin, GPIO_PIN_RESET);
-        u32 debug1_avg = 0.f;
-        u32 debug2_avg = 0.f;
-        u32 debug3_avg = 0.f;
-        for (u32 n = 0; n < 1000; n++) {
-            debug1_avg += (HAL_GPIO_ReadPin(DEBUG1_GPIO_Port,DEBUG1_Pin) != GPIO_PIN_RESET) ? 1 : 0;
-            debug2_avg += (HAL_GPIO_ReadPin(DEBUG2_GPIO_Port,DEBUG2_Pin) != GPIO_PIN_RESET) ? 1 : 0;
-            debug3_avg += (HAL_GPIO_ReadPin(DEBUG3_GPIO_Port,DEBUG3_Pin) != GPIO_PIN_RESET) ? 1 : 0;
-        }
-        bool debug1 = debug1_avg < 500;
-        bool debug2 = debug2_avg < 500;
-        bool debug3 = debug3_avg < 500;
+        // Node ID comes from the dedicated CAN_ADDR0/1 straps (PB7/PB5, inputs). Strap-to-GND
+        // = bit set; both open = wheel 1. The previous code read DEBUG1/2/3, but those are
+        // push-pull outputs driven LOW (they're the gpio_debug scope pins), so every board
+        // voted "all strapped" = wheel 4 (flight-review P0-1). The ioc configures CAN_ADDR as
+        // NOPULL — enable internal pull-ups here (we never regenerate) so an open strap reads
+        // high deterministically.
+        GPIO_InitTypeDef addr_cfg = {
+            .Pin = CAN_ADDR0_Pin | CAN_ADDR1_Pin,
+            .Mode = GPIO_MODE_INPUT,
+            .Pull = GPIO_PULLUP,
+        };
+        HAL_GPIO_Init(CAN_ADDR0_GPIO_Port, &addr_cfg); // both pins live on GPIOB
+        HAL_Delay(1);                                  // let the pulls charge an open net
 
-        if (debug3 && debug2 && debug1) // Wheel 4
-            wheel_number = 4;
-        else if (debug2 && debug1) // Wheel 3
-            wheel_number = 3;
-        else if (debug1) // Wheel 2
-            wheel_number = 2;
-        else // Wheel 1
-            wheel_number = 1;
+        u32 addr0_high = 0, addr1_high = 0;
+        for (u32 n = 0; n < 1000; n++) {
+            addr0_high += (HAL_GPIO_ReadPin(CAN_ADDR0_GPIO_Port, CAN_ADDR0_Pin) != GPIO_PIN_RESET) ? 1 : 0;
+            addr1_high += (HAL_GPIO_ReadPin(CAN_ADDR1_GPIO_Port, CAN_ADDR1_Pin) != GPIO_PIN_RESET) ? 1 : 0;
+        }
+        bool addr0_strapped = addr0_high < 500; // majority LOW = strapped to GND
+        bool addr1_strapped = addr1_high < 500;
+
+        // none=wheel1, ADDR0=wheel2, ADDR1=wheel3, both=wheel4
+        wheel_number = (u8) (1u + (addr0_strapped ? 1u : 0u) + (addr1_strapped ? 2u : 0u));
+
+        // Raw counts on the console so a marginal/floating strap is diagnosable at the bench
+        printf("CAN_ADDR raw: addr0 %lu/1000 high, addr1 %lu/1000 high\r\n",
+               (unsigned long) addr0_high, (unsigned long) addr1_high);
 
         u8 canids[] = {CANID_WHEEL1, CANID_WHEEL2, CANID_WHEEL3, CANID_WHEEL4};
         NODE_CANID = canids[wheel_number - 1];
