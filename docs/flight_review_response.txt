@@ -1,0 +1,20 @@
+Responses:
+
+1.1: Oops. Yes, please fix.
+1.2: IS_CORRECTED_VOLTAGE_DIVIDER will be defined for flight boards -- it's just my desk bringup board that uses the wrong/old values. But yes let's change UV thresh to maybe 5V -- it's a 2S battery, so 5V == 2.5V/cell -- indicative of wiring issues.
+1.3: Sounds great. We should also add flags for whether or not we've done dir and offset cal, and throw an error when we try to enter any pos/vel/torque control without calibration (either at runtime or restored from flash). Unless we already have this? 
+1.4: Yes, spacecraft drives BOOT0/PB8 to enter DFU mode. We can trust that nothing will accidentally overwrite bootloader section.
+
+2.1: We need to change the timer based on the current mode, so do what you think is best 
+2.2: Oops. Yeah let's guard this. Maybe make an invalid state error? Or do what you think is best
+2.3: Please do.
+2.4: Oops. SDO values is a good place.
+2.5: Your call.
+2.6: We're never touching the ioc again or regenerating (too much would be clobbered), but your call other than that
+2.7: Make sure we don't accidentally let the watchdog elapse during the inital startup stuff, but sure, this seems sane.
+2.8: Let's not bother with OCP, we have that upstream. But killing HRTIM on hard fault is smart. 
+2.9: OK
+
+3: Seems good.
+4: Don't bother with shunt or MA702. Let's bound offset cal to 50mV, do the option byte enforcement+BOR, do the CCM SEU scrub. Latent landmines -- your call. Cosmetics let's fix. 
+
