@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "crash_record.h"
 #include "encoder.h"
 #include "foc.h"
 #include "printf.h"
@@ -55,26 +56,34 @@ static bool blob_valid(const cal_blob_t *b) {
         return false;
     if (blob_crc(b) != b->crc)
         return false;
-    // Light semantic gates on top of the CRC (also reject NaN via the negated compare)
-    if (b->encoder_dir != 1.f && b->encoder_dir != -1.f)
+    // Light semantic gates on top of the CRC. NaN rejection uses f32_finite_bits — the old
+    // negated compares were legally foldable under -Ofast's -ffinite-math-only into checks
+    // that PASS NaN (flight-review P2-14).
+    if (!f32_finite_bits(b->encoder_dir) || (b->encoder_dir != 1.f && b->encoder_dir != -1.f))
         return false;
-    if (!(b->phase_offset > -10.f && b->phase_offset < 10.f))
+    if (!f32_finite_bits(b->phase_offset) || !(b->phase_offset > -10.f && b->phase_offset < 10.f))
         return false;
-    if (b->flags & 1u) { // LUT present: every entry sane (negated compare also rejects NaN)
+    if (b->flags & 1u) { // LUT present: every entry finite + bounded
         for (u32 i = 0; i < CAL_STORE_LUT_N; i++)
-            if (!(b->lut[i] > -0.02f && b->lut[i] < 0.02f))
+            if (!f32_finite_bits(b->lut[i]) || !(b->lut[i] > -0.02f && b->lut[i] < 0.02f))
                 return false;
     }
-    if (b->flags & 2u) { // 6f_e FF coeffs present: bounded (also rejects NaN)
+    if (b->flags & 2u) { // 6f_e FF coeffs present: finite + bounded
         for (u32 i = 0; i < 4; i++)
-            if (!(b->bemf_h6[i] > -1e-3f && b->bemf_h6[i] < 1e-3f))
+            if (!f32_finite_bits(b->bemf_h6[i]) || !(b->bemf_h6[i] > -1e-3f && b->bemf_h6[i] < 1e-3f))
                 return false;
     }
     return true;
 }
 
 bool cal_store_present() {
-    return blob_valid(stored());
+    noinit_cell_clear(FLASH_ECC_LATCH_CELL);
+    bool valid = blob_valid(stored());
+    if (noinit_cell_valid(FLASH_ECC_LATCH_CELL)) { // ECC-faulting page is not a valid blob
+        noinit_cell_clear(FLASH_ECC_LATCH_CELL);
+        return false;
+    }
+    return valid;
 }
 
 static bool erase_page() {
@@ -122,14 +131,28 @@ bool cal_store_save() {
     }
     staging.crc = blob_crc(&staging);
 
-    // Refuse to persist a never-calibrated state: dir is +/-1 after dir-cal; the power-on
-    // default (+1) is indistinguishable, but offset==0 AND dir==+1 together means nothing ran.
+    // Refuse to persist a never-calibrated state. The provenance flags are authoritative: the
+    // power-on defaults (dir +1, offset 0) are value-indistinguishable from a real cal, but
+    // the flags only go true on a successful procedure or restore.
+    if (!encoder_cal_valid()) {
+        printf("cal_store: refusing save — dir/offset cal not valid (run 9 then 15/21 first)\r\n");
+        return false;
+    }
     if (staging.encoder_dir != 1.f && staging.encoder_dir != -1.f) {
         printf("cal_store: refusing save, encoder_dir=%.1f invalid\r\n", staging.encoder_dir);
         return false;
     }
 
-    if (memcmp(stored(), &staging, sizeof(staging)) == 0) {
+    // ECC bracket on the compare read: a fault here means the stored page is damaged — fall
+    // through to erase+program, which repairs the ECC state along with the contents.
+    noinit_cell_clear(FLASH_ECC_LATCH_CELL);
+    bool unchanged = (memcmp(stored(), &staging, sizeof(staging)) == 0);
+    if (noinit_cell_valid(FLASH_ECC_LATCH_CELL)) {
+        printf("cal_store: ECC fault during compare — rewriting page\r\n");
+        noinit_cell_clear(FLASH_ECC_LATCH_CELL);
+        unchanged = false;
+    }
+    if (unchanged) {
         printf("cal_store: unchanged (offset %.6f dir %+.0f), skipping write\r\n",
                staging.phase_offset, staging.encoder_dir);
         return true;
@@ -159,7 +182,33 @@ bool cal_store_save() {
 
 bool cal_store_restore() {
     const cal_blob_t *b = stored();
-    if (!blob_valid(b)) {
+
+    // ECC bracket: a double-bit flash error anywhere in the page (torn save, radiation) NMIs
+    // on the validation read below. The NMI handler latches ECCR and returns (the read
+    // completes with garbage), so check the latch afterwards — and ERASE the page on a hit:
+    // erased cells carry valid ECC, so the next boot reads clean instead of re-faulting
+    // forever. Boot continues uncalibrated either way (flight-review P0-3).
+    noinit_cell_clear(FLASH_ECC_LATCH_CELL);
+    bool valid = blob_valid(b);
+    if (noinit_cell_valid(FLASH_ECC_LATCH_CELL)) {
+        u32 eccr = noinit_cell_get(FLASH_ECC_LATCH_CELL);
+        noinit_cell_clear(FLASH_ECC_LATCH_CELL);
+        // Heal-by-erase only if the latched fault was actually in BANK 2 (BK_ECC) — the cal
+        // page is the only thing this firmware uses there. An unrelated bank-1 double-bit
+        // fault (ISR code/rodata) landing inside this bracket window must not cost a healthy
+        // stored cal (review F6).
+        if (eccr & FLASH_ECCR_BK_ECC) {
+            printf("cal_store: flash ECC fault in cal page (ECCR 0x%08lx) — erasing page\r\n",
+                   (unsigned long) eccr);
+            if (dbank_ok())
+                erase_page();
+        } else {
+            printf("cal_store: ECC fault during restore was outside bank 2 (ECCR 0x%08lx) — page kept\r\n",
+                   (unsigned long) eccr);
+        }
+        return false;
+    }
+    if (!valid) {
         printf("cal_store: no valid blob (magic 0x%lx)\r\n", (unsigned long) b->magic);
         return false;
     }
@@ -181,6 +230,11 @@ bool cal_store_restore() {
         hc.Bq = b->bemf_h6[3];
     }
     foc_set_bemf_harmonic_coeffs(&hc);
+
+    // A CRC-valid blob is a real calibration: mark the live values as calibrated so the
+    // closed-loop states arm without re-running procedures.
+    encoder_set_dir_cal_valid(true);
+    encoder_set_offset_cal_valid(true);
 
     printf("cal_store: restored offset %.6f turns, dir %+.0f%s%s\r\n",
            b->phase_offset, b->encoder_dir,
