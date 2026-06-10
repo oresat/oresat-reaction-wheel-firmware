@@ -24,6 +24,10 @@ static volatile bool is_first_run = true; // Do we need to reset encoder vel on 
 static volatile f32 encoder_dir = 1; // Encoder direction - +1 or -1
 static volatile f32 phase_offset = 0.f; // Phase offset in electrical radians
 
+// Cal-provenance flags for the two values above — see encoder.h.
+static volatile bool dir_cal_valid = false;
+static volatile bool offset_cal_valid = false;
+
 // Per-revolution angle-error LUT (see encoder.h). Default all-zeros + disabled = exact no-op.
 static volatile f32 enc_lut[ENC_LUT_N];
 static volatile bool enc_lut_enabled = false;
@@ -174,6 +178,26 @@ void encoder_lut_copy(f32 *dst) {
 
 void encoder_set_direction(f32 dir) {
     encoder_dir = dir;
+}
+
+void encoder_set_dir_cal_valid(bool valid) {
+    dir_cal_valid = valid;
+}
+
+void encoder_set_offset_cal_valid(bool valid) {
+    offset_cal_valid = valid;
+}
+
+bool encoder_get_dir_cal_valid() {
+    return dir_cal_valid;
+}
+
+bool encoder_get_offset_cal_valid() {
+    return offset_cal_valid;
+}
+
+bool encoder_cal_valid() {
+    return dir_cal_valid && offset_cal_valid;
 }
 
 __ccmram f32 encoder_get_direction() {

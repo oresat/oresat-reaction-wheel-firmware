@@ -34,6 +34,17 @@ void encoder_set_direction(f32 dir);
 
 f32 encoder_get_direction();
 
+// Which calibrations the LIVE dir/offset values came from: set by a successful cal procedure
+// or a flash restore, snapshotted+rolled back with the values on a failed/cancelled cal.
+// Gates arming of the closed-loop states (fsm_state_requires_encoder_cal): running FOC on the
+// power-on defaults (dir +1, offset 0) gives anything from zero-torque heating to
+// velocity-loop positive feedback, depending on the true offset.
+void encoder_set_dir_cal_valid(bool valid);
+void encoder_set_offset_cal_valid(bool valid);
+bool encoder_get_dir_cal_valid();
+bool encoder_get_offset_cal_valid();
+bool encoder_cal_valid(); // dir && offset
+
 //bool get_phase_resistance_valid();
 extern control_law_t encoder_test_control_law;
 f32 encoder_get_multiturn_pos_raw();
