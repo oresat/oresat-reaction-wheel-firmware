@@ -55,7 +55,31 @@ void canopen_1khz_isr();
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#include "crash_record.h"
 
+extern void hrtim_outputs_disable(void); /* pwm.c — lock-free ODISR write, all six outputs */
+extern volatile uint32_t controller_errors; /* control_ll.c */
+
+/* Common fault tail: bridge off FIRST (HRTIM autonomously free-runs the last compare values
+ * into a spinning rotor while the core is wedged), breadcrumb second, reset third. The old
+ * while(1) bodies just burned up to ~512 ms of uncontrolled drive waiting for the IWDG to do
+ * the same reset with zero record (flight-review P1-9). No printf in here: the console may be
+ * the thing that faulted, and ISR prints only land in a RAM ring the reset wipes anyway —
+ * read back post-reboot via the boot banner / OD 0x4006 instead. */
+void fault_record_and_reset(uint32_t kind, uint32_t *stack_frame) {
+    hrtim_outputs_disable();
+    CRASH_RECORD->kind = kind;
+    CRASH_RECORD->cfsr = SCB->CFSR;
+    CRASH_RECORD->hfsr = SCB->HFSR;
+    CRASH_RECORD->bfar = SCB->BFAR;
+    CRASH_RECORD->mmfar = SCB->MMFAR;
+    CRASH_RECORD->stacked_pc = (stack_frame != NULL) ? stack_frame[6] : 0u;
+    CRASH_RECORD->stacked_lr = (stack_frame != NULL) ? stack_frame[5] : 0u;
+    CRASH_RECORD->controller_errors = controller_errors;
+    CRASH_RECORD->aux = 0u;
+    CRASH_RECORD->magic = CRASH_RECORD_MAGIC;
+    NVIC_SystemReset();
+}
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -83,7 +107,22 @@ extern TIM_HandleTypeDef htim17;
 void NMI_Handler(void)
 {
   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
-
+    /* The only NMI sources on this configuration are flash ECC double-bit errors (ECCD/ECCD2
+     * — CSS and SRAM parity are not enabled). A double-bit error in the cal page (torn save,
+     * radiation) raises this on the READ; the old while(1) body starved SysTick, the IWDG
+     * reset, and the same boot-time read re-faulted forever: a permanent boot loop before CAN
+     * ever came up (flight-review P0-3). Instead: latch the raw ECCR for cal_store /
+     * diagnostics, write-1-clear the flags, and RETURN — the load completes with garbage, the
+     * blob CRC rejects it, and boot continues uncalibrated (re-cal over CAN: 9→15→21→18). */
+    uint32_t eccr = FLASH->ECCR;
+    if (eccr & (FLASH_ECCR_ECCD | FLASH_ECCR_ECCD2)) {
+        noinit_cell_set(FLASH_ECC_LATCH_CELL, eccr);
+        FLASH->ECCR = eccr; /* C/D flags are write-1-to-clear; ADDR/BK are read-only */
+        return;
+    }
+    /* Unknown NMI source: record + reset beats spinning (the IWDG would reset us anyway,
+     * ~512 ms later, with no breadcrumb). */
+    fault_record_and_reset(CRASH_KIND_NMI_UNKNOWN, NULL);
   /* USER CODE END NonMaskableInt_IRQn 0 */
   /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
     while (1) {
@@ -94,17 +133,21 @@ void NMI_Handler(void)
 /**
   * @brief This function handles Hard fault interrupt.
   */
-void HardFault_Handler(void)
+__attribute__((naked)) void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+    /* NAKED: no compiler prologue may run before the MSP read, or the stacked-frame pointer
+     * is offset and the recorded PC/LR lie (verified prologue-free at -Ofast, but -Og emits
+     * a frame — naked makes it build-independent). All exception frames here stack on MSP
+     * (bare metal, nothing uses PSP); frame[5]/[6] = LR/PC per the AAPCS exception frame.
+     * MemManage/Bus/UsageFault are not enabled in SHCSR, so every fault escalates to here.
+     * fault_record_and_reset never returns (NVIC_SystemReset). */
+    __asm volatile(
+        "mrs r1, msp              \n"
+        "movs r0, %0              \n"
+        "b fault_record_and_reset \n"
+        :: "i" ((int) CRASH_KIND_HARDFAULT));
   /* USER CODE END HardFault_IRQn 0 */
-  while (1)
-  {
-    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
-        __asm__("nop");
-    /* USER CODE END W1_HardFault_IRQn 0 */
-  }
 }
 
 /**

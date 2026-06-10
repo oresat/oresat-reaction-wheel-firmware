@@ -32,7 +32,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "crash_record.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -191,11 +191,12 @@ void SystemClock_Config(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+  /* Boot-path init failure (clock config, peripheral init). The old __disable_irq()+while(1)
+   * was a permanent hang whenever the IWDG wasn't running yet — record + reset instead: a
+   * reset loop is recoverable and diagnosable (boot counter + crash record at 0x20017Fxx), a
+   * hang is neither. */
+  extern void fault_record_and_reset(uint32_t kind, uint32_t *stack_frame); /* stm32g4xx_it.c */
+  fault_record_and_reset(CRASH_KIND_ERROR_HANDLER, NULL);
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT
