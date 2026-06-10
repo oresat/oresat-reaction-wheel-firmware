@@ -137,12 +137,27 @@ __fn_noreturn void app_main() {
     bool bytes_ok = check_option_bytes_ok();
 
     if (!bytes_ok) {
-        printf("Writing option bytes...\r\n");
-        bool wrote_ok = write_option_bytes();
-        printf("Writing option bytes %s\r\n", wrote_ok ? "SUCCESS" : "FAIL");
-        check_option_bytes_ok();
-        console_flush(); // last bytes off the wire before the reset eats them
-        HAL_NVIC_SystemReset();
+        // Bounded enforcement: a chip where the write never sticks used to reboot-loop
+        // forever — wearing OB flash (~10k cycles) and never reaching CAN (flight-review
+        // P2-8). After 3 attempts since power-on, fly with mismatched OBs: boot continues,
+        // CAN comes up, and the BAD lines above say why. (The flight harness straps PB8 low,
+        // so even wrong boot bits can't divert the boot path.)
+        u32 ob_attempts = noinit_cell_get(OB_ATTEMPT_CELL);
+        if (ob_attempts >= 3u) {
+            printf("Option bytes still mismatched after %lu write attempts — continuing anyway\r\n",
+                   (unsigned long) ob_attempts);
+        } else {
+            noinit_cell_set(OB_ATTEMPT_CELL, ob_attempts + 1u);
+            printf("Writing option bytes (attempt %lu/3)...\r\n", (unsigned long) (ob_attempts + 1u));
+            console_flush(); // success resets inside OB_Launch — flush first or lose the tail
+            write_option_bytes();
+            // Only reachable on write FAILURE (success = system reset inside OB_Launch):
+            printf("Option byte write FAILED\r\n");
+            console_flush();
+            HAL_NVIC_SystemReset();
+        }
+    } else {
+        noinit_cell_clear(OB_ATTEMPT_CELL);
     }
 
     // THIS IS ALL HANDLED IN THE BOOTLOADER SECTION
@@ -223,7 +238,8 @@ __fn_noreturn void app_main() {
     printf("Setting up controller...\r\n");
     controller_init();
     fsm_init();
-    HAL_TIM_Base_Start_IT(&CONTROLLER_FSM_TIM_HANDLE);
+    // (FSM tick starts AFTER canopen_init below: a transition in the gap would have called
+    // into the CANopen layer with CO == NULL — latent, but free to close.)
 
     //HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2000);
     //dac_debug0_V(2.f);
@@ -275,6 +291,7 @@ __fn_noreturn void app_main() {
     printf("Setting up CAN with node ID 0x%X...\r\n", NODE_CANID);
     canopen_init(NODE_CANID);
     HAL_TIM_Base_Start_IT(&CAN_TIM_HANDLE);
+    HAL_TIM_Base_Start_IT(&CONTROLLER_FSM_TIM_HANDLE); // FSM tick — only with CANopen alive
 
     // Reset cause + boot count + last-fault summary → the spare 0x4006 floats, so all of the
     // above is readable over the only in-flight interface (encoding in can-interface.md).

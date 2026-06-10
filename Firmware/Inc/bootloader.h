@@ -19,6 +19,4 @@ static bool get_boot0_pin_state() {
     return (HAL_GPIO_ReadPin(boot0_pin.port, boot0_pin.pin) != GPIO_PIN_RESET);
 }
 
-void jump_to_bootloader();
 
-void System_DeInit();
