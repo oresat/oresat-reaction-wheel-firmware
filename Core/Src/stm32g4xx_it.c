@@ -360,7 +360,12 @@ void TIM7_DAC_IRQHandler(void)
 /**
   * @brief This function handles HRTIM timer A global interrupt.
   */
-void HRTIM1_TIMA_IRQHandler(void)
+// __ccmram (via util.h -> typedefs.h): the fast-loop entry point should run from CCM like
+// the rest of the per-tick chain — it was the last hot-path code still fetching from flash
+// (~1% of CPU in the 2026-06-09 PC-sampling profile). Empty in Debug builds, same as every
+// other hot function. NOTE: hand-edited outside USER CODE markers — this project never
+// regenerates from CubeMX (owner's decree, 2026-06-09).
+__ccmram void HRTIM1_TIMA_IRQHandler(void)
 {
   /* USER CODE BEGIN HRTIM1_TIMA_IRQn 0 */
 
@@ -379,6 +384,12 @@ void HRTIM1_TIMA_IRQHandler(void)
 #else
             HAL_HRTIM_RepetitionEventCallback(hhrtim, TimerIdx);
 #endif
+            // REP is the only TIMA interrupt enabled (hrtim.c: pTimerCfg.InterruptRequests
+            // = HRTIM_TIM_IT_REP), so skip HAL_HRTIM_IRQHandler's full flag walk — it was
+            // ~5% of total CPU finding nothing. If more TIMA ITs are ever enabled this
+            // stays safe: a still-pending enabled flag keeps the IRQ line asserted and
+            // the NVIC re-enters immediately after exit.
+            return;
         }
     }
 

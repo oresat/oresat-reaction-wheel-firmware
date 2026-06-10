@@ -3,6 +3,7 @@
 #include "typedefs.h"
 #include "hrtim.h"
 #include "periphmap.h"
+#include "mathutil.h" // CLAMP, for the duty-cycle setters below
 
 #define PWM_CNTR 24000
 #define HRTIM_DLL_MUL 32
@@ -38,6 +39,34 @@ void hrtim_outputs_disable();
 
 void hrtim_outputs_enable();
 
-void hrtim_pwm_set_dcycle_f32(f32 a_dcycle, f32 b_dcycle, f32 c_dcycle);
+// Defined here as static inline (not in pwm.c): the hot caller is pwm_update_callback
+// in control_ll.c — __fn_inline can't cross a TU boundary, so a .c-resident definition
+// left every fast-loop tick taking a call from CCM out to a flash-resident copy
+// (~90 cycles/tick, measured by PC-sampling profile 2026-06-09).
+static __fn_flatten __fn_inline void hrtim_pwm_set_dcycle_u16(u16 a_dcycle, u16 b_dcycle, u16 c_dcycle) {
+    //assert(a_dcycle >= PWM_CNTR_MIN_ALLOWED && a_dcycle <= PWM_CNTR_MAX_ALLOWED);
+    //assert(b_dcycle >= PWM_CNTR_MIN_ALLOWED && b_dcycle <= PWM_CNTR_MAX_ALLOWED);
+    //assert(c_dcycle >= PWM_CNTR_MIN_ALLOWED && c_dcycle <= PWM_CNTR_MAX_ALLOWED);
 
-//void hrtim_pwm_set_dcycle_u16(u16 a_dcycle, u16 b_dcycle, u16 c_dcycle);
+    a_dcycle = PWM_CNTR - a_dcycle;
+    b_dcycle = PWM_CNTR - b_dcycle;
+    c_dcycle = PWM_CNTR - c_dcycle;
+
+    u16 a_compare = CLAMP(a_dcycle, PWM_CNTR_MIN_ALLOWED, PWM_CNTR_MAX_ALLOWED);
+    u16 b_compare = CLAMP(b_dcycle, PWM_CNTR_MIN_ALLOWED, PWM_CNTR_MAX_ALLOWED);
+    u16 c_compare = CLAMP(c_dcycle, PWM_CNTR_MIN_ALLOWED, PWM_CNTR_MAX_ALLOWED);
+    __HAL_HRTIM_SETCOMPARE(&hhrtim1, HRTIM_TIMERINDEX_TIMER_A, HRTIM_COMPAREUNIT_1, a_compare);
+    __HAL_HRTIM_SETCOMPARE(&hhrtim1, HRTIM_TIMERINDEX_TIMER_B, HRTIM_COMPAREUNIT_1, b_compare);
+    __HAL_HRTIM_SETCOMPARE(&hhrtim1, HRTIM_TIMERINDEX_TIMER_E, HRTIM_COMPAREUNIT_1, c_compare);
+}
+
+static __fn_flatten __fn_inline void hrtim_pwm_set_dcycle_f32(const f32 a_dcycle, const f32 b_dcycle, const f32 c_dcycle) {
+    //assert(a_dcycle >= 0.f && a_dcycle <= 1.f);
+    //assert(b_dcycle >= 0.f && b_dcycle <= 1.f);
+    //assert(c_dcycle >= 0.f && c_dcycle <= 1.f);
+    hrtim_pwm_set_dcycle_u16(
+            (u16) (a_dcycle * ((f32) PWM_CNTR)),
+            (u16) (b_dcycle * ((f32) PWM_CNTR)),
+            (u16) (c_dcycle * ((f32) PWM_CNTR))
+    );
+}

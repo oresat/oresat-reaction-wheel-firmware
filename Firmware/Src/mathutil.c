@@ -19,6 +19,10 @@ sincos_t sincos_cordic(f32 x);
 
 sincos_t sincos_cordic_raw(f32 x);
 
+f32 sin_cordic(f32 x);
+
+f32 cos_cordic(f32 x);
+
 sincos_t sincos_cmsis(f32 x);
 
 //sincos_t sincos_cmath(f32 x);
@@ -59,9 +63,6 @@ cos_f32(const f32 x) {
 __ccmram __sincos_attr sincos_t
 
 sincos_f32(const f32 x) {
-    //return cordic_sincos_f32(x);
-
-    //return cordic_sincos_f32(x);
     //gpio_debug2(true);
 #if defined(SINCOS_FNCS_USE_CMSIS)
     sincos_t sincos = sincos_cmsis(x);
@@ -74,42 +75,19 @@ sincos_f32(const f32 x) {
     return sincos;
 }
 
-__cordic_fn_attr sincos_t
-sincos_cordic(const f32 x) { // TODO should we flatten this? squish da cordic.
-    // x is angle, in radians
-    //f32 x_local = x;
+__ccmram __cordic_fn_attr sincos_t
+sincos_cordic(const f32 x) {
+    return cordic_sincos_f32(x);
+}
 
-    //// Wrap to +/- 2pi (+/-360deg)
-    //while (x_local > 2.f * M_PI_f32) x_local -= 2.f * M_PI_f32;
-    //while (x_local < -2.f * M_PI_f32) x_local += 2.f * M_PI_f32;
+__cordic_fn_attr f32
+sin_cordic(const f32 x) {
+    return cordic_sincos_f32(x).sin;
+}
 
-    //// Wrap to +/- pi (+/-180deg)
-    //if (x_local > M_PI_f32) x_local = x_local - 2.f * M_PI_f32;
-    //if (x_local < -M_PI_f32) x_local = x_local + 2.f * M_PI_f32;
-
-    //// Divide x by pi to get the +/- 1 range CORDIC uses
-
-    //f32 x_scale1 = x_local / M_PI_f32;
-
-    //q31_t x_q31;
-    //arm_float_to_q31(&x_scale1, &x_q31, 1u);
-
-    //// CORDIC config in user code cordic.c. Pray to god it got set properly.
-
-    //q31_t cordic_in[1] = {x_q31};
-    //q31_t cordic_out[2] = {0, 0};
-
-    //assert_param(HAL_CORDIC_GetState(cordic_handle) == HAL_CORDIC_STATE_READY);
-
-    //HAL_CORDIC_Calculate(&CORDIC_HANDLE, cordic_in, cordic_out, 1, 0xFFFF);
-
-    //f32 cordic_out_float[2] = {0.f, 0.f};
-    //arm_q31_to_float(cordic_out, cordic_out_float, 2);
-
-    //sincos_t ret;
-    //ret.cos = cordic_out_float[0];
-    //ret.sin = cordic_out_float[1];
-    //return ret;
+__cordic_fn_attr f32
+cos_cordic(const f32 x) {
+    return cordic_sincos_f32(x).cos;
 }
 
 // Don't even touch this
@@ -129,12 +107,18 @@ sincos_t sincos_cordic_raw(const f32 x) {
 }
  */
 
+// Compiled only when selected: otherwise the dead sincos_cmsis stub keeps
+// arm_sin_cos_f32 + its 2 KB sinTable_f32 linked AND placed in CCM (the .ld pulls
+// *arm_sin_cos_f32.c.obj into .ccmram, and individual .ccmram functions can't be
+// gc-section'd since they share one section).
+#if defined(SINCOS_FNCS_USE_CMSIS)
 __ccmram __cmsis_fn_attr sincos_t
 sincos_cmsis(const f32 x) {
     sincos_t ret;
     arm_sin_cos_f32(x * 180.f / M_PI_f32, &ret.sin, &ret.cos);
     return ret;
 }
+#endif
 
 __cmath_fn_attr sincos_t
 sincos_cmath(const f32 x) {
@@ -144,6 +128,7 @@ sincos_cmath(const f32 x) {
     return ret;
 }
 
+#if defined(SINCOS_FNCS_USE_CMSIS)
 __cmsis_fn_attr f32
 sin_cmsis(const f32 x) {
     return arm_sin_f32(x);
@@ -154,6 +139,7 @@ __cmsis_fn_attr f32
 cos_cmsis(const f32 x) {
     return arm_cos_f32(x);
 }
+#endif
 
 __cmath_fn_attr f32
 

@@ -7,8 +7,8 @@
 #include "stm32g4xx_ll_cordic.h"
 #include "typedefs.h"
 
-#define SINCOS_FNCS_USE_CMSIS
-//#define SINCOS_FNCS_USE_CORDIC
+//#define SINCOS_FNCS_USE_CMSIS
+#define SINCOS_FNCS_USE_CORDIC
 //#define SINCOS_FNCS_USE_CMATH
 
 
@@ -119,8 +119,28 @@ static __fn_inline u32 adc_reading_to_mV(u16 adc_reading, u16 vvdd_mV) {
 #define VVCC_CORRECT_mV(val_12bit, vvcc_mV) ((f32) (((u32) val_12bit) * ((u32) vvcc_mV)) / 1000.f)
 
 
+// FPv4-SP has no float-rounding instructions, and arm-gcc 14 won't expand
+// roundf/rintf/lrintf to vcvtr either — they stay libm calls (they showed up in
+// PC-sampling profiles of the fast loop). Hand-roll the one-instruction versions.
+// vcvtr rounds per FPSCR.RMode: round-to-nearest-even at reset, never changed by
+// this firmware. Valid for |x| < 2^31.
+static __fn_inline f32 rint_f32(const f32 x) { // round to nearest integral f32
+    f32 r;
+    __asm__ ("vcvtr.s32.f32 %0, %1\n\tvcvt.f32.s32 %0, %0" : "=t" (r) : "t" (x));
+    return r;
+}
+
+static __fn_inline i32 lrint_f32(const f32 x) { // round to nearest i32
+    f32 t;
+    i32 r;
+    __asm__ ("vcvtr.s32.f32 %1, %2\n\tvmov %0, %1" : "=r" (r), "=&t" (t) : "t" (x));
+    return r;
+}
+
 static __fn_inline __fn_const f32 wrap_pm(f32 x, f32 y) {
-    f32 intval = nearbyintf(x / y);
+    // rint_f32, not nearbyintf: same round-to-nearest-even, no libm call.
+    // Requires |x/y| < 2^31 — always true for the angle wrapping this is used for.
+    f32 intval = rint_f32(x / y);
     return x - intval * y;
 }
 
@@ -153,19 +173,27 @@ static __fn_inline void cordic_setup(cordic_mode_t mode) {
 
 }
 
-static const u32 cordicin = 0x7fff0000;
+// Hardware sincos via the CORDIC peripheral, q1.15 packed mode (cordic_setup must have
+// run with CORDIC_MODE_SINCOS — done once at boot in app_main, never reconfigured).
+// Single-context only: WDATA/RDATA is a stateful two-step, so concurrent use from a
+// preempting ISR would interleave and corrupt both results. Today the only runtime
+// caller is fast-loop context (sincos_f32); the backemf fit deliberately uses
+// sincos_cmath instead.
+static const u32 cordicin = 0x7fff0000; // ARG2 (high half) = modulus, ~+1.0 in q1.15
 static __fn_inline sincos_t cordic_sincos_f32(const f32 theta) {
-    i16 thetashort = (i16) (theta * 10430.f);
-    CORDIC->WDATA = cordicin + thetashort;
-    // < invisible block here >
-    u32 out0 = CORDIC->RDATA;
-    i16 out2 = (i16) (out0 >> 16);
-    i16 out1 = (i16) (out0 & 0xFFFF);
-    f32 cos_out = (f32) out1 / 32768.0f;
-    f32 sin_out = (f32) out2 / 32768.0f;
+    // Angle in q1.15 units of pi: truncating the i32 to u16 wraps mod 2^16 == mod 2*pi,
+    // so no float-side wrap needed (valid for |theta| < ~2^31 LSBs ≈ 2e5 rad).
+    // OR (not +) keeps a negative angle's sign bits out of ARG2.
+    u16 thetaq15 = (u16) (u32) lrint_f32(theta * (32768.f / M_PI_f32));
+    CORDIC->WDATA = cordicin | thetaq15;
+    u32 out0 = CORDIC->RDATA; // read stalls the bus until the result is ready (~6 cyc)
+    i16 sin_q15 = (i16) (out0 >> 16);
+    i16 cos_q15 = (i16) (out0 & 0xFFFF);
+    // Outputs are modulus-scaled: q15 result = sincos * 0x7fff, so normalize by 32767.
+    f32 cos_out = (f32) cos_q15 / 32767.0f;
+    f32 sin_out = (f32) sin_q15 / 32767.0f;
 
     return (sincos_t) {sin_out, cos_out};
-
 }
 
 /*

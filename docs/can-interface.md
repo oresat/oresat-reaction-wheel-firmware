@@ -78,6 +78,11 @@ from the last one it saw. Two consequences:
    written while in the wrong state is dropped (and won't be re-applied later unless it changes).
 2. Writing the *same* numeric value again is a no-op. To re-assert, write a different value first.
 
+`req_state` is edge-triggered the same way, and the firmware never rewrites `0x4004` after a
+procedure auto-returns to IDLE — so re-requesting the state that just ran is a silent no-op. To
+re-run it, first write `0` (`FSM_STATE_NONE`, which the FSM treats as "no request" — guaranteed
+side-effect-free), then the target state. `can_console/cli.py` does this automatically.
+
 ## Typical command sequences
 
 Bring a wheel to 50 rev/s under ramped velocity control (replace `0x63C` with the target wheel's
@@ -103,14 +108,19 @@ auto-return to IDLE; success/failure lands in TPDO1 `procedure_result`):
   and subsequent boots need nothing).
 
 Commissioning a wheel end-to-end: `0x4004:01` = `9` (dir cal, wait done) → `15` (bootstrap offset
-cal, wait done) → `21` (bidirectional back-EMF coast capture; fit currently offline over SWD —
-full runbook in backemf-coastdown-implementation.md) → `18` (save). Check `procedure_result` = 1
-after each. Subsequent boots auto-restore — no recal needed.
+cal, wait done) → `21` (bidirectional back-EMF self-cal; fits offset + LUT **on-board** and applies
+them live — full runbook in backemf-coastdown-implementation.md) → `18` (save). Check
+`procedure_result` = 1 after each. Subsequent boots auto-restore — no recal needed.
+`can_console/cli.py commission` automates the whole sequence.
 
 ## Notes for host tooling
 
-- The EDS/profile lives at `CANopenSTM32/CANopenNode_STM32/DS301_profile.eds` (and `.xpd`) — load it
-  into your CANopen master / `canopen` Python lib for symbolic access to the `0x4000`–`0x4007` block.
+- The vendored EDS (`CANopenSTM32/CANopenNode_STM32/DS301_profile.eds` / `.xpd`) does **not**
+  contain the manufacturer `0x4000`–`0x4007` block (`[ManufacturerObjects]` is empty) — the
+  generated `OD/OD.c` is the source of truth. Host tooling must define the block by hand; see
+  `build_object_dictionary()` in `can_console/cli.py`.
 - `python-can` + the `canopen` package is a convenient host stack; node ID and COB-IDs as above.
+  `can_console/cli.py` wraps all of this (status / live TPDO monitor / commission / spin / error
+  decode) — see `can_console/README.md`.
 - Firmware boots to `IDLE`; no motion happens until a control-law state is requested.
 - Identity (`0x1018`), device type (`0x1000`), vendor/product codes are currently 0 (not set).

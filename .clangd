@@ -1,13 +1,16 @@
 # clangd config for command-line / editor clangd using the CMake compile_commands.json
-# (root symlink → cmake-build-debug/). The build uses arm-none-eabi-gcc; a few of its flags
-# aren't understood by clangd's clang driver, so strip them to avoid spurious diagnostics.
+# (root symlink → cmake-build-debug/). The build uses arm-none-eabi-gcc; clang only
+# understands its -mcpu/-mfpu/-mfloat-abi flags when given an explicit ARM target, so
+# add one (instead of stripping those flags, which left clangd thinking there's no FPU —
+# breaking VFP inline-asm constraints like "t" in mathutil.h).
 # CLion uses its own indexer and ignores this file.
 CompileFlags:
   Remove:
     - -mthumb-interwork
-    - -mfloat-abi=*
-    - -mfpu=*
-    - -mcpu=*
+  Add:
+    - --target=armv7em-none-eabi
+    # the explicit target switches clang off the host sysroot, so point it at newlib
+    - -isystem/usr/arm-none-eabi/include
 Diagnostics:
   # util.h-style aggregator headers legitimately pull in includes used only by inline fns;
   # clangd's IWYU "unused include" lint is noisy here.

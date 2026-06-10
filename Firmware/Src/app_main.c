@@ -54,14 +54,13 @@ volatile u32 MAGIC_NUMBER = 0xFFEEDDCC;
 
 
 __fn_noreturn void app_main() {
-
     __disable_irq();
-    HAL_NVIC_SetPriority(HRTIM1_TIMA_IRQn, 0, 0);   // top
+    HAL_NVIC_SetPriority(HRTIM1_TIMA_IRQn, 0, 0); // top
     HAL_NVIC_SetPriority(TIM1_TRG_COM_TIM17_IRQn, 1, 0); // FSM
-    HAL_NVIC_SetPriority(TIM4_IRQn,        2, 0);   // CAN tick
-    HAL_NVIC_SetPriority(TIM7_DAC_IRQn,    3, 0);   // aux ADC
-    HAL_NVIC_SetPriority(FDCAN1_IT0_IRQn,  3, 0);
-    HAL_NVIC_SetPriority(FDCAN1_IT1_IRQn,  3, 0);
+    HAL_NVIC_SetPriority(TIM4_IRQn, 2, 0); // CAN tick
+    HAL_NVIC_SetPriority(TIM7_DAC_IRQn, 3, 0); // aux ADC
+    HAL_NVIC_SetPriority(FDCAN1_IT0_IRQn, 3, 0);
+    HAL_NVIC_SetPriority(FDCAN1_IT1_IRQn, 3, 0);
     HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 3, 0);
 
     __enable_irq();
@@ -79,6 +78,8 @@ __fn_noreturn void app_main() {
     printf("     TO THE BRAVE MUJAHIDEEN FIGHTERS     \r\n");
     printf("             OF AFGHANISTAN               \r\n");
 
+    printf("Build2\r\n");
+
     // The bootloader's exit path (System_DeInit -> HAL_RCC_DeInit) clears the hardware flags
     // (RCC_CSR RMVF) before this app ever runs, so it snapshots RCC->CSR at its entry and
     // parks it in a magic-tagged mailbox at the top of RAM2 — untouched by either image's
@@ -87,9 +88,10 @@ __fn_noreturn void app_main() {
     // PIN tags along on most internal resets (NRST is pulled low), so the interesting bit is
     // what accompanies it: IWDG = starved watchdog (fast-loop overrun or a spun fault handler),
     // SOFT = NVIC_SystemReset (reboot SDO, option-byte write), OBL = option-byte reload.
-    volatile u32* const reset_cause_mailbox = (volatile u32*) 0x20017FF8;
+    volatile u32 *const reset_cause_mailbox = (volatile u32 *) 0x20017FF8;
     u32 rcc_csr;
-    if (reset_cause_mailbox[0] == 0x52435352u) { // "RCSR"
+    if (reset_cause_mailbox[0] == 0x52435352u) {
+        // "RCSR"
         rcc_csr = reset_cause_mailbox[1];
         reset_cause_mailbox[0] = 0; // consume
     } else {
@@ -99,10 +101,10 @@ __fn_noreturn void app_main() {
            (rcc_csr & RCC_CSR_LPWRRSTF) ? " LPWR" : "",
            (rcc_csr & RCC_CSR_WWDGRSTF) ? " WWDG" : "",
            (rcc_csr & RCC_CSR_IWDGRSTF) ? " IWDG" : "",
-           (rcc_csr & RCC_CSR_SFTRSTF)  ? " SOFT" : "",
-           (rcc_csr & RCC_CSR_BORRSTF)  ? " BOR"  : "",
-           (rcc_csr & RCC_CSR_OBLRSTF)  ? " OBL"  : "",
-           (rcc_csr & RCC_CSR_PINRSTF)  ? " PIN"  : "");
+           (rcc_csr & RCC_CSR_SFTRSTF) ? " SOFT" : "",
+           (rcc_csr & RCC_CSR_BORRSTF) ? " BOR" : "",
+           (rcc_csr & RCC_CSR_OBLRSTF) ? " OBL" : "",
+           (rcc_csr & RCC_CSR_PINRSTF) ? " PIN" : "");
     __HAL_RCC_CLEAR_RESET_FLAGS();
 
     printf("Checking option bytes...\r\n");
@@ -147,11 +149,12 @@ __fn_noreturn void app_main() {
         1699955305, 1515681910, 1684887147, 1130839357
     };
     bool cordic_ok = true;
-    for (u8 i = 0; i < 8; i++) {
-        f32 magic = wrap_pm_pi(*((f32 *) CORDIC_MAGIC));
+    for (u8 i = 1; i < 8; i++) {
+        volatile f32 magic = wrap_pm_pi(*(f32 *) &CORDIC_MAGIC[i]);
+        while (magic > 1e2) magic /= 2.f;
         sincos_t cordic = cordic_sincos_f32(magic);
         sincos_t cmath = sincos_cmath(magic);
-        cordic_ok = (abs_f32(cordic.sin - cmath.sin) < 1e-3) && (abs_f32(cordic.cos - cmath.cos) < 1e-3);
+        cordic_ok = cordic_ok && (abs_f32(cordic.sin - cmath.sin) < 1e-3) && (abs_f32(cordic.cos - cmath.cos) < 1e-3);
     }
 
     printf(cordic_ok ? "CORDIC OK\r\n" : "CORDIC FAIL\r\n");

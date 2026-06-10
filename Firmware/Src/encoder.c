@@ -48,7 +48,10 @@ static __fn_inline posvel_t encoder_predict(const f32 t_pred) {
 // If delta < 0 and delta > -0.5, then it's a negative non-wraparound difference => return delta
 // If delta < 0 and delta < -0.5 then it's a positive difference with wraparound => return delta+1
 __ccmram f32 circular_delta(f32 delta) {
-    f32 wrap_adj = roundf(delta); // Delta < -0.5 => -1, -0.5 < delta < 0.5 => 0, 0.5 < delta => 1
+    // rint_f32 (one vcvtr), not roundf (libm call on FPv4-SP). Tie-break differs
+    // (nearest-even vs ties-away) but only matters at exactly ±0.5, i.e. a
+    // half-turn-per-tick step — far beyond any real encoder delta.
+    f32 wrap_adj = rint_f32(delta); // Delta < -0.5 => -1, -0.5 < delta < 0.5 => 0, 0.5 < delta => 1
     return delta - wrap_adj;
 }
 

@@ -301,7 +301,7 @@ static bool fit_sample(u32 i, f32 za, f32 zb, f32 zc, f32 off_used, f32 dir,
     f32 theta = wrap_pm_pi(erad * (pos - off_used)) * dir; // mirror encoder_get_phase()
     f32 we = erad * dir * om;
 
-    sincos_t sc = sincos_f32(theta);
+    sincos_t sc = sincos_cmath(theta); // cmath, not sincos_f32: fit results get burned to flash — keep full f32 precision independent of the runtime backend (and off the single-context CORDIC)
     f32 vd = valpha * sc.cos + vbeta * sc.sin; // mirror park_transform()
     f32 vq = vbeta * sc.cos - valpha * sc.sin;
     f32 sgn = (we >= 0.f) ? 1.f : -1.f;
@@ -332,7 +332,7 @@ static bool backemf_fit_and_apply() {
     u32 nf = 0, nr = 0;
     for (u32 i = 0; i < n; i++) {
         if (!fit_sample(i, za, zb, zc, off_used, dir, &d, &we)) continue;
-        sincos_t sc = sincos_f32(d);
+        sincos_t sc = sincos_cmath(d);
         ssin += sc.sin; scos += sc.cos;
         if (we >= 0.f) nf++; else nr++;
     }
@@ -408,7 +408,7 @@ static bool backemf_fit_and_apply() {
             for (u32 h = 0; h < BACKEMF_LUT_MAX_HARMONIC; h++) {
                 f32 a = 0.f, b = 0.f;
                 for (u32 i = 0; i < ENC_LUT_N; i++) {
-                    sincos_t sc = sincos_f32(2.f * M_PI_f32 * (f32) (h + 1u) * (f32) i / (f32) ENC_LUT_N);
+                    sincos_t sc = sincos_cmath(2.f * M_PI_f32 * (f32) (h + 1u) * (f32) i / (f32) ENC_LUT_N);
                     a += lut_table[i] * sc.cos;
                     b += lut_table[i] * sc.sin;
                 }
@@ -418,7 +418,7 @@ static bool backemf_fit_and_apply() {
             for (u32 i = 0; i < ENC_LUT_N; i++) {
                 f32 v = 0.f;
                 for (u32 h = 0; h < BACKEMF_LUT_MAX_HARMONIC; h++) {
-                    sincos_t sc = sincos_f32(2.f * M_PI_f32 * (f32) (h + 1u) * (f32) i / (f32) ENC_LUT_N);
+                    sincos_t sc = sincos_cmath(2.f * M_PI_f32 * (f32) (h + 1u) * (f32) i / (f32) ENC_LUT_N);
                     v += ak[h] * sc.cos + bk[h] * sc.sin;
                 }
                 lut_table[i] = v;
@@ -478,10 +478,10 @@ static bool backemf_fit_and_apply() {
             f32 thp = wrap_pm_pi(erad * (pos - off_new)) * dir;
             f32 wes = erad * dir * om;
 
-            sincos_t sct = sincos_f32(thp);
+            sincos_t sct = sincos_cmath(thp);
             f32 xd = (valpha * sct.cos + vbeta * sct.sin) / wes;  // e_d/omega [counts*s/rad]
             f32 xq = (vbeta * sct.cos - valpha * sct.sin) / wes;
-            sincos_t sc6 = sincos_f32(wrap_pm_pi(6.f * thp));
+            sincos_t sc6 = sincos_cmath(wrap_pm_pi(6.f * thp));
 
             Sxd += xd; Sxq += xq; Sc += sc6.cos; Ss += sc6.sin;
             Sxdc += xd * sc6.cos; Sxds += xd * sc6.sin;
