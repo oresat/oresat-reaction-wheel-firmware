@@ -35,6 +35,45 @@
 #include "crash_record.h"
 
 void iwdg_foreground_alive(void); // Core/Src/iwdg.c — foreground heartbeat for the IWDG gate
+void fault_record_and_reset(u32 kind, u32 *stack_frame); // Core/Src/stm32g4xx_it.c
+
+// ===== CCM SEU scrub =====
+// Optimized builds run the entire fast loop — FOC, SVM, the trips themselves — from CCM SRAM,
+// which has no parity as configured. Flash ECC can't see the code after the boot copy, so a
+// radiation upset in CCM persists until reboot, silently corrupting live control code
+// (flight-review RE-7). The pristine image sits at the flash LMA (ECC-protected): CRC both
+// with the hardware CRC unit (~2200 words, tens of µs) and reboot through the startup copy
+// loop on mismatch. Comparing against the LMA each pass (not a boot-time golden) also catches
+// flash-side rot: single-bit flash errors are ECC-corrected to a stable value, double-bit
+// raises the (now-handled) NMI.
+extern u32 _sccmram, _eccmram, _siccmram; // linker: CCM VMA start/end, flash LMA start
+
+static u32 hw_crc32_words(const u32 *data, u32 n_words) {
+    CRC->CR = CRC_CR_RESET;
+    for (u32 i = 0; i < n_words; i++)
+        CRC->DR = data[i];
+    return CRC->DR;
+}
+
+static void ccm_scrub_run() {
+    static u32 last_scrub_ms = 0;
+    u32 now = HAL_GetTick();
+    if (now - last_scrub_ms < 5000u)
+        return;
+    last_scrub_ms = now;
+
+    u32 n_words = ((u32) &_eccmram - (u32) &_sccmram) / 4u;
+    if (n_words == 0u)
+        return;
+    u32 crc_ccm = hw_crc32_words((const u32 *) &_sccmram, n_words);
+    u32 crc_flash = hw_crc32_words((const u32 *) &_siccmram, n_words);
+    if (crc_ccm != crc_flash) {
+        printf("CCM SCRUB MISMATCH: ccm 0x%08lx flash 0x%08lx — rebooting to re-copy\r\n",
+               (unsigned long) crc_ccm, (unsigned long) crc_flash);
+        console_flush();
+        fault_record_and_reset(CRASH_KIND_CCM_SCRUB, NULL); // bridge off + breadcrumb + reset
+    }
+}
 
 bool run_state(fsm_state_t state) {
     printf("Starting %s\r\n", state_names[state].string);
@@ -79,6 +118,8 @@ __fn_noreturn void app_main() {
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+    __HAL_RCC_CRC_CLK_ENABLE(); // hardware CRC unit — used by the CCM SEU scrub
 
     __maybe_unused volatile u32 n = MAGIC_NUMBER;
 
@@ -352,6 +393,7 @@ __fn_noreturn void app_main() {
         canopen_process();
         process_sdo_vals();
         fsm_run_pending_calstore_op(); // blocking flash ops live here, not in the FSM ISR
+        ccm_scrub_run(); // every 5 s: CCM-resident control code vs its flash copy
 
         //if (HAL_GetTick() - t0 > 1) {
         //    set_open_loop_current_setpoint(
