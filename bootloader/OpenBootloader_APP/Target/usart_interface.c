@@ -112,6 +112,16 @@ uint8_t OPENBL_USART_ProtocolDetection(void) {
         detected = 1;
     }
     else {
+        /* A failed measurement (garbage first byte: plug-in glitch, ground bounce, wrong
+           baud) latches ABRE, and nothing ever re-arms the engine -- the DFU would stay
+           deaf to every later 0x7F sync until the next reset. ABRRQ resets ABRF+ABRE and
+           requests a fresh measurement on the next received frame (RM0440 USART_RQR);
+           flush RX so a later detection doesn't read the junk byte instead of the sync. */
+        if ((USARTx->ISR & LL_USART_ISR_ABRE) != 0) {
+            LL_USART_RequestAutoBaudRate(USARTx);
+            LL_USART_RequestRxDataFlush(USARTx);
+        }
+
         detected = 0;
     }
 
