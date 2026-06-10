@@ -11,6 +11,15 @@
 #define SINCOS_FNCS_USE_CORDIC
 //#define SINCOS_FNCS_USE_CMATH
 
+// NaN/Inf test by bit pattern (exponent all-ones). The obvious float forms (`x != x`, negated
+// range compares) are legally foldable under -ffinite-math-only — which -Ofast (the flight
+// build) enables — into checks that PASS NaN. This one is not. Union pun is defined behavior
+// in C99+.
+static __fn_inline bool f32_finite_bits(f32 x) {
+    union { f32 f; u32 u; } pun = {.f = x};
+    return (pun.u & 0x7F800000u) != 0x7F800000u;
+}
+
 
 #if defined(SINCOS_FNCS_USE_CMSIS) || defined(SINCOS_FNCS_USE_CMATH)
 #define SINCOS_FNCS_ARE_PURE
