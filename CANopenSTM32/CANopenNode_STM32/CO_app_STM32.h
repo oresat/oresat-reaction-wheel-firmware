@@ -57,6 +57,10 @@ typedef struct {
 // In order to use CANOpenSTM32, you'll have it have a canopenNodeSTM32 structure somewhere in your codes, it is usually residing in CO_app_STM32.c
 extern CANopenNodeSTM32* canopenNodeSTM32;
 
+// The CANopen object graph (created by canopen_app_init, NULL before that). Exported so the
+// application can drive the OD interface (e.g. live TPDO event-timer updates) and EMCY.
+extern CO_t* CO;
+
 
 /* This function will initialize the required CANOpen Stack objects, allocate the memory and prepare stack for communication reset*/
 int canopen_app_init(CANopenNodeSTM32* canopenSTM32);

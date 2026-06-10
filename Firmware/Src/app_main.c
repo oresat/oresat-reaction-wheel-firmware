@@ -64,6 +64,12 @@ __fn_noreturn void app_main() {
     HAL_NVIC_SetPriority(FDCAN1_IT0_IRQn, 3, 0);
     HAL_NVIC_SetPriority(FDCAN1_IT1_IRQn, 3, 0);
     HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 3, 0);
+    // dma.c (generated) leaves channels 2–5 at priority 0, tying with the fast loop — re-rank
+    // them all to match the documented ladder (HRTIM 0 > FSM 1 > CAN tick 2 > DMA/aux 3).
+    HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 3, 0);
+    HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 3, 0);
+    HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 3, 0);
+    HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 3, 0);
 
     __enable_irq();
 

@@ -408,8 +408,31 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
 
 #ifdef CO_STM32_FDCAN_Driver
 
-    err = ((FDCAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance->PSR
-          & (FDCAN_PSR_BO | FDCAN_PSR_EW | FDCAN_PSR_EP);
+    FDCAN_GlobalTypeDef* fdcan_inst =
+        ((FDCAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance;
+
+    /* Bus-off RECOVERY, polled outside the on-change gate below (PSR.BO is sticky while
+     * CCCR.INIT is set, so an edge-triggered handler runs exactly once). The M_CAN does NOT
+     * auto-recover: bus-off sets CCCR.INIT by itself and halts all bus activity until software
+     * clears it (RM0440 FDCAN: "Once INIT has been cleared by the CPU, the device then waits
+     * for 129 occurrences of Bus Idle before resuming normal operation"). The bxCAN-era
+     * comment this replaces assumed ABOM-style hardware recovery, which doesn't exist here —
+     * one transient bus fault permanently silenced the node (flight-review P1-6). */
+    static bool busoff_active = false;
+    static uint32_t busoff_t0 = 0;
+    if (fdcan_inst->PSR & FDCAN_PSR_BO) {
+        if (!busoff_active) {
+            busoff_active = true;
+            busoff_t0 = HAL_GetTick();
+        } else if (HAL_GetTick() - busoff_t0 >= 100u) { /* back-off so a hard-shorted bus isn't hammered */
+            CLEAR_BIT(fdcan_inst->CCCR, FDCAN_CCCR_INIT);
+            busoff_t0 = HAL_GetTick(); /* re-arm the back-off in case bus-off recurs immediately */
+        }
+    } else {
+        busoff_active = false;
+    }
+
+    err = fdcan_inst->PSR & (FDCAN_PSR_BO | FDCAN_PSR_EW | FDCAN_PSR_EP);
 
     if (CANmodule->errOld != err) {
 
@@ -419,7 +442,6 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
 
         if (err & FDCAN_PSR_BO) {
             status |= CO_CAN_ERRTX_BUS_OFF;
-            // In this driver we expect that the controller is automatically handling the protocol exceptions.
 
         } else {
             /* recalculate CANerrorStatus, first clear some flags */

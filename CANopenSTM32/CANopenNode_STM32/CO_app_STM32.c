@@ -215,13 +215,21 @@ canopen_app_process() {
         canopenNodeSTM32->outStatusLEDGreen = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
 
         if (reset_status == CO_RESET_COMM) {
-            /* delete objects from memory */
-            CO_CANsetConfigurationMode((void*)canopenNodeSTM32);
-            CO_delete(CO);
+            /* Re-init IN PLACE — do NOT CO_delete(CO) first: resetCommunication immediately
+             * dereferences CO and re-initializes the sub-objects, so a delete here was a
+             * use-after-free of the whole object graph on every host NMT 0x82, corrupting the
+             * newlib free list (flight-review P1-5). In-place re-init is the same path
+             * canopen_app_init itself uses. */
             log_printf("CANopenNode Reset Communication request\r\n");
             canopen_app_resetCommunication(); // Reset Communication routine
         } else if (reset_status == CO_RESET_APP) {
             log_printf("CANopenNode Device Reset\r\n");
+            /* Mirror the 0x4007 reboot path: bridge off + console tail flushed before reset
+             * (raw reset also floats the bridge, but this keeps the two paths consistent). */
+            extern void controller_disarm(void);
+            extern void console_flush(void);
+            controller_disarm();
+            console_flush();
             HAL_NVIC_SystemReset(); // Reset the STM32 Microcontroller
         }
     }

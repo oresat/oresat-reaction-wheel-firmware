@@ -137,29 +137,39 @@ typedef struct {
 } CO_storage_entry_t;
 
 /* (un)lock critical section in CO_CANsend() */
-// Why disabling the whole Interrupt
+/* Critical sections mask BASEPRI down to preempt-priority 2 instead of PRIMASK-disabling
+ * everything. The contexts that touch CANopen state are the foreground loop (CO_process, SDO
+ * server, TPDO-rate apply) and the TIM4 1 kHz tick (priority 2, TPDO pass); the FDCAN ISRs sit
+ * at 3. Masking priority >= 2 covers all of them while leaving the HRTIM fast loop (prio 0)
+ * and the FSM tick (prio 1) live — the old __disable_irq() held the 32 kHz motor ISR hostage
+ * for the whole 4-TPDO serialization pass, 10-25 µs against a 31.25 µs tick budget
+ * (flight-review P2-6). RULE: nothing at priority < 2 may touch CANopen state (the FSM tick's
+ * old comm-reset path is gone — keep it that way). __set_BASEPRI_MAX only ever tightens, so
+ * nesting is safe; the saved value restores exactly. */
+#define CO_LOCK_BASEPRI_LEVEL (2UL << (8U - __NVIC_PRIO_BITS)) /* preempt-priority 2 */
+
 #define CO_LOCK_CAN_SEND(CAN_MODULE)                                                                                   \
     do {                                                                                                               \
-        (CAN_MODULE)->primask_send = __get_PRIMASK();                                                                  \
-        __disable_irq();                                                                                               \
+        (CAN_MODULE)->primask_send = __get_BASEPRI();                                                                  \
+        __set_BASEPRI_MAX(CO_LOCK_BASEPRI_LEVEL);                                                                      \
     } while (0)
-#define CO_UNLOCK_CAN_SEND(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_send)
+#define CO_UNLOCK_CAN_SEND(CAN_MODULE) __set_BASEPRI((CAN_MODULE)->primask_send)
 
 /* (un)lock critical section in CO_errorReport() or CO_errorReset() */
 #define CO_LOCK_EMCY(CAN_MODULE)                                                                                       \
     do {                                                                                                               \
-        (CAN_MODULE)->primask_emcy = __get_PRIMASK();                                                                  \
-        __disable_irq();                                                                                               \
+        (CAN_MODULE)->primask_emcy = __get_BASEPRI();                                                                  \
+        __set_BASEPRI_MAX(CO_LOCK_BASEPRI_LEVEL);                                                                      \
     } while (0)
-#define CO_UNLOCK_EMCY(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_emcy)
+#define CO_UNLOCK_EMCY(CAN_MODULE) __set_BASEPRI((CAN_MODULE)->primask_emcy)
 
 /* (un)lock critical section when accessing Object Dictionary */
 #define CO_LOCK_OD(CAN_MODULE)                                                                                         \
     do {                                                                                                               \
-        (CAN_MODULE)->primask_od = __get_PRIMASK();                                                                    \
-        __disable_irq();                                                                                               \
+        (CAN_MODULE)->primask_od = __get_BASEPRI();                                                                    \
+        __set_BASEPRI_MAX(CO_LOCK_BASEPRI_LEVEL);                                                                      \
     } while (0)
-#define CO_UNLOCK_OD(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_od)
+#define CO_UNLOCK_OD(CAN_MODULE) __set_BASEPRI((CAN_MODULE)->primask_od)
 
 /* Synchronization between CAN receive and message processing threads. */
 #define CO_MemoryBarrier()
