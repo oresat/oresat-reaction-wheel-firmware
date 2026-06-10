@@ -138,16 +138,37 @@ void OPENBL_FLASH_JumpToAddress(uint32_t Address)
 {
   Function_Pointer jump_to_address;
 
+  /* Refuse to jump into an invalid image. Erased flash (0xFFFFFFFF vectors) or a half-written
+   * app (power loss mid-reflash) used to mean MSP = 0xFFFFFFFF, a branch to nowhere, HardFault,
+   * IWDG reset, the same jump next boot — an eternal ~512 ms reset loop that never offered DFU
+   * (flight-review P0-4). Fall into the DFU loop instead: recoverable over UART with no PB8
+   * action required. */
+  uint32_t app_sp = *(__IO uint32_t *) Address;
+  uint32_t app_pc = *(__IO uint32_t *) (Address + 4U);
+  uint32_t sp_ok = ((app_sp - 0x20000000U) <= 0x20000U);            /* top-of-stack in the 128K SRAM alias */
+  uint32_t pc_ok = ((app_pc & 1U) == 1U)                            /* Thumb bit set */
+                   && (app_pc >= Address) && (app_pc < 0x08080000U); /* inside the app image */
+  if (!sp_ok || !pc_ok)
+  {
+    extern void OpenBootloader_Init(void);          /* app_openbootloader.c */
+    extern void OpenBootloader_ProtocolDetection(void);
+    OpenBootloader_Init();
+    for (;;)
+    {
+      OpenBootloader_ProtocolDetection();
+    }
+  }
+
   /* Deinitialize all HW resources used by the Bootloader to their reset values */
   OpenBootloader_DeInit();
 
   /* Enable IRQ */
   Common_EnableIrq();
 
-  jump_to_address = (Function_Pointer)(*(__IO uint32_t *)(Address + 4U));
+  jump_to_address = (Function_Pointer)(app_pc);
 
   /* Initialize user application's stack pointer */
-  Common_SetMsp(*(__IO uint32_t *) Address);
+  Common_SetMsp(app_sp);
 
   jump_to_address();
 }

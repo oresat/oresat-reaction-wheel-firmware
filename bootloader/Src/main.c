@@ -116,7 +116,12 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  /* Start the watchdog BEFORE clock config: HAL_RCC_OscConfig timing out into Error_Handler
+   * used to hang a watchdog-less chip forever on a dead/slow-starting crystal — with the IWDG
+   * already counting it becomes a ~512 ms retry loop, and transient HSE start failures
+   * self-heal (flight-review P0-4). The IWDG runs on the always-on LSI, so this early call is
+   * safe; the original MX_IWDG_Init() below is now a harmless re-init. */
+  MX_IWDG_Init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -510,11 +515,10 @@ void System_DeInit() {
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+  /* Init failure (clock config, peripheral init). Reset instead of spinning: a reset loop
+   * retries a transient fault (slow crystal start) and stays diagnosable; the old
+   * __disable_irq()+while(1) was a permanent hang whenever the IWDG wasn't running yet. */
+  NVIC_SystemReset();
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT
