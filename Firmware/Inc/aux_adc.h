@@ -8,13 +8,14 @@
 
 // Samples at 1kHz
 
+// Field order = ADC5 regular-sequence rank order (DMA writes straight into this struct).
 typedef struct {
-    volatile u16 therm1_sns;
-    volatile u16 therm2_sns;
-    volatile u16 therm3_sns;
-    volatile u16 therm4_sns;
-    volatile u16 thermint_sns;
-    volatile u16 vvcc_sns;
+    volatile u16 therm_aux_sns;     // rank 1: CH6,  PE8  — aux/board thermistor
+    volatile u16 therm_phase_a_sns; // rank 2: CH14, PE10 — phase A thermistor
+    volatile u16 therm_phase_b_sns; // rank 3: CH15, PE11 — phase B thermistor
+    volatile u16 therm_phase_c_sns; // rank 4: CH16, PE12 — phase C thermistor
+    volatile u16 thermint_sns;      // rank 5: MCU die temperature sensor
+    volatile u16 vvcc_sns;          // rank 6: VREFINT
 } aux_adc_raw_t;
 
 /*

@@ -69,6 +69,13 @@ State transitions no longer reset the CANopen comm layer, so:
   `reserved_2` = last-fault stacked PC (0 = none).
 - TPDO2 `motor_vel` is valid in **every** state — a disarmed/coasting wheel reports real speed
   (~200 Hz foreground sampler). `motor_current`/`bus_*` remain control-states-only.
+- TPDO4 `0x4003` fields **remapped and recalibrated** (2026-06-10): `temp_1` = average of the
+  three phase thermistors (was: aux), `temp_2` = aux/board thermistor (was: phase A only;
+  phases B/C were sampled but never reported), `temp_3` = MCU die (unchanged). The external
+  thermistor curve was also fixed — the old LUT assumed a 10 k pullup / β≈4100 NTC, but the
+  board is a 3.3 k pullup with a β=3380 10 k NTC, so old values read ~20–60 °C low (≈3 °C at a
+  true 25 °C). Old telemetry from these fields should be considered garbage. Faulted-sensor
+  sentinels: open ≈ −100 °C, shorted ≈ +300 °C.
 
 ## Link layer
 
@@ -82,4 +89,5 @@ State transitions no longer reset the CANopen comm layer, so:
 
 Drop the `FSM_STATE_NONE`-nudge (unnecessary; writing 0 now aborts), default node `0x3C`,
 poll `0x4000` before setpoints, wait ~50 ms before reading `procedure_result` after 18/19/20,
-expect confirmed reboot responses, and optionally decode `0x4006` + EMCY frames.
+expect confirmed reboot responses, optionally decode `0x4006` + EMCY frames, and relabel the
+TPDO4 temp fields (phase-avg / aux / die).

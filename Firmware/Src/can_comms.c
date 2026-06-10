@@ -264,14 +264,18 @@ void update_tpdo_od_vals() {
         bus_current = get_foc_ibus();
     }
 
-    i16 therm1 = aux_adc_conv_therm_cDegC(aux_adc_last_reading_raw.therm1_sns);
-    i16 therm2 = aux_adc_conv_therm_cDegC(aux_adc_last_reading_raw.therm2_sns);
-    i16 therm3 = aux_adc_conv_thermint_cDegC(aux_adc_last_reading_raw.thermint_sns);
+    // 0x4003: temp_1 = phase A/B/C thermistor average, temp_2 = aux thermistor, temp_3 = die.
+    // Averaged after conversion — the NTC divider is nonlinear in ADC counts.
+    i16 temp_phase_avg = (i16) ((aux_adc_conv_therm_cDegC(aux_adc_last_reading_raw.therm_phase_a_sns)
+                                 + aux_adc_conv_therm_cDegC(aux_adc_last_reading_raw.therm_phase_b_sns)
+                                 + aux_adc_conv_therm_cDegC(aux_adc_last_reading_raw.therm_phase_c_sns)) / 3);
+    i16 temp_aux = (i16) aux_adc_conv_therm_cDegC(aux_adc_last_reading_raw.therm_aux_sns);
+    i16 temp_die = (i16) aux_adc_conv_thermint_cDegC(aux_adc_last_reading_raw.thermint_sns);
 
     update_control_status_od(current_state, controller_errors, procedure_result);
     update_motor_vel_current_od(motor_vel, motor_current);
     update_bus_volt_current_od(bus_current, bus_voltage);
-    update_rxw_temp_od(therm1, therm2, therm3);
+    update_rxw_temp_od(temp_phase_avg, temp_aux, temp_die);
 }
 
 /* ===== Host command ingestion: OD write extensions =====

@@ -52,7 +52,7 @@ burst promptly after a transition). Payloads are little-endian, packed in OD sub
 | TPDO1 `0x4000` | 6 | `current_state` (u8), `procedure_result` (u8), `errors` (u32) | FSM state, last `finish()` bool, `CONTROLLER_ERRORS_t` bitmask |
 | TPDO2 `0x4001` | 8 | `motor_vel` (f32), `motor_current` (f32) | encoder vel [rev/s], measured `iq` [A] |
 | TPDO3 `0x4002` | 8 | `bus_voltage` (f32), `bus_current` (f32) | Vbus [V], estimated ibus [A] |
-| TPDO4 `0x4003` | 6 | `temp_1` (i16), `temp_2` (i16), `temp_3` (i16) | thermistors 1/2 + internal, [centi-°C] |
+| TPDO4 `0x4003` | 6 | `temp_1` (i16), `temp_2` (i16), `temp_3` (i16) | phase A/B/C thermistor avg, aux thermistor, MCU die [centi-°C] |
 
 `current_state` decodes via `fsm_state_t` (see `docs/control-laws.md`); `errors` decodes via
 `CONTROLLER_ERRORS_t` (`control_ll.h`) / `STRINGIFY_CONTROLLER_ERRORS()`.
@@ -66,7 +66,12 @@ burst promptly after a transition). Payloads are little-endian, packed in OD sub
   action) until the next one runs — it is no longer clobbered by transits through IDLE. For the
   cal-store states (18/19/20) the flash op executes in the foreground a few tens of ms after the
   state bounces through; poll `procedure_result` ~50 ms after commanding.
-- TPDO4 temps are always live (`int16` hundredths of °C, 2500 = 25.00 °C).
+- TPDO4 temps are always live (`int16` hundredths of °C, 2500 = 25.00 °C). `temp_1` is the
+  average of the three motor-phase thermistors (PE10/11/12), `temp_2` the aux/board thermistor
+  (PE8), `temp_3` the MCU die sensor. A faulted external thermistor reads as an unphysical
+  sentinel rather than a plausible value: open ≈ −100 °C, shorted ≈ +300 °C (an open phase
+  thermistor therefore drags `temp_1` down by ~⅓ of the gap — a wildly cold average means
+  check the individual sensors over SWD).
 - **EMCY**: controller-error edges also emit a CANopen emergency (COB-ID `0x80 + node ID`) with
   the raw `controller_errors` bitmask in bytes 4–7, and land in the `0x1003` error history —
   faults are announced immediately even at the 5 s idle TPDO rate.
