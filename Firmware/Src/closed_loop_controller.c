@@ -1,5 +1,6 @@
 #include "closed_loop_controller.h"
 
+#include "can_comms.h"
 #include "encoder.h"
 #include "foc.h"
 
@@ -63,7 +64,13 @@ control_law_t torque_ctrl_control_law = {
 void vel_ctrl_init() {
     torque_ctrl_init();
     vel_integrator = 0;
-    vel_setpoint = 0;
+    // Bumpless (re-)arm: seed the target with the MEASURED velocity, so entering VEL_CONTROL
+    // on a spinning wheel holds speed instead of slamming a full-authority brake toward an
+    // implicit zero setpoint (5 A regen at any real speed). Source is the disarmed foreground
+    // sampler, NOT the PLL — the PLL only runs while armed, so at init time it's frozen at the
+    // last-disarm value (and reads 0 after a mid-spin reboot, exactly the case that needs the
+    // seed most). The host's setpoint overwrites this on its next SDO write.
+    vel_setpoint = get_disarmed_vel();
 }
 
 __ccmram void vel_ctrl_exec() {
@@ -111,9 +118,8 @@ control_law_t vel_ctrl_control_law = {
 static volatile f32 ramped_vel_setpoint = 0.f;
 
 void vel_ramp_ctrl_init() {
-    vel_ctrl_init();
-    set_vel_setpoint(0.f);
-    ramped_vel_setpoint = 0.f;
+    vel_ctrl_init();                    // seeds vel_setpoint with the measured velocity
+    ramped_vel_setpoint = vel_setpoint; // ramp target = current speed → no motion until commanded
 }
 
 void set_vel_ramp_setpoint(f32 _ramped_vel_setpoint) {
