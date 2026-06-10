@@ -33,7 +33,10 @@ speed. Question on the table: is switching or dead time wrong? **No** — see be
    CMP4=20768, ADROM_CREST), ~1.7 µs 4× oversample window. High speed → high modulation →
    the extreme-duty phase's switching edge marches into that window → INA296 CM kick corrupts
    that phase's reading. Rotates through phases at `6·f_e` → lumpy. → addressed by best-2-of-3
-   shunt selection (this worklog, Q2).
+   shunt selection (this worklog, Q2). **Quantified 2026-06-10** (see "Sampling window vs
+   modulation depth" below): with today's burst the clean-sampling ceiling is `|mod| ≈ 0.30`
+   (M ≈ 0.34 of the SVM linear limit); selection moved it up from 0.26, and **nothing in the
+   firmware enforces it** — the loop sails past it silently.
 
 3. **Minor / conditional:** voltage-ceiling saturation (no field weakening — `Id` hard-forced
    to 0 in `set_iq_setpoint`), empirical angle advance (`foc.c:184` `2/ENC_MEAS_FREQ`, has a
@@ -146,6 +149,97 @@ Edge cases / notes:
   history, but modulation is ~0 at arm so harmless.
 - `inverter_set_processed` (telemetry) still gets pre-reconstruction currents — left as-is.
 
+## Sampling window vs modulation depth — cause #2 quantified (2026-06-10)
+
+First-principles ceiling on how far modulation can go before the crest sample of the
+second-best phase eats INA296 CM-recovery kick. All inputs are configured/measured values
+(`adc.c`, the CMP4 calibration, the ~1 µs INA296 CM-step recovery figure); no scope needed.
+This fell out of the orbtop per-line profiling session (which also found+fixed the SPI-finish
+spin: encoder SPI was at /64 = 2.25 MHz, 13.5% of CPU spent waiting; now /16 = 9 MHz).
+
+### Model
+
+- `t_settle ≈ 1 µs`: INA296 output recovery after each PWM edge **of the measured phase**
+  (in-line shunt CM step). Nominal figure, exponential in reality — these are corruption
+  *onsets*, not cliffs.
+- ADC burst per phase: all three phase currents are **rank-1 on their own ADCs** (ADC1/2/3,
+  parallel HRTIM triggers, `adc.c`), 4× injected oversampling at (2.5 + 12.5) cycles @ 36 MHz
+  (`SYNC_PCLK_DIV4`) → `t_c = 417 ns` per conversion, burst `B = 4·t_c = 1.67 µs`, centroid
+  centered on the crest by the CMP4 calibration (docs/adc-sampling-tuning.md). The rank-2
+  phase-voltage conversions trail the burst and don't constrain it (resistive dividers, no
+  CM-kick problem; only meaningful during coast anyway).
+- Center-aligned PWM: at the sampled crest every phase sits mid-conduction-window,
+  `window_i = mag_i·T` (`T = 1/f_pwm`; `mag` = the same per-phase duty magnitude shunt
+  selection argmins on). A phase's sample is clean iff every S&H aperture lands
+  ≥ `t_settle` after that phase's last edge:
+
+      centered burst (today):  mag·T ≥ W = 2·(t_settle + B/2) = 3.67 µs
+      one-sided burst:         mag·T ≥ W = t_settle + B       = 2.67 µs
+                               (burst starts at edge + t_settle instead of straddling center)
+
+- Best-2-of-3 drops the worst phase, so the **second-smallest** mag binds. Min-max SVM worst
+  case is the sector boundary where two phases tie on the low side:
+  `mag_2nd(worst θ) = 0.5 − (√3/4)·M`, where `M = |mod_dq| / (√3/2)` = fraction of the SVM
+  linear limit (the firmware clamp is `0.99·√3/2 = 0.857`, `foc.c` mod_scalefactor).
+
+      M_max     = (0.5 − W/T) · 4/√3          (2-of-3; needing all 3: (0.5 − W/T)/0.5)
+      |mod|_max = 1 − 2·W/T                   (same thing in firmware mod_dq units — use
+                                               this form for a guard clamp)
+
+### Ceilings
+
+| Config | 96 kHz (T = 10.42 µs) | 192 kHz (T = 5.21 µs) |
+|---|---|---|
+| **Today** (×4 OS, centered burst) | **M = 0.34 → \|mod\| ≈ 0.30** | **infeasible** (W = 0.70·T) |
+| Today, selection OFF (need all 3) | 0.30 → \|mod\| 0.26 | infeasible |
+| ×4 OS, one-sided burst | 0.56 → \|mod\| 0.49 | infeasible (misses by ~60 ns) |
+| ×2 OS, one-sided | 0.75 → \|mod\| 0.65 | 0.34 → \|mod\| 0.30 |
+| ×4 OS one-sided @ 60 MHz ADC clock | 0.71 | 0.27 |
+| Dual-edge sampling (crest **and** valley) | ~0.98 (duty-clamp limit) | ~0.98 (needs ×2 OS or 60 MHz) |
+
+Duty clamp (`PWM_CNTR_MARGIN` = 0.8%) caps M at 0.984 regardless. The model is conservative
+by ~one `t_conv` (only the S&H aperture must land clean; the final conversion may spill past
+the edge) — that technically flips the 192k/×4/one-sided cell to "M ≈ 0.13", useless either way.
+
+### What this says
+
+- **Cause #2 now has a number and a falsifiable signature.** Above `|mod| ≈ 0.30` today, the
+  *kept* second-best phase samples CM kick around every other sector boundary — silently.
+  If lumpiness onset tracks `|mod| ≈ 0.30` (any RPM/Vbus combo that reaches it), it's cause #2;
+  if it tracks updates-per-rev, it's cause #1. Captured `mod_d/mod_q` answers this with
+  existing tools — same capture that answers the saturation open question (0.857 clamp).
+- **Shunt selection bought +15.5% modulation headroom** (|mod| 0.26 → 0.30; the 2/√3 geometry
+  factor) plus graceful degradation. Now quantified, was hand-wavy.
+- **`t_settle` dominates, not the ADC.** An infinitely fast ADC still needs W = 2 µs centered /
+  1 µs one-sided. Burst *placement* is the cheap lever: one-siding the burst is just an
+  `ADC_TRIG_CMP4_TICKS` retune (+~0.5 µs ≈ +2300 counts at the design point) and takes 96 kHz
+  from 0.34 → 0.56 at zero hardware cost. Cost: samples sit up to ~0.5 µs off the ripple
+  midpoint → bias = zero-vector freewheel slope `−(e + iR)/L · δ` — systematic, speed-dependent,
+  correctable (and small at low speed where high modulation isn't happening anyway... except
+  during locked-rotor torque. Think before defaulting it on).
+- **192 kHz PWM is sampling-hostile**: today's burst doesn't fit at *any* modulation (window at
+  mag = 0.5 is 2.60 µs < 3.67 µs). Every viable 192k route costs something: ×2 OS one-sided
+  (lands back at today's 0.30 ceiling), dual-edge sampling (low-mag phases at one extreme,
+  high-mag at the other — second trigger + JSQR gymnastics + 2× CMRR exposure), or an observer
+  bridging sparse clean samples. Cause #1 is the active theory and phasor stepping at 96 kHz
+  attacks it with zero sampling cost → **192 kHz not recommended** unless something measured
+  later says ripple amplitude is the residual problem.
+- **Hybrid estimator** (encoder + R/L/bemf current model, corrected on window-valid samples):
+  the right tool *if* we ever do 192 kHz or chase past ~0.56 at 96 kHz. Prereq: feed it
+  measured R/L — the shuntsel fit already showed real L ≈ 25–35% above
+  `HARDCODE_PHASE_INDUCTANCE`, and an observer inherits model error as bias.
+
+### TODO hooks
+- [ ] **Modulation guard**: clamp (or at minimum count violations of) `|mod_dq| ≤ 1 − 2·W/T`
+      next to the existing 0.857 clamp in `foc.c` — config-derived constant, removes a silent
+      flight failure mode. Decide clamp-vs-count based on whether wheel torque authority at
+      high speed matters more than current-loop fidelity.
+- [ ] Bench: locate the corruption onset (foc_capture sweep vs `|mod|`; predicted ≈ 0.30) —
+      doubles as the cause-#1-vs-#2 discriminator above.
+- [ ] If more clean-sampling range is wanted before/with phasor stepping: one-sided burst
+      experiment (`ADC_TRIG_CMP4_TICKS` shift + cmp4 re-sweep to confirm placement; sanity
+      re-run of the shuntsel-delay measurement — sub-tick shift shouldn't move K, verify).
+
 ## TODO / NEXT
 
 ### Q1 — per-PWM `inv_park` + `SVM` (the proper fix for cause #1)
@@ -188,7 +282,10 @@ first, gate it, measure CPU.
 
 ## OPEN QUESTIONS (answer these to focus the work)
 - **At what RPM / bus voltage does lumpiness start?** Tells us cause #1 (update-rate) vs #2
-  (sampling) vs #3 (saturation). Still unanswered.
+  (sampling) vs #3 (saturation). Still unanswered. (The window analysis above sharpens this:
+  cause #2 predicts onset at `|mod| ≈ 0.30` independent of how RPM/Vbus got there; cause #1
+  predicts onset at a updates-per-rev count independent of modulation. One captured sweep
+  separates them.)
 - Q2-A pipeline alignment (above) — the critical one for shunt selection.
 - Are we voltage-saturated at the onset speed? Compare captured `mod_d/mod_q` magnitude vs the
   0.857 SVM limit (`foc.c:162`). If yes → fundamental (more bus / field weakening), not these fixes.
