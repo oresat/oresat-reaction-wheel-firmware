@@ -563,10 +563,19 @@ with LUT on" — correct):
   deliberately LUT-independent (recomputes from raw), so re-running 21 canNOT validate the
   applied table — only this A/B can.
 
+**VALIDATED 2026-06-09 — LUT A/B on the bench (nolut/ vs lut/ captures @ 50 rev/s):**
+angle residual RMS 0.77° → **0.10° elec (8×)**, Iq ripple 343 → **105 mA (3.3×)**, the 1/rev
+eccentricity velocity swing eliminated, **no 36/rev injection** (harmonic limit verified), 6f_e
+Iq line unchanged (dead-time distortion, pre-existing). **Application sign empirically
+confirmed** — a flipped sign would have doubled the residual instead. (The initial "more ripple"
+impression was unmasking: removing the dominant slow 1/rev swell makes the same-size
+high-frequency hash visually prominent.) Remaining nuance: the 8 ms window can't resolve
+1–4 cyc/rev at 50 rev/s; a high-speed A/B pair (150–300 rev/s → 1–2.5 revs/window) would show
+the 1/rev line directly and validate flight-speed playback.
+
 **Still TODO:**
-- **Bench validation of the whole self-cal chain** (runbook above), incl. one offline-vs-on-board
-  fit cross-check via the SWD tooling, the MA732 FW=51 first-boot NVM write (re-check σ and
-  offset stability at the new filter setting), and the LUT A/B ripple check above.
+- High-speed LUT A/B pair (above); full-runbook end-to-end validation; one offline-vs-on-board
+  fit cross-check via the SWD tooling; MA732 FW=51 σ recheck.
 - **STANDING TODO (user-requested): trapezoidal back-EMF → torque-ripple compensation.** First
   step is free: extract 5th/7th harmonic content from the existing coast captures (fit-script
   `--harmonics` mode). Mitigation = dq 6th-harmonic current shaping; at flight speed 6f_e
