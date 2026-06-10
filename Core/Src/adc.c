@@ -58,7 +58,11 @@ void MX_ADC1_Init(void)
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.GainCompensation = 0;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  /* MANUAL EDIT (not from .ioc): SCAN_ENABLE so the HAL honors injected rank 2 (PHA_V below).
+     With SCAN_DISABLE, HAL_ADCEx_InjectedConfigChannel silently discards InjectedNbrOfConversion
+     and any rank > 1. Regular group unaffected (NbrOfConversion=1 -> SQR1.L=0 either way).
+     NOTE: a CubeMX regen reverts this; see docs/backemf-coastdown-implementation.md §3. */
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
@@ -103,7 +107,7 @@ void MX_ADC1_Init(void)
   sConfigInjected.InjectedSingleDiff = ADC_SINGLE_ENDED;
   sConfigInjected.InjectedOffsetNumber = ADC_OFFSET_NONE;
   sConfigInjected.InjectedOffset = 0;
-  sConfigInjected.InjectedNbrOfConversion = 1;
+  sConfigInjected.InjectedNbrOfConversion = 2; /* MANUAL EDIT: was 1; rank 2 = PHA_V (below) */
   sConfigInjected.InjectedDiscontinuousConvMode = DISABLE;
   sConfigInjected.AutoInjectedConv = DISABLE;
   sConfigInjected.QueueInjectedContext = DISABLE;
@@ -117,6 +121,22 @@ void MX_ADC1_Init(void)
   sConfigInjected.InjecOversamplingMode = ENABLE;
   sConfigInjected.InjecOversampling.Ratio = ADC_OVERSAMPLING_RATIO_4;
   sConfigInjected.InjecOversampling.RightBitShift = ADC_RIGHTBITSHIFT_2;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* MANUAL EDIT (not from .ioc): injected rank 2 = PHA_V phase-voltage divider (PA2, ADC1_IN3),
+     read from JDR1->JDR2 by inverter_get_phase_voltages_raw(). For back-EMF coast-down cal —
+     meaningful only while the bridge is hi-Z (no switching); during normal PWM it's chop. Longer
+     sample time than the shunt rank: divider is ~kΩ-source (matches VBUS_V's 47.5cy precedent).
+     Sequence timing with 4x OVSR: 4*(2.5+12.5) + 4*(47.5+12.5) = 300 ADC cyc @ 36 MHz = 8.3 µs,
+     fits inside the 10.4 µs (96 kHz) trigger period. With SCAN_ENABLE the HAL builds the JSQR
+     context across BOTH calls and commits it on this (last) one — both calls must agree on
+     InjectedNbrOfConversion/trigger. NOTE: a CubeMX regen reverts this.
+     See docs/backemf-coastdown-implementation.md §3. */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_3;
+  sConfigInjected.InjectedRank = ADC_INJECTED_RANK_2;
+  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_47CYCLES_5;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
   {
     Error_Handler();
@@ -148,7 +168,8 @@ void MX_ADC2_Init(void)
   hadc2.Init.Resolution = ADC_RESOLUTION_12B;
   hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc2.Init.GainCompensation = 0;
-  hadc2.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  /* MANUAL EDIT: SCAN_ENABLE for injected rank 2 (PHC_V). See ADC1 note above. */
+  hadc2.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc2.Init.LowPowerAutoWait = DISABLE;
   hadc2.Init.ContinuousConvMode = DISABLE;
@@ -185,7 +206,7 @@ void MX_ADC2_Init(void)
   sConfigInjected.InjectedSingleDiff = ADC_SINGLE_ENDED;
   sConfigInjected.InjectedOffsetNumber = ADC_OFFSET_NONE;
   sConfigInjected.InjectedOffset = 0;
-  sConfigInjected.InjectedNbrOfConversion = 1;
+  sConfigInjected.InjectedNbrOfConversion = 2; /* MANUAL EDIT: was 1; rank 2 = PHC_V (below) */
   sConfigInjected.InjectedDiscontinuousConvMode = DISABLE;
   sConfigInjected.AutoInjectedConv = DISABLE;
   sConfigInjected.QueueInjectedContext = DISABLE;
@@ -199,6 +220,16 @@ void MX_ADC2_Init(void)
   sConfigInjected.InjecOversamplingMode = ENABLE;
   sConfigInjected.InjecOversampling.Ratio = ADC_OVERSAMPLING_RATIO_4;
   sConfigInjected.InjecOversampling.RightBitShift = ADC_RIGHTBITSHIFT_2;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc2, &sConfigInjected) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* MANUAL EDIT (not from .ioc): injected rank 2 = PHC_V phase-voltage divider (PA7, ADC2_IN4).
+     NOTE: ADC2 is phase C (see periphmap.h PHASE_C_ADC_HANDLE). Full rationale at the ADC1
+     rank-2 block above. NOTE: a CubeMX regen reverts this. */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_4;
+  sConfigInjected.InjectedRank = ADC_INJECTED_RANK_2;
+  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_47CYCLES_5;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc2, &sConfigInjected) != HAL_OK)
   {
     Error_Handler();
@@ -231,7 +262,8 @@ void MX_ADC3_Init(void)
   hadc3.Init.Resolution = ADC_RESOLUTION_12B;
   hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc3.Init.GainCompensation = 0;
-  hadc3.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  /* MANUAL EDIT: SCAN_ENABLE for injected rank 2 (PHB_V). See ADC1 note above. */
+  hadc3.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc3.Init.LowPowerAutoWait = DISABLE;
   hadc3.Init.ContinuousConvMode = DISABLE;
@@ -276,7 +308,7 @@ void MX_ADC3_Init(void)
   sConfigInjected.InjectedSingleDiff = ADC_SINGLE_ENDED;
   sConfigInjected.InjectedOffsetNumber = ADC_OFFSET_NONE;
   sConfigInjected.InjectedOffset = 0;
-  sConfigInjected.InjectedNbrOfConversion = 1;
+  sConfigInjected.InjectedNbrOfConversion = 2; /* MANUAL EDIT: was 1; rank 2 = PHB_V (below) */
   sConfigInjected.InjectedDiscontinuousConvMode = DISABLE;
   sConfigInjected.AutoInjectedConv = DISABLE;
   sConfigInjected.QueueInjectedContext = DISABLE;
@@ -290,6 +322,16 @@ void MX_ADC3_Init(void)
   sConfigInjected.InjecOversamplingMode = ENABLE;
   sConfigInjected.InjecOversampling.Ratio = ADC_OVERSAMPLING_RATIO_4;
   sConfigInjected.InjecOversampling.RightBitShift = ADC_RIGHTBITSHIFT_2;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc3, &sConfigInjected) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* MANUAL EDIT (not from .ioc): injected rank 2 = PHB_V phase-voltage divider (PE9, ADC3_IN2).
+     NOTE: ADC3 is phase B (see periphmap.h PHASE_B_ADC_HANDLE). Full rationale at the ADC1
+     rank-2 block above. NOTE: a CubeMX regen reverts this. */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_2;
+  sConfigInjected.InjectedRank = ADC_INJECTED_RANK_2;
+  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_47CYCLES_5;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc3, &sConfigInjected) != HAL_OK)
   {
     Error_Handler();

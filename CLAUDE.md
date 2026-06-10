@@ -11,25 +11,32 @@ OreSat ACS (Attitude Control System) reaction-wheel motor controller firmware. B
 The project is dual-managed: STM32CubeIDE (`.cproject`, `.mxproject`) and CMake (`CMakeLists.txt`). Most local development uses the CMake out-of-tree build directories already on disk (CLion-style):
 
 ```
-cmake-build-debug          # -Og -g (default)
+cmake-build-relwithdebinfo # -Ofast -g — BENCH DEFAULT (build.sh/flash.sh/dump tools default here)
+cmake-build-debug          # -Og -g — lint flag source; CANNOT run the fast loop armed (below)
 cmake-build-release        # -Ofast
-cmake-build-relwithdebinfo # -Ofast -g
 cmake-build-minsizerel     # -Os
 ```
 
+**At the 32 kHz control rate the armed fast loop does not fit a Debug build** (`-Og`,
+flash-resident; measured 2026-06-09: optimized+CCM tick = 72% of the 31.25 µs budget, Debug
+is at/over 100%) — the priority-0 ISR saturates, SysTick (the sole IWDG feeder) starves, and
+the board watchdog-reboots ~512 ms after arming. Bench on RelWithDebInfo; use Debug only for
+unarmed work or after dropping the loop to 16 kHz (`PWM_CYCLES_PER_ISR` + `RepetitionCounter`).
+Keep `cmake-build-debug` configured anyway — `./lint.sh` reads its compile flags.
+
 Build:
 ```bash
-cmake --build cmake-build-debug -j
+cmake --build cmake-build-relwithdebinfo -j
 # or, if reconfiguring:
-cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
-cmake --build cmake-build-debug -j
+cmake -S . -B cmake-build-relwithdebinfo -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build cmake-build-relwithdebinfo -j
 ```
 
 Build artifacts: `cmake-build-*/oresat-acs-fw-v8.{elf,hex,bin,map}`. Toolchain is `arm-none-eabi-gcc` (must be on PATH). Linker script: `STM32G474VEHX_FLASH.ld`.
 
 Flash via OpenOCD with the bundled config (uses ST-Link SWD):
 ```bash
-openocd -f st_nucleo_g4.cfg -c "program cmake-build-debug/oresat-acs-fw-v8.elf verify reset exit"
+openocd -f st_nucleo_g4.cfg -c "program cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf verify reset exit"
 ```
 
 ### Two-image build/flash (bootloader + app)
@@ -68,10 +75,12 @@ A gitignored root `compile_commands.json` symlink → `cmake-build-debug/` plus 
 - `docs/control-laws.md` — per-FSM-state cheat sheet (setpoint meaning, completion/error conditions, stubs/gotchas).
 - `docs/control-cycle.md` — end-to-end trace of one 16 kHz fast-loop tick, interrupt priorities, and the producer/consumer flag machine.
 - `docs/can-interface.md` — CANopen host interface (COB-IDs per wheel, TPDO wire format, SDO commands, example sequences).
-- `docs/foc_capture.md` — per-tick FOC inner-loop snapshot mechanism for offline analysis (arm via SDO `0x4006:01`, dump via `tools/foc_capture_dump.sh`).
+- `docs/foc_capture.md` — per-tick FOC inner-loop snapshot mechanism for offline analysis (arm/stop/dump/decode via `tools/foc_capture.sh`, SWD-only — no CAN surface).
 - `docs/footguns.md` — cross-cutting runtime/concurrency/hardware traps (blocking printf in the FSM ISR, assumed-good encoder read, dead-time naming, option-byte reflash, etc.).
 - `docs/bootloader-integration.md` — how this app boots behind the `bootloader/` image: memory map, the `0x08008000` relink + `SCB->VTOR` relocation, option bytes, IWDG continuity.
 - `docs/ccmram.md` — CCM SRAM hot-path placement: the fast loop runs from `0x1000_0000` in optimized builds (`__ccmram`/`CCMRAM_HOT_FUNCS`), Debug stays in flash, debug CCM with hardware breakpoints.
+- `docs/adc-sampling-tuning.md` — scope-free calibration of the ADC trigger position (`ADC_TRIG_CMP4_TICKS`): CMP4-sweep equivalent-time sampling over SWD (`tools/cmp4_sweep.sh` + `cmp4_sweep_analyze.py`).
+- `docs/shuntsel-delay-calibration.md` — scope-free measurement of the duty→sample pipeline lag (`SHUNT_SEL_DELAY_TICKS`, worklog Q2-A): torque-step + foc_capture (`tools/shuntsel_delay.sh` + `shuntsel_delay_analyze.py`).
 
 Consult these before changing FSM/control-law, the fast loop, or CAN/OD code.
 
