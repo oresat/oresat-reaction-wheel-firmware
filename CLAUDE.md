@@ -56,9 +56,9 @@ images at once:
 commands above still work for app-only build/flash. See the **Bootloader** note
 under "Conventions" and `docs/bootloader-integration.md`.
 
-### CMake regeneration caveat
+### CMake/CubeMX regeneration is RETIRED (2026-06 decision)
 
-`CMakeLists.txt` is auto-generated from `CMakeLists_template.txt` by STM32CubeIDE — the file's first line says "DO NOT CHANGE". Edit the template (or the `.ioc`) and let CubeIDE regenerate; manual edits to `CMakeLists.txt` will be overwritten. Same for files under `Core/` — CubeMX regenerates them from `oresat-acs-fw-v8.ioc`, so keep custom code inside the `/* USER CODE BEGIN ... */ ... /* USER CODE END ... */` markers.
+`CMakeLists.txt`, `Core/`, and `OD/OD.c` were historically auto-generated (CubeIDE / CubeMX / CANopenEditor). **Regeneration is permanently retired for this repo** — too much hand-owned state would be clobbered. The generated files now carry deliberate manual edits *outside* the USER CODE markers (marked `/* manual edit */`: `fdcan.c` retransmission/SJW/IRQ priorities, `tim.c` prescalers, `stm32g4xx_it.c` fault handlers, `OD.c` 0x1014). Treat every file in the tree as hand-owned; do not run CubeMX/CubeIDE/CANopenEditor regeneration.
 
 There are no tests in this project — it is target firmware. "Build passes" is the primary correctness signal; behavior is verified on hardware.
 
@@ -73,7 +73,7 @@ A gitignored root `compile_commands.json` symlink → `cmake-build-debug/` plus 
 ### Docs
 
 - `docs/control-laws.md` — per-FSM-state cheat sheet (setpoint meaning, completion/error conditions, stubs/gotchas).
-- `docs/control-cycle.md` — end-to-end trace of one 16 kHz fast-loop tick, interrupt priorities, and the producer/consumer flag machine.
+- `docs/control-cycle.md` — end-to-end trace of one 32 kHz fast-loop tick, interrupt priorities, and the producer/consumer flag machine.
 - `docs/can-interface.md` — CANopen host interface (COB-IDs per wheel, TPDO wire format, SDO commands, example sequences).
 - `docs/foc_capture.md` — per-tick FOC inner-loop snapshot mechanism for offline analysis (arm/stop/dump/decode via `tools/foc_capture.sh`, SWD-only — no CAN surface).
 - `docs/footguns.md` — cross-cutting runtime/concurrency/hardware traps (blocking printf in the FSM ISR, assumed-good encoder read, dead-time naming, option-byte reflash, etc.).
@@ -82,19 +82,22 @@ A gitignored root `compile_commands.json` symlink → `cmake-build-debug/` plus 
 - `docs/adc-sampling-tuning.md` — scope-free calibration of the ADC trigger position (`ADC_TRIG_CMP4_TICKS`): CMP4-sweep equivalent-time sampling over SWD (`tools/cmp4_sweep.sh` + `cmp4_sweep_analyze.py`).
 - `docs/shuntsel-delay-calibration.md` — scope-free measurement of the duty→sample pipeline lag (`SHUNT_SEL_DELAY_TICKS`, worklog Q2-A): torque-step + foc_capture (`tools/shuntsel_delay.sh` + `shuntsel_delay_analyze.py`).
 - `docs/swo-pc-sampling.md` — statistical CPU profiler: hardware DWT PC sampling over SWO, live per-function "top" via `tools/orbtop.sh` (orbuculum submodule at `tools/orbuculum`). Zero firmware cost, safe while armed; all config poked from OpenOCD.
+- `docs/flight-review-2026-06.md` — full-codebase flight-readiness review (2026-06-09, vs. commit `ebdba3d`): verified P0/P1 findings (node-ID strap defect, unreachable OV trip, ECC-NMI boot loop, bootloader no-validity-check jump, FSM error ping-pong, edge-trigger SDO trap table), what was checked and found clean, and a prioritized fix punch list (statuses + bench-verification checklist at the bottom). Consult before touching the FSM ladder, command ingestion, fault handlers, cal_store, or the bootloader — and update its punch list as findings are fixed.
+- `docs/review-fixes-change-log.md` — what the 2026-06-10 overnight fix session actually changed, grouped as commit-sized units with files + behavior deltas; includes the known-open list. The companion to the review's punch list.
+- `docs/can-protocol-change-log.md` — host-facing summary of the 2026-06-10 bus-behavior changes (command semantics, aborts, EMCY, timing) + the can_console update list.
 
 Consult these before changing FSM/control-law, the fast loop, or CAN/OD code.
 
 ## Source layout
 
-- `Core/{Inc,Src}` — CubeMX-generated HAL/LL peripheral init and ISRs (`main.c`, `stm32g4xx_it.c`, per-peripheral `*.c`). Treat as generated.
+- `Core/{Inc,Src}` — originally CubeMX-generated HAL/LL peripheral init and ISRs (`main.c`, `stm32g4xx_it.c`, per-peripheral `*.c`) — **now hand-owned** (regen retired; carries manual flight fixes).
 - `Firmware/{Inc,Src}` — application code (everything custom lives here). Entry point is `app_main()`, called from `main()` after HAL init.
 - `Drivers/STM32G4xx_HAL_Driver` — vendor HAL/LL.
 - `Drivers/CMSIS` — Cortex-M / device headers.
 - `Drivers/libtrace` — trace-port helpers.
 - `DSP/` — CMSIS-DSP (used for filters, controllers, fixed-point math via `dsp/controller_functions.h`).
 - `CANopenSTM32/CANopenNode` + `CANopenNode_STM32` — vendored CANopenNode stack and STM32 driver glue. Build excludes `CANopenNode/example` and `CANopenNode_STM32/OD*`.
-- `OD/{OD.c,OD.h}` — Object Dictionary, **auto-generated** from `CANopenNode_STM32/DS301_profile.eds` (via CANopenEditor; `.xpd` is the editor project). Don't hand-edit — regenerate from the EDS. In practice this is rarely touched; the application-specific `0x4000`–`0x4007` block is already defined.
+- `OD/{OD.c,OD.h}` — Object Dictionary, originally generated from `CANopenNode_STM32/DS301_profile.eds` (CANopenEditor; `.xpd` is the editor project) — **now hand-owned** (regen retired; carries a manual 0x1014 EMCY fix). The application-specific `0x4000`–`0x4007` block is already defined.
 - `oresat-acs-fw-v8.ioc` — STM32CubeMX project. Pin assignments, clock tree, peripheral parameter init.
 - `stm32g474.svd` — register definitions for debug.
 - `resources/` — STM32G474 datasheet, STM32G4 reference manual, HRTIM cookbook (PDFs), with companion `.toc.md` outlines and `.txt` text dumps. See `resources/INDEX.md` for the query workflow.
@@ -123,7 +126,7 @@ For each PDF there is a `<name>.toc.md` (markdown outline with PDF page numbers)
 
 The system is structured around three independent ISR domains plus a foreground loop. Understanding which domain code runs in is essential before changing it.
 
-1. **Fast control loop — HRTIM1 repetition ISR @ 16 kHz** (`PWM_SWITCHING_HZ=96000` / `PWM_CYCLES_PER_ISR=6`).
+1. **Fast control loop — HRTIM1 repetition ISR @ 32 kHz** (`PWM_SWITCHING_HZ=96000` / `PWM_CYCLES_PER_ISR=3`).
    Entry: `hrtim_repetition_callback()` in `Firmware/Src/control_ll.c`. Each tick:
    1. Kick off MA702 SPI angle read (non-blocking start via direct-register macro `__MA702_FAST_ANGLE_READ_START()`).
    2. Run `adc_update_callback()` — reads injected ADC (3-shunt phase currents + Vbus), applies offset cal & shunt-amp gain, runs over/undervoltage/overcurrent trips.
@@ -139,9 +142,9 @@ The system is structured around three independent ISR domains plus a foreground 
    Calls `canopen_1khz_isr()` → `canopen_app_interrupt()` (CANopenNode internals).
 
 4. **Foreground loop — `app_main()`'s `while(1)`** (`HAL_Delay(1)`-paced).
-   Calls `update_tpdo_od_vals()`, `canopen_process()` (NMT/SDO/PDO processing), `process_sdo_vals()` (act on host writes, e.g. requested state, setpoints, reboot).
+   Strokes the IWDG liveness gate, pumps the console ring, calls `update_tpdo_od_vals()`, `canopen_process()` (NMT/SDO/PDO processing + pending-TPDO-rate apply + EMCY edges), `process_sdo_vals()` (deferred reboot), `fsm_run_pending_calstore_op()` (flash save/erase/restore parked by the FSM), and the 5 s CCM SEU scrub. Host command *ingestion* happens in OD write extensions (`can_comms.c`) inside the SDO server, not by polling.
 
-`TIM7` triggers the auxiliary ADC (thermistors, VVCC sense). `TIM15` is the systick handle. See `Firmware/Inc/periphmap.h` for the canonical handle-to-role mapping; always reference these symbolic names rather than `htimN` directly.
+`TIM7` triggers the auxiliary ADC (thermistors, VVCC sense); timekeeping is the Cortex SysTick (which is also the sole IWDG feeder — gated on a foreground heartbeat, see `Core/Src/iwdg.c`). See `Firmware/Inc/periphmap.h` for the canonical handle-to-role mapping; always reference these symbolic names rather than `htimN` directly.
 
 ## Architecture: control-law plug-in contract
 
@@ -188,10 +191,10 @@ OD entries the firmware reads/writes (see `can_comms.c`):
 - `0x4003` rxw_temp — three temperature readings (TPDO).
 - `0x4004` rxw_requested_state — host-writable target FSM state.
 - `0x4005` rxw_setpoint — `setpoint_1`, `setpoint_2` (interpretation depends on state).
-- `0x4006` rxw_reserved — two spare floats.
-- `0x4007` rxw_reboot — write-1-to-reboot.
+- `0x4006` rxw_reserved — boot diagnostics, read-only by convention (reset cause | crash kind | boot count; last-fault PC — bit-packed u32s, see `docs/can-interface.md`).
+- `0x4007` rxw_reboot — write-nonzero-to-reboot (disarm + flush; SDO response egresses before the reset).
 
-`update_tpdo_od_vals()` is the single fan-out from internal state to the OD; `process_sdo_vals()` is the single fan-in. Wire-level detail (per-wheel COB-IDs, TPDO byte layout, SDO command sequences, setpoint routing) is in `docs/can-interface.md`.
+`update_tpdo_od_vals()` is the single fan-out from internal state to the OD; the fan-in is the OD **write extensions** on 0x4004/0x4005/0x4007 (always-apply, validating, SDO-abort on bad input — `init_od_extensions()` in `can_comms.c`). Wire-level detail (per-wheel COB-IDs, TPDO byte layout, SDO command sequences, setpoint routing) is in `docs/can-interface.md`.
 
 ## Coordinate frames and motor math
 
@@ -209,7 +212,7 @@ All tunables (current limits, calibration voltages/times, R/L bounds, controller
 ## Conventions specific to this codebase
 
 - **Custom typedefs** in `Firmware/Inc/typedefs.h`: use `u8`/`u16`/`u32`/`u64`/`i*`/`f32`/`f64`, not `uint8_t` etc., in `Firmware/`. Same file defines function-attribute macros: `__fn_const`, `__fn_pure`, `__fn_flatten`, `__fn_hot`, `__fn_leaf`, `__fn_noreturn`, `__fn_used`, `__fn_inline` (= `inline + always_inline`). `__ccmram` places data in CCM RAM. Apply these on hot-path functions for register-pressure / locality wins.
-- **Direct register access on hot paths.** ISRs and the fast loop bypass the HAL where it's slow: see GPIO writes via `BSRR`/`BRR` in `util.h`'s `gpio_debug*`, the `__MA702_FAST_ANGLE_READ_START/_FINISH` SPI macros, and DAC writes in `util.h`'s `dac_debug*`. Don't replace these with `HAL_GPIO_WritePin` / `HAL_SPI_Transmit` etc. — the timing budget at 16 kHz won't tolerate it.
+- **Direct register access on hot paths.** ISRs and the fast loop bypass the HAL where it's slow: see GPIO writes via `BSRR`/`BRR` in `util.h`'s `gpio_debug*`, the `__MA702_FAST_ANGLE_READ_START/_FINISH` SPI macros, and DAC writes in `util.h`'s `dac_debug*`. Don't replace these with `HAL_GPIO_WritePin` / `HAL_SPI_Transmit` etc. — the timing budget at 32 kHz won't tolerate it.
 - **Custom printf, deferred from ISRs** (`Firmware/Src/printf.c` + `console.c`) over `DEBUG_UART_HANDLE` (USART2, 921600). Use `printf` from `Firmware/Inc/printf.h`, not the libc one. ISR-context printf lands in a 2 KB RAM ring (never blocks; full ring drops the message, `console_dropped` counts) drained by `console_pump()` in the foreground loop; thread-context printf is synchronous. Call `console_flush()` before any reset. Postmortem ring dump: `tools/console_tail.sh`. `blank_console()` macro clears the terminal. See the printf entry in `docs/footguns.md`.
 - **Bootloader.** This app is flashed at `0x08008000` and runs *behind* a separate custom bootloader — vendored in this repo at `bootloader/` and built standalone (root `build.sh`/`flash.sh`) — at `0x08000000`. That bootloader — not this app — owns the boot decision: it reads BOOT0 (PB8) as a GPIO and either jumps to this app (which then relocates its vector table to `0x08008000` via `SCB->VTOR`; see `system_stm32g4xx.c` + `STM32G474VEHX_FLASH.ld`) or runs a UART DFU loader (ST OpenBootloader on USART1) for field reflash. The on-chip ST *system-memory* bootloader is deliberately bypassed (`app_main.c` comment: "FUCKS OUR SHIT UP"), and the app's own `jump_to_bootloader()` path is now commented out (that logic lives in the separate bootloader). Option bytes are still verified/written on every boot via `check_option_bytes_ok()` / `write_option_bytes()`; if they need updating, the firmware writes them and reboots. See `docs/bootloader-integration.md`.
 - **`assert` is custom** (`util.h`) — calls `user_assert_fail(file, line)`, not libc abort.

@@ -29,14 +29,21 @@ Two deliberate exceptions still write the UART raw from TIM17 ISR context:
 new ones. A `printf` in the fast loop is now *survivable* (it used not to be) but still costs
 format time (~1-3 µs) and will flood/drop at 32 kHz — use `foc_capture` for per-tick data.
 
-**Changing TPDO rate resets CAN communication.** `set_tpdo_send_rate()` calls
-`canopen_app_resetCommunication()` (`can_comms.c:207`), and `fsm_enter_state` calls it on *every*
-state entry (100 ms for control states, 5000 ms otherwise). So each state transition briefly drops
-and re-inits the CANopen comm layer — expect a heartbeat/TPDO blip on every transition.
+**Nothing below NVIC preempt-priority 2 may touch CANopen state.** The CO_LOCK critical sections
+are BASEPRI(2) masks, not PRIMASK (so the prio-0 fast loop and prio-1 FSM tick stay live during
+the TPDO pass — `CO_driver_target.h`). That only holds because the foreground and the prio-2 TIM4
+tick are the *only* CANopen-touching contexts. `set_tpdo_send_rate()` from the FSM ISR keeps this
+rule by parking a pending value that `canopen_process()` applies through the OD interface — don't
+add a CANopen call to TIM17/HRTIM context, and don't "simplify" the pending-rate handoff away.
+(The old implementation ran a full `canopen_app_resetCommunication()` from TIM17 on every state
+entry: TX purge + boot-up frame + SDO server reset per transition.)
 
-**Setpoints are edge-triggered and state-routed.** `process_sdo_vals` only applies `setpoint_1` when
-it *changes*, and routes it by the state active at write time. Request the state first, then write the
-setpoint; re-writing the same value is a no-op. See `docs/can-interface.md`.
+**Host commands flow through OD write extensions, not polling.** 0x4004/0x4005/0x4007 handlers
+(`can_comms.c`) fire on every SDO download regardless of value, validate (SDO abort on bad
+state / non-finite setpoint / cal-not-valid), and route setpoints by the state at write time.
+The old edge-trigger ("rewrite the same value = silent no-op") is gone — but setpoint routing is
+still write-time, so hosts should confirm `0x4000` state before writing setpoints. Adding a new
+command object? Give it an extension; don't reintroduce a foreground compare-against-shadow.
 
 ## Sensors & control
 
@@ -73,10 +80,27 @@ HAL's `..._DIV8`/`..._MUL8` naming and comments are misleading about the actual 
 real dead-time from the RM §28 dead-time formula (see `resources/INDEX.md` → reference manual), not
 the symbol name, before trusting or changing it. Getting this wrong shoot-throughs the half-bridge.
 
-**Option bytes are rewritten and the MCU reset on every boot if they mismatch.** `app_main` →
-`check_option_bytes_ok()`; on mismatch it `write_option_bytes()` + `HAL_NVIC_SystemReset()`. If the
-*expected* option-byte values are ever wrong, this is a reboot loop that also wears flash. Touch
-`bootloader.c`'s expected values with care.
+**Option bytes are rewritten (and the MCU resets, inside `HAL_FLASH_OB_Launch`) on boot
+mismatch — but at most 3 attempts per power-on.** `app_main` → `check_option_bytes_ok()` now
+covers nBOOT0/nBOOT1/nSWBOOT0 **and BOR_LEV (level 4, ~2.8 V)**; the attempt counter lives in a
+RAM2 cell (`crash_record.h`), and after 3 failed writes the wheel flies with mismatched OBs
+rather than reboot-looping forever. Touch `bootloader.c`'s expected values with care — and note
+OB_Launch *is* the reset: code after it only runs on write failure.
+
+**RAM2 diagnostic cells (0x20017FA8–0x20017FFF) are shared contracts — and the app's stack sits
+directly below them.** Crash record, boot counter, flash-ECC NMI latch, OB attempt counter
+(`Firmware/Inc/crash_record.h`) plus the bootloader's RCSR mailbox at 0x20017FF8
+(`bootloader/Src/main.c`). The app's MSP starts at `_estack = top-of-RAM2 − 0x58`
+(STM32G474VEHX_FLASH.ld) precisely to keep the first stack frames from overwriting these cells
+— if you add a cell, grow that reservation in the SAME change, and keep the mailbox
+address/magic in sync between the two projects. (The bootloader's stack is in the CCM alias —
+unaffected.)
+
+**The flash-ECC NMI handler must stay a return-not-spin.** `NMI_Handler` clears ECCD/ECCD2,
+latches ECCR into the RAM2 cell, and *returns* — the faulting cal-page read completes with
+garbage and the blob CRC rejects it. Re-introducing a `while(1)` there re-creates the
+boot-loop brick (flight-review P0-3): IWDG reset → same read next boot → NMI forever. cal_store
+brackets every page read with the latch (clear → read → check) and erases the page on a hit.
 
 **The on-chip USART bootloader is bypassed deliberately** ("FUCKS OUR SHIT UP"). Boot-pin handling is
 custom; don't re-enable the ST bootloader path expecting it to work.
@@ -102,6 +126,17 @@ the source (EDS / `.ioc` / `CMakeLists_template.txt`) and regenerate. See `CLAUD
 
 **Use the custom typedefs/printf, not libc.** `u8`/`f32`/etc. (`typedefs.h`) and `printf` from
 `printf.h` (not `<stdio.h>`). Deliberately-unused debug locals get `__maybe_unused` so lint stays clean.
+
+**Float NaN checks must use `f32_finite_bits()` (mathutil.h), not compares.** Every optimized
+build is `-Ofast` = `-ffinite-math-only`: GCC may legally fold `x != x` and negated range checks
+into forms that PASS NaN. The bit-pattern helper is fold-proof. Load-bearing users: the SDO
+setpoint gate (a laundered NaN setpoint used to command full negative current via
+`clamp_f32(lo, NaN, hi) == lo`), `blob_valid()` in cal_store, the backemf fit gates.
+
+**CubeMX/CubeIDE regeneration is RETIRED for this repo (2026-06 decision).** Generated files
+(`Core/`, `CMakeLists.txt`, `OD/OD.c`) are now hand-owned and contain manual edits *outside* the
+USER CODE markers (fdcan.c retransmission/SJW/priorities, tim.c prescalers, OD.c 0x1014, it.c
+fault handlers). A regen would silently revert flight fixes — don't.
 
 **Optimized builds run the fast loop from CCM SRAM — set breakpoints there in *hardware*.** In every
 non-Debug build the HRTIM ISR path is placed at `0x1000_0000` (`__ccmram` / `CCMRAM_HOT_FUNCS`) and

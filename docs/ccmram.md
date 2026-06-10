@@ -1,6 +1,6 @@
 # CCM SRAM hot-path placement
 
-The 16 kHz HRTIM fast loop runs from **CCM SRAM** (`0x1000_0000`) in optimized builds. CCM executes
+The 32 kHz HRTIM fast loop runs from **CCM SRAM** (`0x1000_0000`) in optimized builds. CCM executes
 with zero wait states and is immune to flash-cache misses, so the control ISR chain has lower and far
 more *deterministic* latency than running from flash (which leans on the ART prefetch + I-cache and
 still jitters on a miss). Background: `docs/control-cycle.md` (the tick), the debug trap in

@@ -1,6 +1,6 @@
 # One control cycle, end to end
 
-A precise trace of the 16 kHz fast loop and how the other timing domains interleave with it. Read
+A precise trace of the 32 kHz fast loop and how the other timing domains interleave with it. Read
 `CLAUDE.md` → "three concurrent timing domains" first for the high-level map; this doc drills into
 the fast loop and the producer/consumer flag machine that is easy to misread.
 
@@ -10,7 +10,7 @@ Set explicitly at the top of `app_main()` (lower number = higher priority):
 
 | Pri | IRQ | Role |
 |---|---|---|
-| 0 | `HRTIM1_TIMA_IRQn` | fast control loop (16 kHz) — preempts everything |
+| 0 | `HRTIM1_TIMA_IRQn` | fast control loop (32 kHz) — preempts everything |
 | 1 | `TIM1_TRG_COM_TIM17_IRQn` | FSM tick (1 kHz) |
 | 2 | `TIM4_IRQn` | CANopen tick (1 kHz) |
 | 3 | `TIM7_DAC_IRQn`, `FDCAN1_IT0/1`, `DMA1_Channel1` | aux ADC, CAN RX/TX, DMA |
@@ -20,7 +20,7 @@ with them must tolerate that (see `docs/footguns.md` → volatile shared state).
 
 ## The tick: `hrtim_repetition_callback()` (`control_ll.c:243`)
 
-Fires every `PWM_RCR+1` PWM periods — `PWM_FREQ 192000 / PWM_RCR 12` ≈ **16 kHz, ~62.5 µs budget**.
+Fires every `PWM_CYCLES_PER_ISR` PWM periods — `PWM_SWITCHING_HZ 96000 / PWM_CYCLES_PER_ISR 3` = **32 kHz, 31.25 µs budget**.
 Registered as the HAL repetition callback by `controller_arm()`; *unregistered* by
 `controller_disarm()`, so the loop only runs while armed. In order:
 
@@ -85,9 +85,9 @@ the flag set, which trips `*_USAGE_MISSING` on the *next* tick → disarm. (Seve
 
 ## Crossing domains
 
-- **State change:** host SDO → `process_sdo_vals()` (foreground) → `fsm_request_state()` → FSM tick
+- **State change:** host SDO → OD write extension `od_write_requested_state()` (SDO-server/foreground context, validates + always applies) → `fsm_request_state()` → FSM tick
   installs the law + `controller_arm()` → fast loop runs it. The fast loop never picks a law itself.
-- **Setpoint:** `process_sdo_vals()` (foreground) → `set_*_setpoint()` writes a `volatile` the fast
+- **Setpoint:** OD write extension `od_write_setpoint()` (validates finite/range, applies on every download) → `set_*_setpoint()` writes a `volatile` the fast
   loop reads next tick. No locking; a torn float is possible but practically harmless here.
 - **Disarm is unilateral:** any non-zero `controller_errors` anywhere in the chain calls
   `controller_disarm()` immediately, which unregisters this very callback. The FSM tick later

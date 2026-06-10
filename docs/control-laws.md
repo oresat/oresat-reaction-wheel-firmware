@@ -2,16 +2,16 @@
 
 Per-state reference for the FSM (`Firmware/Inc/fsm.h`). Each non-trivial state installs a
 `control_law_t` (the fast-loop plug-in; see `CLAUDE.md` → "control-law plug-in contract") via
-`get_ctrl_law_for_state()` in `fsm.c`, arms the controller, and runs at the 16 kHz HRTIM tick.
+`get_ctrl_law_for_state()` in `fsm.c`, arms the controller, and runs at the 32 kHz HRTIM tick.
 
-How a state runs, in one breath: host writes `0x4004` → `process_sdo_vals()` calls
+How a state runs, in one breath: host writes `0x4004` → the OD write extension (can_comms.c; validates, SDO-aborts bad values, always applies) calls
 `fsm_request_state()` → FSM tick (`fsm_exec`, 1 kHz) installs the law + `controller_arm()` →
 fast loop calls the law's `control_law_init` once, then `encoder_consumer` / `current_consumer` /
 `control_law_exec` / `pwm_producer` every tick → when `is_complete()` returns true (or any error
 is raised) the controller disarms and the FSM returns to `IDLE`, calling `control_law_finish(cancelled)`.
 `fsm_last_state_exit_ok` (the bool returned by `finish`) is published as `procedure_result` in TPDO1.
 
-Setpoints arrive via `0x4005` (`setpoint_1`/`setpoint_2`). **`process_sdo_vals()` routes
+Setpoints arrive via `0x4005` (`setpoint_1`/`setpoint_2`). **The OD write extension routes
 `setpoint_1` by the *current* FSM state** — so you must request the state first, then write the
 setpoint. `setpoint_2`, `reserved_1`, `reserved_2` are read but currently unused (no-ops).
 
@@ -22,7 +22,7 @@ setpoint. `setpoint_2`, `reserved_1`, `reserved_2` are read but currently unused
 | `FSM_STATE_IDLE` | 1 | none | — | — | TPDO rate drops to 5 s |
 | `FSM_STATE_TORQUE_CONTROL` | 4 | `torque_ctrl_control_law` | torque [N·m] | never | holds torque |
 | `FSM_STATE_VEL_CONTROL` | 5 | `vel_ctrl_control_law` | velocity [rev/s] | never | holds velocity (PI) |
-| `FSM_STATE_POS_CONTROL` | 6 | `pos_ctrl_control_law` | (pos) | — | **STUB — faults out** |
+| `FSM_STATE_POS_CONTROL` | 6 | — | (pos) | — | **STUB — request rejected at SDO ingestion (used to install an all-NULL law and HardFault on exit)** |
 | `FSM_STATE_MOTOR_RESISTANCE_CAL` | 7 | `resistance_cal_ctrl_law` | — | after `RESISTANCE_CAL_TIME` (3 s) | prints R (mΩ) |
 | `FSM_STATE_MOTOR_INDUCTANCE_CAL` | 8 | `inductance_cal_ctrl_law` | — | after ~3 s (see note) | prints L (µH) |
 | `FSM_STATE_ENCODER_DIR_CAL` | 9 | `encoder_dir_cal_ctrl_law` | — | after 1 rev + 1 s lock-in | sets encoder direction |
@@ -53,7 +53,7 @@ direction, divides by `MOTOR_TORQUE_CONSTANT`, and clamps the resulting `iq` to
 integrator clamped to `VEL_INTEGRATOR_LIMIT`) produces a torque command fed to the torque path.
 
 **Velocity-ramp (16).** Like velocity, but `setpoint_1` is the *target* and the internal velocity
-setpoint slews toward it at `VEL_RAMP_RATE` (200 rev/s²) per loop. Note: in `process_sdo_vals` the
+setpoint slews toward it at `VEL_RAMP_RATE` (20 rev/s², config.h) per loop. Note: in the old ingestion the
 `VEL_RAMP_CONTROL` case is missing a `break;` before `default` — harmless today (default is empty)
 but fragile.
 

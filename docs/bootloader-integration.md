@@ -151,8 +151,11 @@ reload 4096). A software jump does not reset the IWDG, and once started it canno
 be stopped — so the app *must* service it.
 
 This app already does, via the `HAL_IncTick` override in `Core/Src/iwdg.c` that
-reloads the IWDG every 1 ms from the SysTick ISR, guarded by `hiwdg.Instance !=
-NULL` (set in `MX_IWDG_Init()`). Keep that intact, and preserve two invariants:
+reloads the IWDG every 1 ms from the SysTick ISR — kicking `IWDG->KR` directly
+(deref-free: safe even before `.bss` init in the post-jump window), and gated on
+a **foreground liveness heartbeat** once `app_main`'s main loop starts (a wedged
+foreground stops the feed → clean IWDG reboot ≤ ~2.5 s; boot path feeds
+unconditionally). Keep that intact, and preserve two invariants:
 
 - The app reaches `MX_IWDG_Init()` within ~512 ms of the jump (it does — it's in
   the early MX-init sequence; startup to there is sub-millisecond).
@@ -166,8 +169,14 @@ NULL` (set in `MX_IWDG_Init()`). Keep that intact, and preserve two invariants:
 - **No UART contention.** App debug/printf is **USART2 on PD5/PD6**
   (`DEBUG_UART_HANDLE`); the bootloader's DFU UART is **USART1 on PE0/PE1**.
   Different peripherals and pins — the app keeps full use of USART2.
-- **Bootloader entry is BOOT0-pin-only.** A CAN reboot (OD `0x4007`) is a plain
-  reset, so the board comes back into the app unless BOOT0 is held high at reset.
+- **Bootloader entry is BOOT0-pin-only — plus the invalid-app fallback.** A CAN
+  reboot (OD `0x4007`) is a plain reset, so the board comes back into the app
+  unless BOOT0 is held high at reset. Since 2026-06 the bootloader also validates
+  the app vector table before jumping (SP in SRAM, PC thumb-bit + in-image): an
+  erased/half-written app drops into the DFU loop instead of HardFault-looping,
+  so a power-cut mid-reflash is recoverable over UART without touching BOOT0.
+  The bootloader also starts the IWDG *before* clock config (a dead crystal is a
+  512 ms retry loop, not a watchdog-less hang) and its `Error_Handler` resets.
   If remote/CAN-commanded reflash is ever needed, add a *soft trigger*: the app
   writes a magic value to an RTC backup register / noinit-RAM word and resets;
   the bootloader enters OpenBootloader on `pin-high OR flag`. This is a net-new
@@ -181,10 +190,19 @@ NULL` (set in `MX_IWDG_Init()`). Keep that intact, and preserve two invariants:
 - [x] `SystemInit` disassembly stores `0x08008000` to VTOR.
 - [x] App flash usage < 480K (87.8K / 480K).
 - [x] Option-byte check/write still called at app_main startup (`app_main.c:77-83`).
-- [ ] On hardware: flash both images (BOOT0 low) → app runs, sets option bytes,
+- [x] On hardware: flash both images (BOOT0 low) → app runs, sets option bytes,
       reboots, runs again cleanly with no watchdog reset loop.
+      (Verified 2026-06-10: weeks of bench runtime behind the bootloader; SWD-read
+      `FLASH_OPTR = 0xFBEFF8AA` → nSWBOOT0=0 / nBOOT0=1 / nBOOT1=1.)
 - [ ] On hardware: hold BOOT0 high at reset → `stm32flash` / CubeProgrammer can
       talk to the bootloader on USART1 (PE0/PE1) and reflash the app region.
+      (Half-verified 2026-06-10: BOOT0-high reset does land in the DFU loop with
+      the correct protocol config — SWD-read VTOR=0x00000000, USART1
+      CR1=0x0000140D (8E1), CR2=0x00500000 (autobaud-on-0x7F), BRR=0x4E2.
+      `stm32flash` init still times out → wiring/adapter side under test.
+      Gotcha: in the *app*, PE0/PE1 carry the idle COMMS USART1 at 921600-8N1 —
+      electrically alive but deaf to 115200-8E1, so a failed BOOT0 strap
+      perfectly mimics a dead DFU.)
 
 ## 6. Background facts (for reference)
 
@@ -196,7 +214,9 @@ NULL` (set in `MX_IWDG_Init()`). Keep that intact, and preserve two invariants:
   autobaud on the `0x7F` sync byte.
 - Bootloader review notes (already addressed in the vendored `bootloader/`):
   GPIO-port clock-enable now follows the selected UART handle; redundant USART2
-  clock-enable removed; stale pin comment fixed.
+  clock-enable removed; stale pin comment fixed; autobaud re-armed on ABRE error
+  (2026-06-10 — a garbage first byte used to latch ABRE and deafen the DFU until
+  the next reset; `OPENBL_USART_ProtocolDetection` now writes ABRRQ + flushes RX).
 
 ## 7. Cold bootstrap via the ROM bootloader (UART / USB DFU)
 
