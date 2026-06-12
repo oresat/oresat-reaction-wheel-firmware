@@ -4,13 +4,23 @@ set(CMAKE_SYSTEM_VERSION 1)
 cmake_minimum_required(VERSION 4.2)
 
 # specify cross-compilers and tools
-set(CMAKE_C_COMPILER arm-none-eabi-gcc)
-set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
-set(CMAKE_ASM_COMPILER  arm-none-eabi-gcc)
-set(CMAKE_AR arm-none-eabi-ar)
-set(CMAKE_OBJCOPY arm-none-eabi-objcopy)
-set(CMAKE_OBJDUMP arm-none-eabi-objdump)
-set(SIZE arm-none-eabi-size)
+# Optionally point at an alternate toolchain's bin dir (default: found on PATH), e.g.
+#   cmake -DTOOLCHAIN_DIR=$HOME/tmp/gcc14/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin ...
+# Compiler choice is baked into the build dir at configure time — use a fresh build
+# dir (or delete CMakeCache.txt) when switching toolchains.
+set(TOOLCHAIN_DIR "" CACHE PATH "Directory containing the arm-none-eabi-* tools (empty = use PATH)")
+if (TOOLCHAIN_DIR)
+    set(TOOLCHAIN_PREFIX "${TOOLCHAIN_DIR}/")
+else ()
+    set(TOOLCHAIN_PREFIX "")
+endif ()
+set(CMAKE_C_COMPILER "${TOOLCHAIN_PREFIX}arm-none-eabi-gcc")
+set(CMAKE_CXX_COMPILER "${TOOLCHAIN_PREFIX}arm-none-eabi-g++")
+set(CMAKE_ASM_COMPILER "${TOOLCHAIN_PREFIX}arm-none-eabi-gcc")
+set(CMAKE_AR "${TOOLCHAIN_PREFIX}arm-none-eabi-ar")
+set(CMAKE_OBJCOPY "${TOOLCHAIN_PREFIX}arm-none-eabi-objcopy")
+set(CMAKE_OBJDUMP "${TOOLCHAIN_PREFIX}arm-none-eabi-objdump")
+set(SIZE "${TOOLCHAIN_PREFIX}arm-none-eabi-size")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
 # project settings

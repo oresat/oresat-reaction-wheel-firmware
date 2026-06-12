@@ -14,17 +14,19 @@
 set -e
 cd "$(dirname "$0")"
 
+TOOLCHAIN_DIR="" # Path to ARM toolchain. Leave blank for system default
+
 BUILD_TYPE="${1:-RelWithDebInfo}"
 SUFFIX=$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')
 APP_BUILD="cmake-build-$SUFFIX"
 BL_BUILD="bootloader/cmake-build-$SUFFIX"
 
 echo "==== app ($BUILD_TYPE) -> $APP_BUILD ===="
-cmake -S . -B "$APP_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+cmake -S . -B "$APP_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" ${TOOLCHAIN_DIR:+"-DTOOLCHAIN_DIR=$TOOLCHAIN_DIR"}
 cmake --build "$APP_BUILD" -j
 
 echo "==== bootloader ($BUILD_TYPE) -> $BL_BUILD ===="
-cmake -S bootloader -B "$BL_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+cmake -S bootloader -B "$BL_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" ${TOOLCHAIN_DIR:+"-DTOOLCHAIN_DIR=$TOOLCHAIN_DIR"}
 cmake --build "$BL_BUILD" -j
 
 echo
