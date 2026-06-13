@@ -2,7 +2,7 @@
 
 #include "typedefs.h"
 
-//#define IS_CORRECTED_VOLTAGE_DIVIDER
+#define IS_CORRECTED_VOLTAGE_DIVIDER
 
 // DCBus
 static const f32 DC_BUS_OVERVOLTAGE_THRESHOLD_V = 4.3f * 2.f; // V
