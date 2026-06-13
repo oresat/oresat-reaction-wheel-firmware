@@ -28,6 +28,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
+#define DEFAULT_USART_BAUDRATE   115200U
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /* Exported variables --------------------------------------------------------*/
@@ -41,7 +42,7 @@ static void OPENBL_USART_Init(void) {
     LL_USART_InitTypeDef USART_InitStruct;
 
     USART_InitStruct.PrescalerValue = LL_USART_PRESCALER_DIV1;
-    USART_InitStruct.BaudRate = 115200U;
+    USART_InitStruct.BaudRate = DEFAULT_USART_BAUDRATE;
     USART_InitStruct.DataWidth = LL_USART_DATAWIDTH_9B;
     USART_InitStruct.StopBits = LL_USART_STOPBITS_1;
     USART_InitStruct.Parity = LL_USART_PARITY_EVEN;
@@ -54,8 +55,8 @@ static void OPENBL_USART_Init(void) {
         LL_USART_SetAutoBaudRateMode(USARTx, LL_USART_AUTOBAUD_DETECT_ON_7F_FRAME);
     }
     else {
-        //LL_USART_DisableAutoBaudRate(USARTx);
-        //USART_InitStruct.BaudRate = 115200;
+        LL_USART_DisableAutoBaudRate(USARTx);
+        USART_InitStruct.BaudRate = DEFAULT_USART_BAUDRATE;
     }
 
     LL_USART_Init(USARTx, &USART_InitStruct);
@@ -103,11 +104,15 @@ uint8_t OPENBL_USART_ProtocolDetection(void) {
 
     /* Check if the USART1 is addressed */
     if (((USARTx->ISR & LL_USART_ISR_ABRF) != 0) && ((USARTx->ISR & LL_USART_ISR_ABRE) == 0)) {
+
+        __asm__("nop");
         /* Read byte in order to flush the 0x7F syncronization byte */
         OPENBL_USART_ReadByte();
 
+        __asm__("nop");
         /* Aknowledge the host */
         OPENBL_USART_SendByte(ACK_BYTE);
+        __asm__("nop");
 
         detected = 1;
     }

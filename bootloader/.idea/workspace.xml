@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="CMakePresetLoader"><![CDATA[{
+  "useNewFormat": true
+}]]></component>
+  <component name="CMakeProjectFlavorService">
+    <option name="flavorId" value="CMakePlainProjectFlavor" />
+  </component>
+  <component name="CMakeReloadState">
+    <option name="reloaded" value="true" />
+  </component>
+  <component name="CMakeRunConfigurationManager">
+    <generated>
+      <config projectName="oresat-acs-bootloader-v8" targetName="oresat-acs-bootloader-v8.elf" />
+    </generated>
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+      <configuration PROFILE_NAME="Release" ENABLED="true" CONFIG_NAME="Release" />
+      <configuration PROFILE_NAME="RelWithDebInfo" ENABLED="true" CONFIG_NAME="RelWithDebInfo" />
+      <configuration PROFILE_NAME="MinSizeRel" ENABLED="true" CONFIG_NAME="MinSizeRel" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="705c66d2-9a33-46c4-aff8-712f746e9e64" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Firmware/Inc/config.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Firmware/Inc/config.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/bootloader.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/editor.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/OpenBootloader_APP/Target/usart_interface.c" beforeDir="false" afterPath="$PROJECT_DIR$/OpenBootloader_APP/Target/usart_interface.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Src/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/Src/main.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/st_nucleo_g4.cfg" beforeDir="false" afterPath="$PROJECT_DIR$/st_nucleo_g4.cfg" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="EmbeddedSvdWindowState">
+    <option name="columnWidths">
+      <list>
+        <option value="237" />
+        <option value="102" />
+        <option value="0" />
+      </list>
+    </option>
+    <option name="columnOrder">
+      <list>
+        <option value="Name" />
+        <option value="Value" />
+        <option value="Description" />
+      </list>
+    </option>
+    <option name="loadedFiles">
+      <list>
+        <option value="$PROJECT_DIR$/../stm32g474.svd" />
+      </list>
+    </option>
+    <option name="nodes">
+      <map>
+        <entry key="stm32g474.svd" value="-E" />
+        <entry key="stm32g474.svd|p:RCC" value="-E" />
+        <entry key="stm32g474.svd|p:RCC|AHB1ENR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|AHB1RSTR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|AHB1SMENR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|AHB2ENR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|AHB2RSTR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|AHB2SMENR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|AHB3ENR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|AHB3RSTR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|AHB3SMENR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|APB1ENR1" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|APB1ENR2" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|APB1RSTR1" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|APB1RSTR2" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|APB1SMENR1" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|APB1SMENR2" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|APB2ENR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|APB2RSTR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|APB2SMENR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|BDCR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|CCIPR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|CCIPR2" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|CFGR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|CICR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|CIER" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|CIFR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|CR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|CRRCR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|CSR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|ICSCR" value="HC" />
+        <entry key="stm32g474.svd|p:RCC|PLLCFGR" value="HC" />
+      </map>
+    </option>
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectApplicationVersion">
+    <option name="ide" value="CLion" />
+    <option name="majorVersion" value="2026" />
+    <option name="minorVersion" value="1.1" />
+    <option name="productBranch" value="Classic" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 7
+}]]></component>
+  <component name="ProjectId" id="3F3lqvGzMBZsOXqPYepa1iXTFYx" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "CMake Application.oresat-acs-bootloader-v8.elf.executor": "Debug",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "OpenOCD Download & Run.oresat-acs-bootloader-v8.elf.executor": "Debug",
+    "RunOnceActivity.RadMigrateCodeStyle": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "RunOnceActivity.west.config.association.type.startup.service": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "/home/solomon/code/oresat/oresat-acs-fw-v8/stm32g474.svd",
+    "settings.editor.selected.configurable": "com.jetbrains.cidr.cpp.execution.gdbserver.debugtargets.NamedDebugTargetConfigurable"
+  }
+}]]></component>
+  <component name="RunManager" selected="OpenOCD Download &amp; Run.oresat-acs-bootloader-v8.elf">
+    <configuration default="true" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="oresat-acs-bootloader-v8.elf" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="oresat-acs-bootloader-v8" TARGET_NAME="oresat-acs-bootloader-v8.elf" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="oresat-acs-bootloader-v8" RUN_TARGET_NAME="oresat-acs-bootloader-v8.elf">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="oresat-acs-bootloader-v8.elf" type="com.jetbrains.cidr.embedded.openocd.conf.type" factoryName="com.jetbrains.cidr.embedded.openocd.conf.factory" nameIsGenerated="true" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="oresat-acs-bootloader-v8" TARGET_NAME="oresat-acs-bootloader-v8.elf" CONFIG_NAME="Debug" version="1" RUN_TARGET_PROJECT_NAME="oresat-acs-bootloader-v8" RUN_TARGET_NAME="oresat-acs-bootloader-v8.elf">
+      <openocd version="1" gdb-port="3333" telnet-port="4444" board-config="$PROJECT_DIR$/st_nucleo_g4.cfg" reset-type="INIT" download-type="UPDATED_ONLY">
+        <debugger kind="GDB" isBundled="true" />
+      </openocd>
+      <method v="2">
+        <option name="CLION.COMPOUND.BUILD" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="CMake Application.oresat-acs-bootloader-v8.elf" />
+      <item itemvalue="OpenOCD Download &amp; Run.oresat-acs-bootloader-v8.elf" />
+    </list>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="705c66d2-9a33-46c4-aff8-712f746e9e64" name="Changes" comment="" />
+      <created>1781311827634</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1781311827634</updated>
+      <workItem from="1781311828734" duration="1514000" />
+    </task>
+    <servers />
+  </component>
+</project>

@@ -133,14 +133,16 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_IWDG_Init();
-  MX_USART1_UART_Init();
-  MX_USART2_UART_Init();
+  //MX_IWDG_Init();
+  //MX_USART1_UART_Init();
+  //MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   bool boot0_state = HAL_GPIO_ReadPin(BOOT0_GPIO_Port,BOOT0_Pin) != GPIO_PIN_RESET;
 
+
   if (boot0_state) {
+
     __asm__("nop"); // breakpoint
     OpenBootloader_Init();
     while (1) {
@@ -376,7 +378,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   USART_InitStruct.PrescalerValue = LL_USART_PRESCALER_DIV1;
-  USART_InitStruct.BaudRate = 115200;
+  USART_InitStruct.BaudRate = 921600;
   USART_InitStruct.DataWidth = LL_USART_DATAWIDTH_8B;
   USART_InitStruct.StopBits = LL_USART_STOPBITS_1;
   USART_InitStruct.Parity = LL_USART_PARITY_NONE;
