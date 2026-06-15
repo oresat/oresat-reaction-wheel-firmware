@@ -26,7 +26,7 @@ setpoint. `setpoint_2`, `reserved_1`, `reserved_2` are read but currently unused
 | `FSM_STATE_MOTOR_RESISTANCE_CAL` | 7 | `resistance_cal_ctrl_law` | — | after `RESISTANCE_CAL_TIME` (3 s) | prints R (mΩ) |
 | `FSM_STATE_MOTOR_INDUCTANCE_CAL` | 8 | `inductance_cal_ctrl_law` | — | after ~3 s (see note) | prints L (µH) |
 | `FSM_STATE_ENCODER_DIR_CAL` | 9 | `encoder_dir_cal_ctrl_law` | — | after 1 rev + 1 s lock-in | sets encoder direction |
-| `FSM_STATE_ENCODER_OFFSET_CAL` | 10 | `encoder_phase_cal_ctrl_law` | — | after 4-rev up/down sweep | coarse offset only (see note) |
+| `FSM_STATE_ENCODER_OFFSET_CAL` | 10 | `encoder_phase_cal_ctrl_law` | — | after 4-rev up/down sweep | coarse seed **+ fine offset applied** (see note) |
 | `FSM_STATE_ENCODER_TEST` | 11 | `encoder_test_control_law` | — | never | runs estimator, PWM = 0 |
 | `FSM_STATE_OPEN_LOOP_CONTROL` | 12 | `open_loop_ctrl_law` | — (not on CAN) | never | α/β current via code only |
 | `FSM_STATE_CLEAR_ERRORS` | 13 | none | — | immediate | clears `controller_errors` |
@@ -53,14 +53,16 @@ direction, divides by `MOTOR_TORQUE_CONSTANT`, and clamps the resulting `iq` to
 integrator clamped to `VEL_INTEGRATOR_LIMIT`) produces a torque command fed to the torque path.
 
 **Velocity-ramp (16).** Like velocity, but `setpoint_1` is the *target* and the internal velocity
-setpoint slews toward it at `VEL_RAMP_RATE` (20 rev/s², config.h) per loop. Note: in the old ingestion the
-`VEL_RAMP_CONTROL` case is missing a `break;` before `default` — harmless today (default is empty)
-but fragile.
+setpoint slews toward it at `VEL_RAMP_RATE` (20 rev/s², config.h) per loop
+(`MAX_VEL_DELTA_PER_LOOP`, `closed_loop_controller.c:129`). On (re-)arm the ramp target is seeded to
+the *measured* velocity (via `vel_ctrl_init`), so it holds speed until the host writes a setpoint.
 
-**Position (6).** `pos_ctrl_control_law` is a file-scope struct that is never initialized
-(`closed_loop_controller.c:115`) → all function pointers NULL, and `set_pos_setpoint()` is empty.
-Requesting this state arms a law that produces no PWM, so the fast loop raises
-`CTRLR_ERR_PWM_TIMING_UPDATE_MISSING` and disarms almost immediately. **Treat as not implemented.**
+**Position (6).** Not implemented, and rejected before it can run: `fsm_state_requestable()` omits
+`POS_CONTROL`, so a `0x4004` request for `6` is answered with an SDO abort (`0x0609 0030`,
+`can_comms.c:315-321,331`). Even internally, `get_ctrl_law_for_state()` returns NULL for it
+(`fsm.c:61`), so no law is ever installed or armed. (Historically it installed an all-NULL file-scope
+`pos_ctrl_control_law` struct that produced no PWM and HardFaulted on exit — that struct and
+`set_pos_setpoint()` are now gone.) **Treat as not implemented.**
 
 **Resistance cal (7).** Locks to +α, ramps voltage via a slow integrator until phase current hits
 `MOTOR_CALIBRATION_CURRENT` (2 A); after `RESISTANCE_CAL_TIME` reports `R = V/I`. Bounds-checked
@@ -79,16 +81,22 @@ the encoder moved `ENCODER_DIR_CAL_ROTATION_DIST` ±10 %; sets encoder direction
 Out-of-tolerance → `finish` returns false (procedure_result = 0) but no error flag.
 
 **Encoder offset/phase cal (10).** Spins 4 rev up-and-down, accumulating electrical-vs-encoder phase
-error. Sets a **coarse** offset at lock-in (`encoder_set_phase_offset(pos)` during exec). The
-**fine-tuned** correction is computed and printed but **not applied** — the line that would apply it
-is commented out (`encoder_calibration.c:245`). So this state currently only does the coarse set.
+error **only during the constant-velocity cruise of each leg** (the trapezoidal accel/decel ramps and
+the turnaround stiction band are gated out), keeping the two directions separate. Seeds a **coarse**
+one-point offset at the end of lock-in (`encoder_set_phase_offset(pos)`, `encoder_calibration.c:234`),
+then in `finish` averages the two directions' means to cancel friction and **applies** the fine result
+(`encoder_calibration.c:311`), setting `offset_cal_valid`. If it lacks clean cruise samples in both
+directions — the signature of dir-cal (9) not having run first — it **rolls back** to the previous
+offset + validity and returns false. So this state now does a full coarse+fine offset cal (the apply
+that used to be commented out is live).
 
 **Single-point "shitty" offset cal (15).** Locks at electrical angle 0 for 4 s, then sets the phase
-offset to the measured position. Unlike state 10, this one **does** apply the offset. This is the
-practical offset-cal path today.
+offset to the measured position and marks it valid. A single-point cal — coarser than state 10's
+bidirectional friction-cancelled fit, but fast and robust; it's the bootstrap offset step in the
+standard commissioning runbook (`9 → 15 → 21`, see `can-interface.md`). Both 10 and 15 now apply.
 
 **Encoder validation (14).** Steps the open-loop vector through 12 angles from −π to π, dwelling
-~2 s each (`ENC_VAL_LOOPS_PER_POINT = 32000` ticks), recording motor-vs-encoder phase, then dumps a
+~2 s each (`ENC_VAL_LOOPS_PER_POINT = 2·LOOP_UPDATE_FREQ = 64000` ticks @ 32 kHz), recording motor-vs-encoder phase, then dumps a
 table over both `COMMS_UART_HANDLE` (USART1) and `DEBUG_UART_HANDLE` (USART2). Diagnostic.
 
 **Open-loop (12).** Pure α/β current PI with no encoder feedback. **Its setpoint is not wired to
@@ -105,6 +113,7 @@ to watch the estimator without energizing the motor.
 ## Telemetry while running
 
 Entering any control-law state bumps all four TPDOs to a 100 ms event timer; `IDLE` drops them to
-5 s. Motor/bus fields in TPDO2/TPDO3 are only populated in the four closed-loop control states
-(torque/vel/pos/vel-ramp); in calibration/test states they read 0. Temperatures (TPDO4) are always
-live. See `docs/can-interface.md` for the wire format.
+5 s. The `motor_current`/`bus_voltage`/`bus_current` fields in TPDO2/TPDO3 are only populated in the
+three closed-loop control states (torque/vel/vel-ramp); elsewhere they read 0 — but `motor_vel`
+(TPDO2) is live in *every* state (armed → encoder PLL, disarmed → foreground sampler). Temperatures
+(TPDO4) are always live. See `docs/can-interface.md` for the wire format.
