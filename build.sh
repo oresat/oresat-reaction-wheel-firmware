@@ -14,7 +14,18 @@
 set -e
 cd "$(dirname "$0")"
 
-TOOLCHAIN_DIR="" # Path to ARM toolchain. Leave blank for system default
+# Toolchain bin dir: $TOOLCHAIN_DIR if set in the environment (empty = PATH), else the pinned
+# one if ./toolchain.sh has installed it, else PATH.
+if [ -z "${TOOLCHAIN_DIR+set}" ]; then
+    TOOLCHAIN_DIR="$(./toolchain.sh --path)"
+fi
+GCC="${TOOLCHAIN_DIR:+$TOOLCHAIN_DIR/}arm-none-eabi-gcc"
+command -v "$GCC" >/dev/null 2>&1 \
+    || { echo "ERROR: $GCC not found -- run ./toolchain.sh to fetch the pinned toolchain."; exit 1; }
+echo "toolchain: $("$GCC" --version | head -n 1)"
+
+# Bounded: plain `-j` is unlimited under make and takes a 4 GB machine down.
+JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
 
 BUILD_TYPE="${1:-RelWithDebInfo}"
 SUFFIX=$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')
@@ -22,12 +33,12 @@ APP_BUILD="cmake-build-$SUFFIX"
 BL_BUILD="bootloader/cmake-build-$SUFFIX"
 
 echo "==== app ($BUILD_TYPE) -> $APP_BUILD ===="
-cmake -S . -B "$APP_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" ${TOOLCHAIN_DIR:+"-DTOOLCHAIN_DIR=$TOOLCHAIN_DIR"}
-cmake --build "$APP_BUILD" -j
+cmake -S . -B "$APP_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "-DTOOLCHAIN_DIR=$TOOLCHAIN_DIR"
+cmake --build "$APP_BUILD" -j "$JOBS"
 
 echo "==== bootloader ($BUILD_TYPE) -> $BL_BUILD ===="
-cmake -S bootloader -B "$BL_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" ${TOOLCHAIN_DIR:+"-DTOOLCHAIN_DIR=$TOOLCHAIN_DIR"}
-cmake --build "$BL_BUILD" -j
+cmake -S bootloader -B "$BL_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "-DTOOLCHAIN_DIR=$TOOLCHAIN_DIR"
+cmake --build "$BL_BUILD" -j "$JOBS"
 
 echo
 echo "Built:"

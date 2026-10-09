@@ -5,7 +5,7 @@
 #   .cproject .project .mxproject oresat-acs-fw-v8.ioc  → CubeIDE/CubeMX project (regen source)
 #   CMakeLists.txt + CMakeLists_template.txt            → CMakeLists.txt is generated FROM the
 #                                                         template, but both are committed
-#   *.ld  st_nucleo_g4.cfg  stm32g474.svd               → linker scripts, OpenOCD cfg, SVD reg defs
+#   *.ld  openocd.cfg  stm32g474.svd              → linker scripts, OpenOCD cfg, SVD reg defs
 #   OD/OD.{c,h}                                          → generated from the EDS, but committed
 #   resources/                                          → vendor PDFs + grep indexes; the CLAUDE.md
 #                                                         lookup workflow depends on them being present
@@ -18,6 +18,12 @@ CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 /compile_commands.json
+
+# ---- Pinned toolchain (toolchain.sh), release packaging (tools/dist.sh), release flasher ----
+/.toolchain/
+/dist/
+/releases/
+/backups/
 
 # ---- Build output: STM32CubeIDE (build configs live at the project root) ----
 /Debug/
