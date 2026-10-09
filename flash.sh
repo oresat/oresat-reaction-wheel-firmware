@@ -29,19 +29,24 @@ done
 
 # Refuse an app ELF with a LOAD segment below its base: `program` would write it over the
 # bootloader (what a link without --nmagic gives on 64K-page toolchains; see CMakeLists.txt).
+# Fails closed: no readable segment list, no flash.
 APP_BASE=0x08008000
 READELF="$(command -v arm-none-eabi-readelf || command -v readelf || true)"
+LOADS=""
 if [ -n "$READELF" ]; then
-    for pa in $("$READELF" -lW "$APP_ELF" | awk '$1 == "LOAD" && $5 !~ /^0x0+$/ { print $4 }'); do
-        if [ $((pa)) -lt $((APP_BASE)) ]; then
-            echo "ERROR: $APP_ELF has a LOAD segment at $pa, below the app base $APP_BASE --"
-            echo "       flashing it would overwrite the bootloader. Rebuild with ./build.sh."
-            exit 1
-        fi
-    done
-else
-    echo "WARNING: no readelf found -- skipping the app-ELF load-address check"
+    LOADS=$("$READELF" -lW "$APP_ELF" 2>/dev/null | awk '$1 == "LOAD" && $5 !~ /^0x0+$/ { print $4 }')
 fi
+if [ -z "$LOADS" ]; then
+    echo "ERROR: cannot read the LOAD segments of $APP_ELF (no readelf, or not an ELF) -- not flashing."
+    exit 1
+fi
+for pa in $LOADS; do
+    if [ $((pa)) -lt $((APP_BASE)) ]; then
+        echo "ERROR: $APP_ELF has a LOAD segment at $pa, below the app base $APP_BASE --"
+        echo "       flashing it would overwrite the bootloader. Rebuild with ./build.sh."
+        exit 1
+    fi
+done
 
 echo "openocd : $OPENOCD"
 echo "flashing: bootloader -> 0x08000000  ($BL_ELF)"
