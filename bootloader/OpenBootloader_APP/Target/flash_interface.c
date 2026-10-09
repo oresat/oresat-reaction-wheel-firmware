@@ -136,8 +136,6 @@ void OPENBL_FLASH_Write(uint32_t Address, uint8_t *Data, uint32_t DataLength)
   */
 void OPENBL_FLASH_JumpToAddress(uint32_t Address)
 {
-  Function_Pointer jump_to_address;
-
   /* Refuse to jump into an invalid image. Erased flash (0xFFFFFFFF vectors) or a half-written
    * app (power loss mid-reflash) used to mean MSP = 0xFFFFFFFF, a branch to nowhere, HardFault,
    * IWDG reset, the same jump next boot — an eternal ~512 ms reset loop that never offered DFU
@@ -165,12 +163,8 @@ void OPENBL_FLASH_JumpToAddress(uint32_t Address)
   /* Enable IRQ */
   Common_EnableIrq();
 
-  jump_to_address = (Function_Pointer)(app_pc);
-
-  /* Initialize user application's stack pointer */
-  Common_SetMsp(app_sp);
-
-  jump_to_address();
+  /* Initialize user application's stack pointer and jump, as one stack-free step */
+  Common_JumpWithMsp(app_sp, app_pc);
 }
 
 /**

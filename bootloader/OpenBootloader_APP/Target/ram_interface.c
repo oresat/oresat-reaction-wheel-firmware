@@ -88,20 +88,14 @@ void OPENBL_RAM_Write(uint32_t Address, uint8_t *Data, uint32_t DataLength)
   */
 void OPENBL_RAM_JumpToAddress(uint32_t Address)
 {
-  Function_Pointer jump_to_address;
-
   /* Deinitialize all HW resources used by the Bootloader to their reset values */
   OpenBootloader_DeInit();
 
   /* Enable IRQ */
   Common_EnableIrq();
 
-  jump_to_address = (Function_Pointer)(*(__IO uint32_t *)(Address + 4U));
-
-  /* Initialize user application's stack pointer */
-  Common_SetMsp(*(__IO uint32_t *) Address);
-
-  jump_to_address();
+  /* Initialize user application's stack pointer and jump, as one stack-free step */
+  Common_JumpWithMsp(*(__IO uint32_t *) Address, *(__IO uint32_t *)(Address + 4U));
 }
 
 

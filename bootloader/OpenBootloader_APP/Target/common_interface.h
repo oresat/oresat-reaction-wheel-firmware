@@ -28,6 +28,7 @@ typedef void (*Function_Pointer)(void);
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
 void Common_SetMsp(uint32_t TopOfMainStack);
+void Common_JumpWithMsp(uint32_t TopOfMainStack, uint32_t Address) __attribute__((noreturn));
 void Common_EnableIrq(void);
 void Common_DisableIrq(void);
 

@@ -38,6 +38,20 @@ void Common_SetMsp(uint32_t TopOfMainStack)
 }
 
 /**
+  * @brief  Set the MSP and branch, with no compiler-generated code in between. Does not return.
+  * @param  TopOfMainStack  Main Stack Pointer value to set.
+  * @param  Address         Branch target (Thumb bit set).
+  * @retval None.
+  */
+/* Naked on purpose: in C the compiler may reload the jump target from the stack after the MSP
+ * write (GCC 16 -Ofast does) -> branch to garbage, HardFault reset loop. */
+__attribute__((naked, noreturn)) void Common_JumpWithMsp(uint32_t TopOfMainStack, uint32_t Address)
+{
+  __asm volatile("msr msp, r0\n"
+                 "bx  r1\n");
+}
+
+/**
   * @brief  Enable IRQ Interrupts.
   * @retval None.
   */
