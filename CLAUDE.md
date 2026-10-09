@@ -68,8 +68,8 @@ under "Conventions" and `docs/bootloader-integration.md`.
 - `./flash-release.sh <tag>` needs only OpenOCD + curl: downloads and checksum-verifies a
   release, backs the flash up to `backups/`, clears write protection (and read protection
   level 1), sets the option bytes the firmware expects, erases everything except the cal
-  page (`--erase-cal` wipes that too), programs + verifies the `.hex` files, and confirms the
-  app booted. The release ELFs land in `releases/<tag>/` for the `tools/*.sh` scripts.
+  page (`--erase-cal` wipes that too; if the page is not blank it demands a yes at a terminal
+  that `-y` does not cover), programs + verifies the `.hex` files, and confirms the app booted. The release ELFs land in `releases/<tag>/` for the `tools/*.sh` scripts.
 - The OpenOCD config is `openocd.cfg` (was `st_nucleo_g4.cfg`); a bare `openocd` in the repo
   root picks it up.
 

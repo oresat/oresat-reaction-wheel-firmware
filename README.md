@@ -15,8 +15,9 @@ sudo apt install openocd curl
 ```
 
 It downloads the images CI built for that tag, backs up what is on the chip, flashes, and
-checks the app came up. The encoder calibration is kept unless you pass `--erase-cal`. If it
-cannot reach the ST-Link or the board, it says which and why.
+checks the app came up. The encoder calibration is kept unless you pass `--erase-cal`, and if
+the wheel has one that always asks first, `-y` or not. If it cannot reach the ST-Link or the
+board, it says which and why.
 
 ## Build it yourself
 

@@ -9,6 +9,9 @@
 #   ./flash-release.sh v1.0.2 --serial SN pick an ST-Link when several are plugged in
 #   ./flash-release.sh v1.0.2 -y          don't ask before erasing
 #
+# --erase-cal on a wheel that has a calibration always asks, at a terminal, even with -y. On a
+# blank calibration page there is nothing to lose and it asks nothing extra.
+#
 # In order: download + verify into releases/<tag>/ (kept; the ELFs there are what tools/*.sh
 # need) -> back the whole flash up to backups/ -> remove write/read protection -> put the option
 # bytes where the firmware wants them -> erase everything except the calibration page ->
@@ -127,7 +130,7 @@ stlinks() { # one line per attached ST-Link: "<devnode> <serial>"
 }
 
 LOG="$(mktemp)"
-trap 'rm -f "$LOG" "$LOG.cal"' EXIT
+trap 'rm -f "$LOG" "$LOG.cal" "$LOG.cal0"' EXIT
 ocd() { # <tcl command>...: one OpenOCD run, each argument a command; all output to $LOG
     local args=(-f "$CFG") c
     # 'adapter serial' is 0.12+; 0.11 only has hla_serial.
@@ -169,7 +172,8 @@ if [ "$n_links" -gt 1 ] && [ -z "$SERIAL" ]; then
     exit 1
 fi
 
-identify() { # no reset, no halt: who is on the other end, and how is it protected
+identify() { # no reset, no halt: who is on the other end, how is it protected, its cal page
+    rm -f "$LOG.cal0"
     ocd "init" \
         'echo "IDCODE=[format 0x%08x [mrw 0xE0042000]]"' \
         'echo "OPTR=[format 0x%08x [mrw 0x40022020]]"' \
@@ -182,6 +186,7 @@ identify() { # no reset, no halt: who is on the other end, and how is it protect
         'echo "PCROP2S=[format 0x%08x [mrw 0x40022044]]"' \
         'echo "PCROP2E=[format 0x%08x [mrw 0x40022048]]"' \
         'catch {echo "UID=[format %08x%08x%08x [mrw 0x1FFF7598] [mrw 0x1FFF7594] [mrw 0x1FFF7590]]"}' \
+        "catch {dump_image $LOG.cal0 $CAL_ADDR $PAGE}" \
         "shutdown" || return 1
     local r v
     for r in IDCODE OPTR WRP1A WRP1B WRP2A WRP2B PCROP1S PCROP1E PCROP2S PCROP2E; do
@@ -209,18 +214,42 @@ echo "STM32G474, UID $UID_HEX, option bytes $OPTR"
 [ "$RDP" -ne $((0xCC)) ] || die "read protection level 2 is set: this chip can never be reflashed or debugged again"
 [ "$PCROP_ON" -eq 0 ] || die "a PCROP (execute-only) area is set on this chip; this script does not remove those"
 
-if [ "$ERASE_CAL" -eq 1 ]; then
-    plan="erase the WHOLE chip, encoder calibration included (the wheel must be re-commissioned)"
-elif [ "$RDP" -ne $((0xAA)) ]; then
+# Is there a calibration to lose? "Blank" is the erased-flash state (all 0xFF), whatever the
+# blob format is; anything else counts as one, and so does a page that could not be read.
+CAL=present
+if [ -f "$LOG.cal0" ] && [ "$(wc -c <"$LOG.cal0")" -eq $((PAGE)) ] \
+    && [ "$(tr -d '\377' <"$LOG.cal0" | wc -c)" -eq 0 ]; then
+    CAL=blank
+fi
+
+ask() { # <question>: 0 = yes typed at a terminal, 1 = anything else, 2 = no terminal to ask at
+    local answer=""
+    { : </dev/tty; } 2>/dev/null || return 2
+    read -r -p "$1 [y/N] " answer </dev/tty || return 1
+    case "$answer" in y|Y|yes) return 0 ;; *) return 1 ;; esac
+}
+
+CAL_GATE=0
+if [ "$RDP" -ne $((0xAA)) ]; then
     plan="remove read protection, which erases the WHOLE chip, encoder calibration included"
+elif [ "$ERASE_CAL" -eq 1 ] && [ "$CAL" = blank ]; then
+    plan="erase the whole chip (its calibration page is already blank)"
+elif [ "$ERASE_CAL" -eq 1 ]; then
+    plan="erase the WHOLE chip, INCLUDING the calibration this wheel has (it must then be re-commissioned)"
+    CAL_GATE=1
 else
     plan="erase everything except the encoder calibration"
 fi
 echo "About to $plan, then flash $TAG."
-if [ "$YES" -eq 0 ]; then
-    read -r -p "Go ahead? [y/N] " answer </dev/tty || answer=""
-    case "$answer" in y|Y|yes) ;; *) echo "Nothing touched."; exit 1 ;; esac
+rc=0
+if [ "$CAL_GATE" -eq 1 ]; then # -y does not cover this one
+    ask "Erase this wheel's calibration?" || rc=$?
+    [ "$rc" -ne 2 ] || die "erasing an existing calibration needs a yes typed at a terminal (-y does not cover it). Nothing touched."
+elif [ "$YES" -eq 0 ]; then
+    ask "Go ahead?" || rc=$?
+    [ "$rc" -ne 2 ] || die "no terminal to ask at -- pass -y to run unattended. Nothing touched."
 fi
+[ "$rc" -eq 0 ] || { echo "Nothing touched."; exit 1; }
 
 # ---------------------------------------------------------------- 3. backup
 BACKUP="" CAL_BACKUP="" RESTORE_CAL="" CAL_LOST="$ERASE_CAL"
@@ -313,7 +342,9 @@ fi
 
 echo
 echo "OK: $TAG is running on wheel $UID_HEX."
-if [ "$CAL_LOST" -eq 1 ]; then
+if [ "$CAL" = blank ]; then
+    echo "    No calibration on this wheel: commission it (can_console: commission)."
+elif [ "$CAL_LOST" -eq 1 ]; then
     echo "    Calibration was erased: commission the wheel again (can_console: commission)."
     [ -z "$RESTORE_CAL" ] || echo "    Or put the old calibration back:  $RESTORE_CAL"
 fi
