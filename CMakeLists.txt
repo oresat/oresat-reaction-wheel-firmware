@@ -1,7 +1,8 @@
 #THIS FILE IS AUTO GENERATED FROM THE TEMPLATE! DO NOT CHANGE!
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_VERSION 1)
-cmake_minimum_required(VERSION 4.2)
+# Range: distro CMake (3.2x-3.31) can configure; newer CMake still gets the 4.2 policies.
+cmake_minimum_required(VERSION 3.22...4.2)
 
 # specify cross-compilers and tools
 # Optionally point at an alternate toolchain's bin dir (default: found on PATH), e.g.
@@ -74,6 +75,10 @@ file(REMOVE_RECURSE "CANopenSTM32/CANopenNode_STM32/OD*")
 set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32G474VEHX_FLASH.ld)
 
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
+# --nmagic: otherwise an ld that defaults to 64K pages (Debian/Ubuntu) starts the first LOAD
+# segment at 0x08000000 with the ELF header in it, and OpenOCD `program` writes that over the
+# bootloader. Flashed bytes are unchanged.
+add_link_options(-Wl,--nmagic)
 add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
 add_link_options(-T ${LINKER_SCRIPT})
 

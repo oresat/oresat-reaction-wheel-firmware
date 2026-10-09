@@ -27,6 +27,22 @@ for f in "$BL_ELF" "$APP_ELF"; do
     [ -f "$f" ] || { echo "ERROR: missing $f -- build first (./build.sh)"; exit 1; }
 done
 
+# Refuse an app ELF with a LOAD segment below its base: `program` would write it over the
+# bootloader (what a link without --nmagic gives on 64K-page toolchains; see CMakeLists.txt).
+APP_BASE=0x08008000
+READELF="$(command -v arm-none-eabi-readelf || command -v readelf || true)"
+if [ -n "$READELF" ]; then
+    for pa in $("$READELF" -lW "$APP_ELF" | awk '$1 == "LOAD" && $5 !~ /^0x0+$/ { print $4 }'); do
+        if [ $((pa)) -lt $((APP_BASE)) ]; then
+            echo "ERROR: $APP_ELF has a LOAD segment at $pa, below the app base $APP_BASE --"
+            echo "       flashing it would overwrite the bootloader. Rebuild with ./build.sh."
+            exit 1
+        fi
+    done
+else
+    echo "WARNING: no readelf found -- skipping the app-ELF load-address check"
+fi
+
 echo "openocd : $OPENOCD"
 echo "flashing: bootloader -> 0x08000000  ($BL_ELF)"
 echo "          app        -> 0x08008000  ($APP_ELF)"
