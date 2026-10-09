@@ -56,6 +56,23 @@ images at once:
 commands above still work for app-only build/flash. See the **Bootloader** note
 under "Conventions" and `docs/bootloader-integration.md`.
 
+### Pinned toolchain, CI releases, release flashing
+
+- `./toolchain.sh` fetches Arm GNU Toolchain 14.3.Rel1 into `.toolchain/` (no root, Linux
+  x86_64/aarch64). `build.sh` uses it whenever it is installed; `TOOLCHAIN_DIR=<bin dir>` in
+  the environment overrides, and an empty `TOOLCHAIN_DIR=` forces whatever is on PATH. CI
+  builds releases with it. CLion builds are unaffected (they use PATH).
+- `.gitlab-ci.yml`: a pushed tag builds both images, runs `tools/dist.sh`, uploads `dist/` to
+  the generic package registry as `oresat-acs-fw/<tag>/<file>`, and creates a GitLab release.
+  A pipeline started by hand from the web UI builds only.
+- `./flash-release.sh <tag>` needs only OpenOCD + curl: downloads and checksum-verifies a
+  release, backs the flash up to `backups/`, clears write protection (and read protection
+  level 1), sets the option bytes the firmware expects, erases everything except the cal
+  page (`--erase-cal` wipes that too), programs + verifies the `.hex` files, and confirms the
+  app booted. The release ELFs land in `releases/<tag>/` for the `tools/*.sh` scripts.
+- The OpenOCD config is `openocd.cfg` (was `st_nucleo_g4.cfg`); a bare `openocd` in the repo
+  root picks it up.
+
 ### CMake/CubeMX regeneration is RETIRED (2026-06 decision)
 
 `CMakeLists.txt`, `Core/`, and `OD/OD.c` were historically auto-generated (CubeIDE / CubeMX / CANopenEditor). **Regeneration is permanently retired for this repo** — too much hand-owned state would be clobbered. The generated files now carry deliberate manual edits *outside* the USER CODE markers (marked `/* manual edit */`: `fdcan.c` retransmission/SJW/IRQ priorities, `tim.c` prescalers, `stm32g4xx_it.c` fault handlers, `OD.c` 0x1014). Treat every file in the tree as hand-owned; do not run CubeMX/CubeIDE/CANopenEditor regeneration.
