@@ -433,10 +433,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(BOOT0_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PD4 PD1 PD7 PD2
-                           PD0 PD3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_1|GPIO_PIN_7|GPIO_PIN_2
-                          |GPIO_PIN_0|GPIO_PIN_3;
+  /*Configure GPIO pins : PD4 PD7 PD2 PD3 */
+  /* manual edit (no CubeMX regen): PD1/PD0 (FDCAN1_TX/RX) left out -- a pull-down on PD1 holds
+   * the CAN transceiver's TXD low, driving the bus dominant on every boot. */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_7|GPIO_PIN_2|GPIO_PIN_3;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
