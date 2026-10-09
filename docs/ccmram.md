@@ -59,7 +59,7 @@ CCM code is copied from flash at boot, so **GDB software breakpoints set in it a
 startup copy and silently never fire**. Use **hardware** breakpoints for CCM functions: the
 Cortex-M4 FPB can break on any address `< 0x2000_0000`, which is exactly why CCM is linked at
 `0x1000_0000` and *not* the `0x2001_8000` SRAM alias. Either `hbreak <fn>` per breakpoint, or
-uncomment `gdb_breakpoint_override hard` in `st_nucleo_g4.cfg` for the session (leave it off for the
+uncomment `gdb_breakpoint_override hard` in `openocd.cfg` for the session (leave it off for the
 Debug build — there are only 6 FPB comparators, and flash debugging uses them automatically). The
 Debug = flash gate exists precisely so you only need this when chasing something in the CCM build.
 

@@ -19,7 +19,7 @@
 #   ELF=...           firmware ELF (default: cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf —
 #                     the sweep arms the fast loop, and Debug builds can't run it at 32 kHz:
 #                     the ISR overruns, SysTick/IWDG starves, and the board reboots mid-sweep)
-#   OPENOCD_CFG=...   OpenOCD config (default: st_nucleo_g4.cfg)
+#   OPENOCD_CFG=...   OpenOCD config (default: openocd.cfg)
 #   START/STOP/STEP   sweep range in HRTIM ticks (default: 300..23700 step 200)
 #   DWELL             ticks accumulated per step (default: 1024 = 32 ms @ 32 kHz)
 #   MODA/MODB         fixed modulation vector (default: 0.0375 / 0.012 -> ~2 A locked rotor,
@@ -28,7 +28,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."  # repo root
 
 ELF="${ELF:-cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf}"
-CFG="${OPENOCD_CFG:-st_nucleo_g4.cfg}"
+CFG="${OPENOCD_CFG:-openocd.cfg}"
 START="${START:-300}"
 STOP="${STOP:-23700}"
 STEP="${STEP:-200}"

@@ -36,7 +36,7 @@ Build artifacts: `cmake-build-*/oresat-acs-fw-v8.{elf,hex,bin,map}`. Toolchain i
 
 Flash via OpenOCD with the bundled config (uses ST-Link SWD):
 ```bash
-openocd -f st_nucleo_g4.cfg -c "program cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf verify reset exit"
+openocd -f openocd.cfg -c "program cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf verify reset exit"
 ```
 
 ### Two-image build/flash (bootloader + app)

@@ -17,13 +17,13 @@
 #   tools/shuntsel_delay.sh run [OUT_BIN]    # default OUT_BIN=shuntsel_step.bin
 #
 # Env overrides:
-#   ELF=... OPENOCD_CFG=...     as usual (defaults: relwithdebinfo ELF, st_nucleo_g4.cfg)
+#   ELF=... OPENOCD_CFG=...     as usual (defaults: relwithdebinfo ELF, openocd.cfg)
 #   IQ_BASE / IQ_STEP           baseline / stepped q-current [A] (default 0.05 / 0.30)
 set -euo pipefail
 cd "$(dirname "$0")/.."  # repo root
 
 ELF="${ELF:-cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf}"
-CFG="${OPENOCD_CFG:-st_nucleo_g4.cfg}"
+CFG="${OPENOCD_CFG:-openocd.cfg}"
 IQ_BASE="${IQ_BASE:-0.05}"
 IQ_STEP="${IQ_STEP:-0.30}"
 

@@ -37,7 +37,7 @@ current ≈ its average). The trigger must therefore fire `D` ticks before the c
 1. **Build + flash a RelWithDebInfo image** containing the hooks (this branch):
    ```bash
    cmake --build cmake-build-relwithdebinfo -j
-   openocd -f st_nucleo_g4.cfg -c "program cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf verify reset exit"
+   openocd -f openocd.cfg -c "program cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf verify reset exit"
    ```
    **Not Debug** — the sweep arms the fast loop, and Debug (`-Og`, flash-resident) can't run it
    at 32 kHz: the ISR overruns its budget, SysTick (the IWDG feeder) starves, and the board

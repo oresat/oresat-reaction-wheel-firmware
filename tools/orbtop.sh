@@ -73,7 +73,7 @@ trap cleanup EXIT
 #   GPIOB MODER3 01->10, AFRL3=0  — PB3 from firmware's GPIO-out back to AF0 TRACESWO
 #   ITM LAR unlock; TCR = TraceBusID 1 | TXENA (forward DWT) | SYNCENA | ITMENA
 #   DWT_CTRL — the PC sampler itself
-openocd -f st_nucleo_g4.cfg \
+openocd -f openocd.cfg \
     -c "stm32g4x.tpiu configure -protocol uart -traceclk $CPU_HZ -pin-freq $SWO_HZ -formatter 0 -output :$SWO_PORT" \
     -c init \
     -c "stm32g4x.tpiu enable" \

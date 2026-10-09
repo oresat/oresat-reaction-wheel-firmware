@@ -18,12 +18,12 @@
 #
 # Env overrides:
 #   ELF=...          path to oresat-acs-fw-v8.elf (default: cmake-build-relwithdebinfo/...)
-#   OPENOCD_CFG=...  OpenOCD config file (default: st_nucleo_g4.cfg)
+#   OPENOCD_CFG=...  OpenOCD config file (default: openocd.cfg)
 set -euo pipefail
 cd "$(dirname "$0")/.."  # repo root
 
 ELF="${ELF:-cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf}"
-CFG="${OPENOCD_CFG:-st_nucleo_g4.cfg}"
+CFG="${OPENOCD_CFG:-openocd.cfg}"
 
 usage() {
   sed -n '3,/^set -e/p' "$0" | sed -n 's/^# \?//p'

@@ -131,7 +131,7 @@ the current state byte (for the post-read consistency check), the buffer (23 KB)
 the FOC loop keeps controlling. See "Dump halt safety" below for why this matters.
 
 Defaults: ELF = `cmake-build-relwithdebinfo/oresat-acs-fw-v8.elf`, output = `foc_capture.bin`,
-OpenOCD config = `st_nucleo_g4.cfg`. Override via env vars (`ELF=...`, `OPENOCD_CFG=...`) or the
+OpenOCD config = `openocd.cfg`. Override via env vars (`ELF=...`, `OPENOCD_CFG=...`) or the
 positional arg (`tools/foc_capture.sh dump my_run.bin`).
 
 The script warns if it found `state == RUNNING` — meaning the ISR was actively writing the buffer

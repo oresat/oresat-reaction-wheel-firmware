@@ -142,7 +142,7 @@ fault handlers). A regen would silently revert flight fixes — don't.
 non-Debug build the HRTIM ISR path is placed at `0x1000_0000` (`__ccmram` / `CCMRAM_HOT_FUNCS`) and
 shadowed from flash by a copy loop in `startup_stm32g474vehx.s`. GDB **software** breakpoints set in
 that code are overwritten by the boot copy and silently never fire — use `hbreak`, or
-`gdb_breakpoint_override hard` in `st_nucleo_g4.cfg`. CCM is linked at `0x1000_0000` (not the
+`gdb_breakpoint_override hard` in `openocd.cfg`. CCM is linked at `0x1000_0000` (not the
 `0x2001_8000` SRAM alias) precisely so the Cortex-M4 FPB, which only reaches `< 0x2000_0000`, can set
 HW breakpoints there. The Debug build keeps this code in flash so ordinary breakpoints work — **debug
 from Debug, fly from optimized.** The copy loop and the `PREFETCH_ENABLE` bit live in *generated* files
