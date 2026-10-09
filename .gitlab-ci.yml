@@ -1,0 +1,60 @@
+# Build the app + bootloader with the pinned toolchain; on a tag, publish them as a release.
+#
+# Tag pipelines upload dist/ to the generic package registry (permanent, unlike job artifacts) as
+# oresat-acs-fw/<tag>/<file> -- that is where ./flash-release.sh <tag> fetches from -- and create
+# a GitLab release linking to them. To check a branch builds without cutting a tag, run it by
+# hand: Build > Pipelines > New pipeline.
+
+stages: [build, release]
+
+variables:
+  PACKAGE_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/oresat-acs-fw/${CI_COMMIT_TAG}"
+
+build:
+  stage: build
+  image: ubuntu:24.04
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_PIPELINE_SOURCE == "web"
+  before_script:
+    - apt-get update -qq
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends ca-certificates curl xz-utils make cmake
+  script:
+    - ./toolchain.sh
+    - ./build.sh
+    - tools/dist.sh
+    - |
+      if [ -n "${CI_COMMIT_TAG:-}" ]; then
+        for f in dist/*; do
+          echo "uploading $(basename "$f")"
+          curl --fail --silent --show-error --location --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+               --upload-file "$f" "${PACKAGE_URL}/$(basename "$f")"
+          echo
+        done
+      fi
+  artifacts:
+    paths: [dist/]
+    expire_in: 30 days
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - echo "Releasing $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: $CI_COMMIT_TAG
+    description: "Flash it with `./flash-release.sh $CI_COMMIT_TAG`. Toolchain and commit are in BUILDINFO.txt."
+    assets:
+      links:
+        - { name: oresat-acs-fw-v8.elf,         url: "${PACKAGE_URL}/oresat-acs-fw-v8.elf" }
+        - { name: oresat-acs-fw-v8.hex,         url: "${PACKAGE_URL}/oresat-acs-fw-v8.hex" }
+        - { name: oresat-acs-fw-v8.bin,         url: "${PACKAGE_URL}/oresat-acs-fw-v8.bin" }
+        - { name: oresat-acs-bootloader-v8.elf, url: "${PACKAGE_URL}/oresat-acs-bootloader-v8.elf" }
+        - { name: oresat-acs-bootloader-v8.hex, url: "${PACKAGE_URL}/oresat-acs-bootloader-v8.hex" }
+        - { name: oresat-acs-bootloader-v8.bin, url: "${PACKAGE_URL}/oresat-acs-bootloader-v8.bin" }
+        - { name: combined-bootstrap.bin,       url: "${PACKAGE_URL}/combined-bootstrap.bin" }
+        - { name: SHA256SUMS,                   url: "${PACKAGE_URL}/SHA256SUMS" }
+        - { name: BUILDINFO.txt,                url: "${PACKAGE_URL}/BUILDINFO.txt" }
