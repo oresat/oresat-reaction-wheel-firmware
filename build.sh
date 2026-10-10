@@ -28,15 +28,33 @@ echo "toolchain: $("$GCC" --version | head -n 1)"
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
 
 BUILD_TYPE="${1:-RelWithDebInfo}"
+case "$BUILD_TYPE" in
+    Debug|Release|RelWithDebInfo|MinSizeRel) ;;
+    *) echo "ERROR: build type must be Debug, Release, RelWithDebInfo or MinSizeRel"; exit 2 ;;
+esac
 SUFFIX=$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')
 APP_BUILD="cmake-build-$SUFFIX"
 BL_BUILD="bootloader/cmake-build-$SUFFIX"
 
+# CMake bakes the compiler into a build dir at first configure and silently ignores a later
+# change, so a dir first configured with another toolchain would keep using that one. Start
+# such a dir over (its objects are from the other compiler anyway).
+GCC_REAL="$(readlink -f "$(command -v "$GCC")")"
+fresh_if_other_compiler() { # <build dir>
+    was="$(sed -n 's/^set(CMAKE_C_COMPILER "\(.*\)")$/\1/p' "$1"/CMakeFiles/*/CMakeCCompiler.cmake 2>/dev/null | head -n 1)"
+    if [ -n "$was" ] && [ "$(readlink -f "$was")" != "$GCC_REAL" ]; then
+        echo "$1 was configured with $was -- starting it over with this toolchain"
+        rm -rf "$1"
+    fi
+}
+
 echo "==== app ($BUILD_TYPE) -> $APP_BUILD ===="
+fresh_if_other_compiler "$APP_BUILD"
 cmake -S . -B "$APP_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "-DTOOLCHAIN_DIR=$TOOLCHAIN_DIR"
 cmake --build "$APP_BUILD" -j "$JOBS"
 
 echo "==== bootloader ($BUILD_TYPE) -> $BL_BUILD ===="
+fresh_if_other_compiler "$BL_BUILD"
 cmake -S bootloader -B "$BL_BUILD" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "-DTOOLCHAIN_DIR=$TOOLCHAIN_DIR"
 cmake --build "$BL_BUILD" -j "$JOBS"
 
