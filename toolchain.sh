@@ -4,7 +4,8 @@
 # a build here is the compiler a release was built with regardless of what the distro ships.
 #
 #   ./toolchain.sh            download (~150 MB), verify, unpack (~1 GB); then check cmake/make
-#   ./toolchain.sh --path     print its bin dir, or nothing if it is not installed
+#   ./toolchain.sh --path     print its bin dir; nothing if there is no .toolchain/ at all;
+#                             an error if .toolchain/ exists without the pinned version in it
 #   ./toolchain.sh --remove   delete .toolchain/
 set -e
 cd "$(dirname "$0")"
@@ -22,7 +23,22 @@ GCC="$DEST/bin/arm-none-eabi-gcc"
 
 case "${1:-}" in
     --path)
-        if [ -n "$HOST" ] && [ -x "$GCC" ]; then echo "$PWD/$DEST/bin"; fi
+        if [ -n "$HOST" ] && [ -x "$GCC" ]; then
+            echo "$PWD/$DEST/bin"
+        elif [ -e .toolchain ]; then
+            # Falling back to PATH here would be a silent switch of compiler. Make the user say.
+            cat >&2 <<EOF
+
+ERROR: .toolchain/ exists, but the pinned toolchain ($VERSION) is not in it -- an older
+       version, or a download that never finished. Not guessing which compiler you meant.
+       Do one of:
+           ./toolchain.sh              install the pinned toolchain
+           ./toolchain.sh --remove     delete .toolchain/ and build with the compiler on PATH
+           TOOLCHAIN_DIR= ./build.sh   build with the compiler on PATH, this once
+
+EOF
+            exit 1
+        fi
         exit 0 ;;
     --remove)
         rm -rf .toolchain
@@ -62,6 +78,13 @@ else
     rm -f "$TARBALL"
     "$GCC" --version >/dev/null || { echo "ERROR: $GCC does not run on this machine."; exit 1; }
 fi
+# .toolchain/ holds the pinned version and nothing else: drop older versions and stale downloads.
+for f in .toolchain/* .toolchain/.[!.]*; do
+    if [ -e "$f" ] && [ "$f" != "$DEST" ]; then
+        echo "toolchain: removing leftover $f"
+        rm -rf "$f"
+    fi
+done
 echo "toolchain: $("$GCC" --version | head -n 1)"
 echo "           $PWD/$DEST/bin"
 

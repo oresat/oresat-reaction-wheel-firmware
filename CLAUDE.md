@@ -60,8 +60,11 @@ under "Conventions" and `docs/bootloader-integration.md`.
 
 - `./toolchain.sh` fetches Arm GNU Toolchain 14.3.Rel1 into `.toolchain/` (no root, Linux
   x86_64/aarch64). `build.sh` uses it whenever it is installed; `TOOLCHAIN_DIR=<bin dir>` in
-  the environment overrides, and an empty `TOOLCHAIN_DIR=` forces whatever is on PATH. CI
-  builds releases with it. CLion builds are unaffected (they use PATH).
+  the environment overrides, and an empty `TOOLCHAIN_DIR=` forces whatever is on PATH. A
+  `.toolchain/` that exists without the pinned version in it (old version, unfinished
+  download) is an error, not a fallback to PATH. `build.sh` starts a build dir over when it
+  was configured with a different compiler. CI builds releases with the pinned toolchain.
+  CLion builds are unaffected (they use PATH).
 - `.gitlab-ci.yml`: a pushed tag builds both images, runs `tools/dist.sh`, uploads `dist/` to
   the generic package registry as `oresat-acs-fw/<tag>/<file>`, and creates a GitLab release.
   A pipeline started by hand from the web UI builds only.
