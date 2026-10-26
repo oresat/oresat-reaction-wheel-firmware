@@ -80,6 +80,17 @@ HAL's `..._DIV8`/`..._MUL8` naming and comments are misleading about the actual 
 real dead-time from the RM §28 dead-time formula (see `resources/INDEX.md` → reference manual), not
 the symbol name, before trusting or changing it. Getting this wrong shoot-throughs the half-bridge.
 
+**The ADC/DAC reference is 3.0 V, not 3.3 V.** VDDA is 3.3 V, but VREF+ comes from a dedicated
+3.0 V reference: 4095 counts = 3.0 V, and the shunt amps idle at VREF+/2 = midscale. Never
+hard-code 3.3 V in a count<->volt conversion. Use the measured VREF+
+(`aux_adc_conv_vdd_voltage_mV()`; "vdd"/"vvcc" are legacy names for VREF+) or
+`ADC_VREF_NOMINAL_V` (`config.h`). That function takes the **16x-oversampled** VREFINT sample
+(~26400), not a 12-bit count. v1.0.0-v1.0.2 checked it against a 12-bit band, rejected every
+sample and fell back to 3.3 V: Vbus and the phase currents read 10% high, the OV trip fired about
+0.8 V early, and the die temperature read ~30 C hot. A wrong scale is a gain error, not a
+zero offset (zero current is subtracted in counts), so the offset cal looks perfect either way.
+Check Vbus against a meter.
+
 **Option bytes are rewritten (and the MCU resets, inside `HAL_FLASH_OB_Launch`) on boot
 mismatch — but at most 3 attempts per power-on.** `app_main` → `check_option_bytes_ok()` now
 covers nBOOT0/nBOOT1/nSWBOOT0 **and BOR_LEV (level 4, ~2.8 V)**; the attempt counter lives in a

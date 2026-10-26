@@ -158,7 +158,7 @@ void inverter_amp_offset_correction() {
     // (the old code asserted-and-continued, flying ~0.8 A-per-100-counts of bias baked into
     // both the FOC loop and the trip math — flight-review P2-4). Unarmed telemetry still
     // works; arming is refused with CTRLR_ERR_INVERTER_CALIBRATION_INVALID.
-    const i16 offset_bound = (i16) (0.050f / (3.3f / 4095.f)); // 62 counts
+    const i16 offset_bound = (i16) (0.050f / (ADC_VREF_NOMINAL_V / 4095.f)); // 68 counts
     if ((A_accum_avg_i16 < -offset_bound) || (A_accum_avg_i16 > offset_bound) ||
         (B_accum_avg_i16 < -offset_bound) || (B_accum_avg_i16 > offset_bound) ||
         (C_accum_avg_i16 < -offset_bound) || (C_accum_avg_i16 > offset_bound)) {
@@ -171,8 +171,8 @@ void inverter_amp_offset_correction() {
     INA240_offset_correction.B_offset = B_accum_avg_i16;
     INA240_offset_correction.C_offset = C_accum_avg_i16;
 
-    printf("\tAvg offset: %.1fmV %.1fmV %.1fmV\r\n", A_accum_avg * 3300.f / 4095.f, B_accum_avg * 3300.f / 4095.f,
-           C_accum_avg * 3300.f / 4095.f);
+    printf("\tAvg offset: %.1fmV %.1fmV %.1fmV\r\n", A_accum_avg * ADC_VREF_NOMINAL_mV / 4095.f,
+           B_accum_avg * ADC_VREF_NOMINAL_mV / 4095.f, C_accum_avg * ADC_VREF_NOMINAL_mV / 4095.f);
 
     inverter_is_calibrated = true;
 

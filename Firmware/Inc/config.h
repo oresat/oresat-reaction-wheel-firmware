@@ -18,6 +18,10 @@ static const f32 MOTOR_CURRENT_CMD_LIMIT = 5.0f; // A
 static const f32 MOTOR_CURRENT_TRIP_LIMIT = 15.f; // A
 
 
+// ADC/DAC full scale: VREF+ is a 3.0 V reference, not the 3.3 V VDDA
+#define ADC_VREF_NOMINAL_mV 3000u
+#define ADC_VREF_NOMINAL_V (ADC_VREF_NOMINAL_mV / 1000.f)
+
 // Inverter constants
 static const f32 SHUNT_AMP_GAIN = -50.f; // V/V
 static const f32 SHUNT_VALUE_OHM = 0.002f; // Ohm
@@ -155,9 +159,8 @@ static const bool FOC_USE_DECOUPLING = true;
 static const bool FOC_USE_BEMF_HARMONIC_FF = true;
 // PHx_V divider counts -> phase volts. ASSUMES the phase dividers match the VBUS divider
 // (user-confirmed for the current board; if IS_CORRECTED_VOLTAGE_DIVIDER ever changes ONLY the
-// VBUS divider on a rework, split this out). Nominal 3.3 V ref — a ±1% scale error rescales a
-// 7.5% correction by 1%, irrelevant.
-static const f32 PHASE_V_COUNTS_TO_VOLTS = (3.3f / 4095.f) / VSNS_VOLTAGE_DIVIDER;
+// VBUS divider on a rework, split this out). Must share the Vbus path's ref so scale errors cancel.
+static const f32 PHASE_V_COUNTS_TO_VOLTS = (ADC_VREF_NOMINAL_V / 4095.f) / VSNS_VOLTAGE_DIVIDER;
 static const f32 BACKEMF_FF_MAX_COEFF = 100e-6f; // |A|,|B| sanity bound [V*s/rad]; measured e5
                                                  // implies ~13 uV*s — 100 means garbage data
 static const f32 BACKEMF_FF_ADVANCE_TICKS = 1.7f; // phase-advance the 6θ injection by the

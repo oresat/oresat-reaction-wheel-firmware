@@ -10,6 +10,7 @@
 #include "periphmap.h"
 #include "control_ll.h"
 #include "printf.h"
+#include "config.h"
 
 void user_assert_fail(uint8_t *file, uint32_t line);
 
@@ -162,19 +163,19 @@ static __fn_inline void dac_debug2(u16 cnt) {
 }
 
 static __fn_inline void dac_debug0_V(f32 V) {
-    u16 v_u16 = (u16) (4095.f * (V / 3.3f));
+    u16 v_u16 = (u16) (4095.f * (V / ADC_VREF_NOMINAL_V));
     if (v_u16 > 4095) v_u16 = 4095;
     dac_debug0(v_u16);
 }
 
 static __fn_inline void dac_debug1_V(f32 V) {
-    u16 v_u16 = (u16) (4095.f * (V / 3.3f));
+    u16 v_u16 = (u16) (4095.f * (V / ADC_VREF_NOMINAL_V));
     if (v_u16 > 4095) v_u16 = 4095;
     dac_debug1(v_u16);
 }
 
 static __fn_inline void dac_debug2_V(f32 V) {
-    u16 v_u16 = (u16) (4095.f * (V / 3.3f));
+    u16 v_u16 = (u16) (4095.f * (V / ADC_VREF_NOMINAL_V));
     if (v_u16 > 4095) v_u16 = 4095;
     dac_debug2(v_u16);
 }

@@ -8,6 +8,7 @@
 #include "periphmap.h"
 #include "util.h"
 #include "THERM_LUT.h"
+#include "config.h"
 
 
 /*
@@ -61,15 +62,14 @@ void aux_adc_stop() {
 }
 
 
+// Returns VREF+ (ADC full scale), despite the name. vdd_raw is the 16x-oversampled VREFINT.
 __ccmram u32 aux_adc_conv_vdd_voltage_mV(u16 vdd_raw) {
-    // Plausibility band for the raw VREFINT sample (nominal ~1530 counts at VDDA = 3.3 V).
-    // vdd_raw = 0 (DMA not yet run, SEU) was an integer divide-by-zero → 0 → every current and
-    // Vbus computed as 0 for that tick; a low-but-nonzero corruption (≲1214) overflowed the
-    // u32 scaling into a garbage gain for both the loop and the trip math (flight-review
-    // P2-9). Outside the band, fall back to nominal 3.3 V.
-    if (vdd_raw < 1300u || vdd_raw > 1750u)
-        return 3300u;
-    return (((((u32) VREFINT_CAL) << 20) / vdd_raw) * VREFINT_CAL_VOLTAGE_mV) >> 16;
+    if (vdd_raw < 16384u) // garbage; 0 divides by zero, < ~1214 overflows (flight-review P2-9)
+        return ADC_VREF_NOMINAL_mV;
+    u32 vref_mV = (((((u32) VREFINT_CAL) << 20) / vdd_raw) * VREFINT_CAL_VOLTAGE_mV) >> 16;
+    if (vref_mV < 2500u || vref_mV > 3400u) // corrupt sample, or VREFINT_CAL not loaded yet
+        return ADC_VREF_NOMINAL_mV;
+    return vref_mV;
 }
 
 i32 aux_adc_conv_therm_cDegC(u16 therm_raw) {
@@ -77,7 +77,8 @@ i32 aux_adc_conv_therm_cDegC(u16 therm_raw) {
 }
 
 i32 aux_adc_conv_thermint_cDegC(u16 therm_raw) {
-    return 100 * __LL_ADC_CALC_TEMPERATURE(3300, therm_raw >> 4, ADC_RESOLUTION_12B);
+    u32 vref_mV = aux_adc_conv_vdd_voltage_mV(aux_adc_last_reading_raw.vvcc_sns);
+    return 100 * __LL_ADC_CALC_TEMPERATURE(vref_mV, therm_raw >> 4, ADC_RESOLUTION_12B);
 }
 
 /*

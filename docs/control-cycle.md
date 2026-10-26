@@ -34,7 +34,8 @@ Registered as the HAL repetition callback by `controller_arm()`; *unregistered* 
 5. **`adc_update_callback()`** (`control_ll.c:109`) — the current path (≈5 µs):
    - Validates inverter calibration + that last cycle's currents were consumed (see flag machine).
    - Reads injected ADC raw (3 shunts + Vbus), subtracts per-phase offset cal, applies
-     `SHUNT_AMP_CONDUCTANCE` and Vbus divider, VVCC-corrects against the aux-ADC VDDA reading.
+     `SHUNT_AMP_CONDUCTANCE` and Vbus divider, scaling counts by the measured VREF+ (3.0 V reference,
+     read through VREFINT on the aux ADC; the code calls it `vvcc`).
    - Removes common-mode (`zero = A+B+C`, subtract `zero/3`).
    - **Trips:** over/under-Vbus, and `|I|² > MOTOR_CURRENT_TRIP_LIMIT²`. Any error → `controller_disarm()` + `goto fail`.
    - Publishes `last_phase_currents` / `last_vbus_voltage`, sets `is_currents_updated = true`, then

@@ -206,7 +206,7 @@ __ccmram void adc_update_callback() {
     i32 B_offset_corrected = (i32)B_raw - B_offset_cal;
     i32 C_offset_corrected = (i32)C_raw - C_offset_cal;
 
-    // Get VCC voltage
+    // VREF+ (ADC full scale), measured via VREFINT
     f32 vvcc = ((f32)aux_adc_conv_vdd_voltage_mV(aux_adc_last_reading_raw.vvcc_sns)) / 1000.f;
 
     // Gain and correction

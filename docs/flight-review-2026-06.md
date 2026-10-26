@@ -107,6 +107,10 @@ trip would need VDDA > 3.38 V, out of spec for the rail. (The 4× injected overs
 shift-2, preserving 12-bit scale — verified against the ADC config — so there's no headroom
 hiding in the oversampler.)
 
+> **2026-10-26:** the ADC full scale is VREF+ = 3.0 V (external reference), not VDDA. The 3.3 V
+> scale this section assumes is what the broken P2-9 clamp made the firmware use. Rev 8.1.1
+> boards carry the 8.2k/2.7k divider, which makes the trip reachable; see the P2-9 note.
+
 **Flight consequence.** Regen pumping the bus during deceleration — the exact event this trip
 exists for — is invisible to the firmware. There is no other regen management (the
 `IBUS_OVERREGEN_THRESHOLD_A` constant is dead code, see P2-12), so bus protection during
@@ -881,6 +885,14 @@ dropout). A corrupted low-but-nonzero sample (≲1214) overflows the u32 → gar
 the loop and the trip math for those ticks. **Fix:** clamp `vdd_raw` to a sane band
 (~1300–1750 counts), fall back to nominal 3.3 V outside it.
 
+> **2026-10-26: this fix was itself wrong, and is now corrected.** `vdd_raw` is the
+> 16x-oversampled DMA value (~26400), so the 12-bit band rejected every sample, and the ADC
+> reference is VREF+ = 3.0 V (an external reference; VDDA is 3.3 V). In v1.0.0-v1.0.2 every tick
+> used 3.3 V: Vbus and the phase currents read 10% high (measured on the bench: 8.37 V reported
+> for 7.62 V real), and the OV trip fired about 0.8 V early. Now `vdd_raw < 16384` is treated as
+> garbage, the computed VREF+ must fall in 2.5-3.4 V, and the fallback is 3.0 V
+> (`ADC_VREF_NOMINAL_mV`).
+
 ### P2-10. Error-mask pollution obscures root cause for remote diagnosis ✅ verified
 
 A mid-tick disarm (e.g. genuine OC in `adc_update_callback`) skips the consumers for the rest
@@ -1291,7 +1303,7 @@ should gate flight.
 - [x] `controller_disarm` ODISR-first (assert itself remains print-and-continue — *(open)* CAN-visible assert flag if ever wanted)
 - [x] FDCAN prio 3 (MspInit direct edit) + cal-store flash ops moved to foreground + CO_LOCK → BASEPRI(2) — **re-measure `isr_cycles_max` armed on a busy bus**
 - [x] Option-byte retry bound (3 per power-on, RAM2 cell, fail-open) + BOR_LEV 4 (~2.8 V) enforced — IWDG_SW left software-start *(deliberate: hardware-start fights bench debugging)*
-- [x] VDDA raw-count clamp (1300–1750 band, nominal-3.3 V fallback)
+- [x] VDDA raw-count clamp (1300–1750 band, nominal-3.3 V fallback) — **regression, fixed 2026-10-26:** the band was in 12-bit counts but the sample is 16x-oversampled, so every tick fell back to 3.3 V on a 3.0 V reference (Vbus/currents +10% in v1.0.0–v1.0.2). Now a 16384-count floor plus a 2.5–3.4 V result band with a 3.0 V fallback — **bench-verified** (rev 8.1.1: 7.605 V reported vs 7.64 V meter, die 36 °C)
 - [ ] MA732 double-read verify *(skipped — owner)*
 - [x] h6-FF coefficients zeroed when states 10/15 change the offset; SAVE guard now uses the cal-provenance flags — *(open)* state-21 sub-result reporting, fit R gate, restore-bounds tightening (bench-untested subsystem deliberately left minimally diffed)
 - [x] NaN guards hardened via `f32_finite_bits()` (mathutil.h) in blob_valid, the backemf fit gates, and SDO ingestion

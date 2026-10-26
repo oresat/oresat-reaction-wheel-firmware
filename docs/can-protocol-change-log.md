@@ -91,3 +91,15 @@ Drop the `FSM_STATE_NONE`-nudge (unnecessary; writing 0 now aborts), default nod
 poll `0x4000` before setpoints, wait ~50 ms before reading `procedure_result` after 18/19/20,
 expect confirmed reboot responses, optionally decode `0x4006` + EMCY frames, and relabel the
 TPDO4 temp fields (phase-avg / aux / die).
+
+## Addendum 2026-10-26: telemetry scale fix
+
+Releases v1.0.0-v1.0.2 scaled every ADC reading by 3.3 V, but the reference is 3.0 V. Builds
+after the fix report the true values:
+
+- `0x4002` bus voltage and `0x4001` iq drop by about 9% for the same physical value. The new
+  numbers are the correct ones; the old ones read 10% high.
+- `0x4003` temp_3 (die temperature) drops by about 30 °C. Temps 1-2 (NTCs) are unchanged.
+- The OV/UV and over-current trips now fire at their configured real values. The OV trip
+  (8.6 V) used to fire at about 7.8 V real. Current commands now produce about 10% more
+  real current than v1.0.x did.

@@ -308,6 +308,13 @@ into **full negative current** with no error.
   back to 3.3 V. A zero sample was an integer divide-by-zero (currents/Vbus computed as 0 for
   the tick); a low-but-nonzero corruption overflowed the u32 scaling into garbage gains for
   both the loop and the trip math.
+- **Regression, fixed 2026-10-26:** the sample is 16x-oversampled (~26400), so the 12-bit band
+  rejected every sample, and the fallback should have been the 3.0 V VREF+ reference, not 3.3 V.
+  Every release v1.0.0-v1.0.2 therefore read Vbus and the phase currents 10% high. Fixed in
+  `aux_adc.c` with a 16384 floor, a 2.5-3.4 V result band and a 3.0 V fallback. Also fixed:
+  the die temperature (hard-coded 3300), `PHASE_V_COUNTS_TO_VOLTS`, the offset-cal gate and
+  print, and the `dac_debug*_V` helpers, all on `ADC_VREF_NOMINAL_V` (`config.h`).
+  Cal blobs saved by v1.0.x carry h6-FF coefficients ~10% high; re-run state 21 to refresh.
 
 ## 22. Landmine deletions + cosmetics  *(task 15, RE-10)*
 
