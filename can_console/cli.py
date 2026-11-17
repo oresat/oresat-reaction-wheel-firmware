@@ -21,6 +21,8 @@ Usage:
   python cli.py --wheel 4 errors              # decode latched error flags
   python cli.py --wheel 4 clear               # CLEAR_ERRORS
   python cli.py --wheel 4 reboot
+  python cli.py selftest                      # board self-test (state 22), details from the debug UART
+  python cli.py bringup                       # guided step-by-step bring-up of a new board
 
 Interactive bench session (the old workflow, kept):
   python -i cli.py --wheel 4 shell
@@ -38,6 +40,7 @@ from enum import IntEnum, IntFlag
 from statistics import mean, stdev
 
 try:
+    import can  # python-can, installed with canopen
     import canopen
     from canopen.objectdictionary import (INTEGER16, REAL32, UNSIGNED8,
                                           UNSIGNED32, ODVariable, Record)
@@ -54,18 +57,17 @@ DEFAULT_WHEEL = 4
 
 class ControllerState(IntEnum):
     """Mirror of fsm_state_t (Firmware/Inc/fsm.h)."""
-    NONE = 0                  # FSM "no request" sentinel; writing it to 0x4004 is a
-                              # guaranteed no-op (used below to reset the edge detector)
+    NONE = 0                  # FSM "no request" sentinel; 0x4004 rejects it (SDO abort)
     IDLE = 1
     SYSTEM_ERROR = 2
     CONTROLLER_ERROR = 3
     TORQUE_CONTROL = 4
     VEL_CONTROL = 5
-    POS_CONTROL = 6           # firmware stub: faults out (control-laws.md)
+    POS_CONTROL = 6           # firmware stub: rejected at 0x4004 (SDO abort)
     MOTOR_RESISTANCE_CAL = 7  # diagnostic only -- FOC uses hardcoded R/L
     MOTOR_INDUCTANCE_CAL = 8  # diagnostic only
     ENCODER_DIR_CAL = 9
-    ENCODER_OFFSET_CAL = 10   # coarse only; fine correction computed but never applied
+    ENCODER_OFFSET_CAL = 10   # 4-rev sweep, coarse + fine offset, applied
     ENCODER_TEST = 11
     OPEN_LOOP_CONTROL = 12    # setpoint not wired to CAN -- holds zero current
     CLEAR_ERRORS = 13
@@ -77,6 +79,7 @@ class ControllerState(IntEnum):
     ERASE_CALIBRATION = 19    # auto-return to IDLE, result -> procedure_result
     RESTORE_CALIBRATION = 20  # (also auto-runs at every boot)
     BACKEMF_CAL_BIDIR = 21    # fwd+rev coast capture; on-board offset+LUT fit, applied live
+    SELF_TEST = 22            # desk bring-up self-test; report on the debug UART (bringup.py)
 
 
 class ProcedureResult(IntEnum):
@@ -109,9 +112,10 @@ class ControllerErrors(IntFlag):
     CTRLR_ERR_ENCODER_READING_USAGE_MISSING = 1 << 19
     CTRLR_ERR_MOTOR_UNBALANCED_PHASES = 1 << 20
     CTRLR_ERR_MODULATION = 1 << 21
+    CTRLR_ERR_NOT_CALIBRATED = 1 << 22
 
 
-_ALL_KNOWN_ERRORS = ControllerErrors((1 << 22) - 1)
+_ALL_KNOWN_ERRORS = ControllerErrors((1 << 23) - 1)
 
 
 def fmt_errors(errs: ControllerErrors | int) -> str:
@@ -139,6 +143,16 @@ PROCEDURE_TIMEOUT_S = {
     ControllerState.ERASE_CALIBRATION: 5.0,
     ControllerState.RESTORE_CALIBRATION: 5.0,
     ControllerState.CLEAR_ERRORS: 5.0,
+    ControllerState.SELF_TEST: 5.0,               # ~0.15 s armed + ~50 ms UART report
+}
+
+# Procedures whose result lands AFTER the FSM is back in IDLE: the foreground finishes them
+# (flash op / self-test report) tens of ms later. procedure_result is false until then.
+DEFERRED_RESULT_STATES = {
+    ControllerState.SAVE_CALIBRATION,
+    ControllerState.ERASE_CALIBRATION,
+    ControllerState.RESTORE_CALIBRATION,
+    ControllerState.SELF_TEST,
 }
 
 # States that run forever until told otherwise -- run_procedure() refuses these.
@@ -151,7 +165,7 @@ NON_COMPLETING_STATES = {
     ControllerState.OPEN_LOOP_CONTROL,
 }
 
-VEL_RAMP_RATE = 200.0  # rev/s^2, config.h -- used to size spin() wait timeouts
+VEL_RAMP_RATE = 20.0  # rev/s^2, config.h VEL_RAMP_RATE -- used to size spin() wait timeouts
 
 STATE_ALIASES = {
     "idle": ControllerState.IDLE,
@@ -174,6 +188,8 @@ STATE_ALIASES = {
     "erase": ControllerState.ERASE_CALIBRATION,
     "restore": ControllerState.RESTORE_CALIBRATION,
     "clear": ControllerState.CLEAR_ERRORS,
+    "selftest": ControllerState.SELF_TEST,
+    "self_test": ControllerState.SELF_TEST,
 }
 
 
@@ -309,15 +325,12 @@ class ReactionWheel:
         self.request_state(state)
 
     def request_state(self, state: ControllerState | int):
-        """Request an FSM state, working around the firmware's edge-trigger:
-        process_sdo_vals() only acts when 0x4004 *changes*, and the firmware never
-        rewrites it after auto-returning to IDLE -- so re-requesting the same state
-        would be a silent no-op. Writing FSM_STATE_NONE (0) first resets the edge
-        detector with zero side effects (the FSM treats 0 as 'no request')."""
+        """Request an FSM state. Every 0x4004 write is applied (OD write extension), so
+        re-requesting the same state works. Bad requests come back as an SDO abort
+        (canopen.SdoAbortedError): 0x06090030 = not a requestable state,
+        0x08000022 = closed-loop state without encoder cal. (Older firmware edge-triggered
+        on 0x4004 and needed a write of 0 first; current firmware aborts a write of 0.)"""
         state = ControllerState(int(state))
-        if self.requested_state == state:
-            self.node.sdo["rxw_requested_state"]["req_state"].raw = int(ControllerState.NONE)
-            time.sleep(0.02)
         self.node.sdo["rxw_requested_state"]["req_state"].raw = int(state)
 
     def idle(self):
@@ -325,16 +338,9 @@ class ReactionWheel:
 
     def set_setpoint(self, value: float, channel: int = 1):
         """Write setpoint_1 (or _2). Routed by the FSM state active *at write time* --
-        request the state first. The firmware edge-triggers on value change, so a
-        rewrite of the stale value is nudged through an epsilon-different intermediate
-        (otherwise e.g. spin(50), idle(), spin(50) would silently hold zero)."""
-        var = self.node.sdo["rxw_setpoint"][f"setpoint_{channel}"]
-        # compare in f32 space: the readback is a decoded f32, `value` is a double
-        value = struct.unpack("<f", struct.pack("<f", float(value)))[0]
-        if var.raw == value:
-            var.raw = (value + 1e-6) if value == 0.0 else value * (1.0 + 1e-6)
-            time.sleep(0.02)
-        var.raw = value
+        request the state first. Every write is applied, including a repeat of the
+        same value."""
+        self.node.sdo["rxw_setpoint"][f"setpoint_{channel}"].raw = float(value)
 
     @property
     def setpoint(self) -> float:
@@ -351,9 +357,9 @@ class ReactionWheel:
         """Run a completing state and wait for the result.
 
         Requests the state, waits for the FSM to come back to IDLE (or fall into
-        CONTROLLER_ERROR), then reads procedure_result -- importantly *before* any
-        further 0x4004 traffic, since any later exit transition (even IDLE->IDLE)
-        overwrites fsm_last_state_exit_ok."""
+        CONTROLLER_ERROR), then reads procedure_result before any further 0x4004
+        traffic (the next procedure overwrites it). For DEFERRED_RESULT_STATES the
+        result lands a little after IDLE, so it waits for that first."""
         state = ControllerState(int(state))
         if state in NON_COMPLETING_STATES:
             raise ValueError(f"{state.name} never completes; use request_state()/spin()")
@@ -393,6 +399,8 @@ class ReactionWheel:
                 last_note = time.monotonic()
             time.sleep(poll_s)
 
+        if state in DEFERRED_RESULT_STATES:
+            time.sleep(0.4)  # foreground flash op / self-test report finishes after IDLE
         result = self.procedure_result  # read BEFORE any further request traffic
         if not quiet:
             print(f"  <- {state.name} done in {time.monotonic() - t0:.1f} s: {result.name}")
@@ -464,7 +472,7 @@ class ReactionWheel:
     # --- motion helpers ---
 
     def spin(self, rev_s: float, wait: bool = True, quiet: bool = False) -> bool:
-        """Closed-loop to rev_s using VEL_RAMP_CONTROL (firmware slews at 200 rev/s^2)."""
+        """Closed-loop to rev_s using VEL_RAMP_CONTROL (firmware slews at VEL_RAMP_RATE)."""
         errs = self.errors
         if errs:
             if not quiet:
@@ -520,7 +528,7 @@ class ReactionWheel:
     def reboot(self):
         try:
             self.node.sdo["rxw_reboot"]["reboot_request"].raw = 1
-        except canopen.SdoCommunicationError:
+        except (canopen.SdoCommunicationError, can.CanError):
             pass  # node can reset before the SDO response makes it out
         time.sleep(0.5)
 
@@ -533,7 +541,8 @@ class ReactionWheel:
                 try:
                     self.node.sdo["rxw_ctrl_stat"]["current_state"].raw
                     return True
-                except canopen.SdoCommunicationError:
+                except (canopen.SdoCommunicationError, can.CanError):
+                    # CanError: with nobody ACKing, the adapter's TX queue fills (ENOBUFS)
                     time.sleep(0.3)
             return False
         finally:
@@ -712,18 +721,48 @@ def main(argv=None):
     sub.add_parser("clear", help="run CLEAR_ERRORS")
     sub.add_parser("reboot", help="write-1-to-reboot (0x4007)")
     sub.add_parser("shell", help="connect and stop -- for `python -i cli.py shell`")
+    for name, helptext in (("selftest", "board self-test (state 22); details from the debug UART"),
+                           ("bringup", "guided step-by-step bring-up of a new board (docs/board-bringup.md)")):
+        pb = sub.add_parser(name, help=helptext)
+        pb.add_argument("--uart", help="debug UART serial port (default: find it automatically)")
+        pb.add_argument("--no-uart", action="store_true", help="don't open any serial port")
+        if name == "bringup":
+            pb.add_argument("--skip", help="comma-separated steps to skip: power,selftest,magnet,"
+                                           "undervoltage,reboot,soak")
 
     args = p.parse_args(argv)
     cmd = args.cmd or "status"
-    node_id = args.node_id if args.node_id is not None else WHEEL_NODE_IDS[args.wheel or DEFAULT_WHEEL]
+    if args.node_id is not None:
+        node_id = args.node_id
+    elif args.wheel is not None:
+        node_id = WHEEL_NODE_IDS[args.wheel]
+    elif cmd in ("selftest", "bringup"):
+        node_id = None  # find the one board on the bus
+    else:
+        node_id = WHEEL_NODE_IDS[DEFAULT_WHEEL]
+
+    if cmd in ("selftest", "bringup"):
+        try:
+            import bringup  # noqa: F401  (pyserial is optional; bringup.py copes without it)
+        except ImportError as e:
+            sys.exit(f"could not load bringup.py next to cli.py: {e}")
 
     network = canopen.Network()
-    network.connect(channel=args.channel, interface=args.interface, bitrate=args.bitrate)
+    try:
+        network.connect(channel=args.channel, interface=args.interface, bitrate=args.bitrate)
+    except Exception as e:  # python-can raises OSError / CanError subclasses
+        sys.exit(f"could not open CAN interface {args.interface}:{args.channel}: {e}\n"
+                 f"If it's a socketcan adapter, bring it up first (once per boot):\n"
+                 f"    sudo ip link set {args.channel} up type can bitrate {args.bitrate}")
 
     try:
         if cmd == "scan":
             scan(network)
             return
+        if cmd == "selftest":
+            sys.exit(0 if bringup.cmd_selftest(sys.modules[__name__], network, args, node_id) else 1)
+        if cmd == "bringup":
+            sys.exit(0 if bringup.cmd_bringup(sys.modules[__name__], network, args, node_id) else 1)
 
         rxw = ReactionWheel(network, node_id)
         # leave handles around for `python -i cli.py ... shell`
@@ -785,8 +824,11 @@ def main(argv=None):
             print("\nhandles: rxw, node, network, S=ControllerState, E=ControllerErrors")
             print("e.g.  rxw.commission()   rxw.spin(50)   rxw.stop()   spin_test(rxw, 50)")
             return  # keep the network up for python -i
-    except canopen.SdoCommunicationError as e:
-        sys.exit(f"SDO timeout talking to node 0x{node_id:02X}: {e} "
+    except canopen.SdoAbortedError as e:
+        sys.exit(f"the wheel refused the request: {e}")
+    except (canopen.SdoCommunicationError, can.CanError) as e:
+        where = f"node 0x{node_id:02X}" if node_id is not None else "the wheel"
+        sys.exit(f"no answer from {where}: {e} "
                  f"(is the node powered and {args.channel} up?)")
     finally:
         if cmd != "shell":
