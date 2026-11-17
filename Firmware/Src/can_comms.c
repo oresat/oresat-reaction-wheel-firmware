@@ -311,6 +311,7 @@ static bool fsm_state_requestable(u8 s) {
         case FSM_STATE_ERASE_CALIBRATION:
         case FSM_STATE_RESTORE_CALIBRATION:
         case FSM_STATE_BACKEMF_CAL_BIDIR:
+        case FSM_STATE_SELF_TEST:
             return true;
         default:
             // NONE (request sentinel), SYSTEM_ERROR/CONTROLLER_ERROR (the FSM enters these,

@@ -11,32 +11,33 @@ const bool nSWBOOT0_REQ = 0;
 // On a regulated 3.3 V rail, 2.8 V only trips when the rail is genuinely dying.
 #define BOR_LEVEL_REQ OB_BOR_LEVEL_4
 
-bool check_option_bytes_ok() {
-    // Need to make sure:
-    // - nBOOT0 is 1, nBOOT1 is 1, nSWBOOT0 is 0 (the custom PB8 bootloader owns the boot path)
-    // - BOR_LEV is level 4 (~2.8 V)
-
+// Need to make sure:
+// - nBOOT0 is 1, nBOOT1 is 1, nSWBOOT0 is 0 (the custom PB8 bootloader owns the boot path)
+// - BOR_LEV is level 4 (~2.8 V)
+option_bytes_status_t get_option_bytes_status() {
     FLASH_OBProgramInitTypeDef ob_cfg;
     HAL_FLASHEx_OBGetConfig(&ob_cfg);
     u32 option_bytes = ob_cfg.USERConfig;
 
-    bool nBOOT1 = (option_bytes & FLASH_OPTR_nBOOT1) != 0;
-    bool nSWBOOT0 = (option_bytes & FLASH_OPTR_nSWBOOT0) != 0;
-    bool nBOOT0 = (option_bytes & FLASH_OPTR_nBOOT0) != 0;
-    bool bor_ok = (option_bytes & FLASH_OPTR_BOR_LEV) == BOR_LEVEL_REQ;
+    option_bytes_status_t s = {
+        .nboot0_ok = ((option_bytes & FLASH_OPTR_nBOOT0) != 0) == nBOOT0_REQ,
+        .nboot1_ok = ((option_bytes & FLASH_OPTR_nBOOT1) != 0) == nBOOT1_REQ,
+        .nswboot0_ok = ((option_bytes & FLASH_OPTR_nSWBOOT0) != 0) == nSWBOOT0_REQ,
+        .bor_ok = (option_bytes & FLASH_OPTR_BOR_LEV) == BOR_LEVEL_REQ,
+    };
+    s.all_ok = s.nboot0_ok && s.nboot1_ok && s.nswboot0_ok && s.bor_ok;
+    return s;
+}
 
-    bool bytes_ok =
-            (nBOOT0 == nBOOT0_REQ) &&
-            (nBOOT1 == nBOOT1_REQ) &&
-            (nSWBOOT0 == nSWBOOT0_REQ) &&
-            bor_ok;
+bool check_option_bytes_ok() {
+    option_bytes_status_t s = get_option_bytes_status();
 
-    printf("nBOOT0: %s\r\n", nBOOT0 == nBOOT0_REQ ? "OK" : "BAD");
-    printf("nBOOT1: %s\r\n", nBOOT1 == nBOOT1_REQ ? "OK" : "BAD");
-    printf("nSWBOOT0: %s\r\n", nSWBOOT0 == nSWBOOT0_REQ ? "OK" : "BAD");
-    printf("BOR_LEV: %s\r\n", bor_ok ? "OK" : "BAD");
+    printf("nBOOT0: %s\r\n", s.nboot0_ok ? "OK" : "BAD");
+    printf("nBOOT1: %s\r\n", s.nboot1_ok ? "OK" : "BAD");
+    printf("nSWBOOT0: %s\r\n", s.nswboot0_ok ? "OK" : "BAD");
+    printf("BOR_LEV: %s\r\n", s.bor_ok ? "OK" : "BAD");
 
-    return bytes_ok;
+    return s.all_ok;
 }
 
 bool write_option_bytes() {

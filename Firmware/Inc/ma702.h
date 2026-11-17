@@ -18,6 +18,13 @@ void ma702_preheat();
 // Init-context only (blocking). Returns false if the write failed to verify.
 bool ma732_ensure_filter_window();
 
+// Bounded (HAL-free, never hangs) MA732 register read for runtime use. Caller must hold the SPI
+// exclusively: controller disarmed AND interrupts masked. Returns false if the SPI never answered.
+bool ma732_read_reg_bounded(u8 addr, u8 *val);
+
+#define MA732_REG_FW 0xE          // filter window (config.h MA732_FILTER_WINDOW_REG)
+#define MA732_REG_FIELD_FLAGS 0x1B // MGH (bit 7) / MGL (bit 6) magnetic-field flags
+
 typedef enum ma702_field_strength_flag {
     FIELD_HIGH, FIELD_LOW, FIELD_IN_RANGE, FIELD_UNK
 } ma702_field_strength_flag_t;

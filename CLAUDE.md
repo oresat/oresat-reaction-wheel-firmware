@@ -105,6 +105,8 @@ A gitignored root `compile_commands.json` symlink → `cmake-build-debug/` plus 
 - `docs/flight-review-2026-06.md` — full-codebase flight-readiness review (2026-06-09, vs. commit `ebdba3d`): verified P0/P1 findings (node-ID strap defect, unreachable OV trip, ECC-NMI boot loop, bootloader no-validity-check jump, FSM error ping-pong, edge-trigger SDO trap table), what was checked and found clean, and a prioritized fix punch list (statuses + bench-verification checklist at the bottom). Consult before touching the FSM ladder, command ingestion, fault handlers, cal_store, or the bootloader — and update its punch list as findings are fixed.
 - `docs/review-fixes-change-log.md` — what the 2026-06-10 overnight fix session actually changed, grouped as commit-sized units with files + behavior deltas; includes the known-open list. The companion to the review's punch list.
 - `docs/can-protocol-change-log.md` — host-facing summary of the 2026-06-10 bus-behavior changes (command semantics, aborts, EMCY, timing) + the can_console update list.
+- `docs/errata-todo.md` — open firmware bugs (E1…) and requested changes (T1…) found after the flight review. Put new RW firmware errata and TODOs here, not in the OreSat design review. Delete or mark an item when it's fixed.
+- `docs/board-bringup.md` — operator guide (written for a non-firmware user) for desk bring-up of a bare board: `can_console/cli.py bringup` (guided steps + per-board log) and the FSM self-test, state 22 (`Firmware/Src/self_test.c`; reference in `docs/control-laws.md`).
 
 Consult these before changing FSM/control-law, the fast loop, or CAN/OD code.
 
@@ -162,7 +164,7 @@ The system is structured around three independent ISR domains plus a foreground 
    Calls `canopen_1khz_isr()` → `canopen_app_interrupt()` (CANopenNode internals).
 
 4. **Foreground loop — `app_main()`'s `while(1)`** (`HAL_Delay(1)`-paced).
-   Strokes the IWDG liveness gate, pumps the console ring, calls `update_tpdo_od_vals()`, `canopen_process()` (NMT/SDO/PDO processing + pending-TPDO-rate apply + EMCY edges), `process_sdo_vals()` (deferred reboot), `fsm_run_pending_calstore_op()` (flash save/erase/restore parked by the FSM), and the 5 s CCM SEU scrub. Host command *ingestion* happens in OD write extensions (`can_comms.c`) inside the SDO server, not by polling.
+   Strokes the IWDG liveness gate, pumps the console ring, calls `update_tpdo_od_vals()`, `canopen_process()` (NMT/SDO/PDO processing + pending-TPDO-rate apply + EMCY edges), `process_sdo_vals()` (deferred reboot), `fsm_run_pending_calstore_op()` (flash save/erase/restore parked by the FSM), `fsm_run_pending_self_test()` (state 22's UART report, parked by the FSM), and the 5 s CCM SEU scrub. Host command *ingestion* happens in OD write extensions (`can_comms.c`) inside the SDO server, not by polling.
 
 `TIM7` triggers the auxiliary ADC (thermistors, VVCC sense); timekeeping is the Cortex SysTick (which is also the sole IWDG feeder — gated on a foreground heartbeat, see `Core/Src/iwdg.c`). See `Firmware/Inc/periphmap.h` for the canonical handle-to-role mapping; always reference these symbolic names rather than `htimN` directly.
 
@@ -191,10 +193,11 @@ Owners of `control_law_t` instances:
 - `encoder_calibration.c` — `encoder_dir_cal_ctrl_law`, `encoder_phase_cal_ctrl_law`, `encoder_validation_ctrl_law`, `encoder_single_point_cal_ctrl_law`.
 - `encoder.c` — `encoder_test_control_law`.
 - `open_loop_current_controller.c` — `open_loop_ctrl_law`.
+- `self_test.c` — `self_test_ctrl_law` (state 22; plus a foreground report half, see `self_test.h`).
 
 ## Architecture: FSM and error model
 
-`fsm_state_t` (`Firmware/Inc/fsm.h`) enumerates 17 states (`IDLE`, three control modes, six calibration/test routines, `OPEN_LOOP_CONTROL`, `VEL_RAMP_CONTROL`, error states, `CLEAR_ERRORS`). External requests arrive via `fsm_request_state()` (called from CANopen SDO handler) — the FSM tick reconciles current vs. requested state, calls `control_law_finish` on the outgoing law and `control_law_init` on the incoming one, and tracks `fsm_last_state_exit_ok` for the host to read.
+`fsm_state_t` (`Firmware/Inc/fsm.h`) enumerates states 0–22 (`IDLE`, the control modes, calibration/test routines, the cal-store action states 18–20, `SELF_TEST` 22, error states, `CLEAR_ERRORS`). External requests arrive via `fsm_request_state()` (called from CANopen SDO handler) — the FSM tick reconciles current vs. requested state, calls `control_law_finish` on the outgoing law and `control_law_init` on the incoming one, and tracks `fsm_last_state_exit_ok` for the host to read.
 
 Errors are bit-flag `CONTROLLER_ERRORS_t` accumulated via `controller_add_errors()`. Any nonzero error forces `FSM_STATE_CONTROLLER_ERROR`; only `FSM_STATE_CLEAR_ERRORS` resets them. Decoding helpers: `STRINGIFY_CONTROLLER_ERRORS()` in `util.h`.
 

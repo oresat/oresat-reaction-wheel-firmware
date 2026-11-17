@@ -16,6 +16,7 @@
 #include "motor_calibration.h"
 #include "open_loop_current_controller.h"
 #include "printf.h"
+#include "self_test.h"
 
 static volatile fsm_state_t fsm_state;
 static volatile fsm_status_t fsm_status;
@@ -31,6 +32,10 @@ static volatile bool fsm_last_state_exit_ok = false;
 // Cal-store RPC op parked by fsm_exit_state (TIM17 ISR), executed by
 // fsm_run_pending_calstore_op() in the foreground loop.
 static volatile fsm_state_t calstore_op_pending = FSM_STATE_NONE;
+
+// SELF_TEST entered without its bridge half (boot shunt-offset cal failed, arming would be
+// refused): it then behaves like an action state and auto-returns to IDLE.
+static volatile bool self_test_report_only = false;
 
 void fsm_init() {
     fsm_state = FSM_STATE_IDLE;
@@ -90,6 +95,8 @@ static __fn_inline control_law_t* get_ctrl_law_for_state(fsm_state_t state) {
             return &backemf_cal_ctrl_law;
         case FSM_STATE_BACKEMF_CAL_BIDIR:
             return &backemf_cal_bidir_ctrl_law;
+        case FSM_STATE_SELF_TEST:
+            return &self_test_ctrl_law;
     }
 }
 
@@ -153,13 +160,16 @@ void fsm_exec() {
 
     // If we're going from IDLE to a new state
     else if (fsm_requested_state != FSM_STATE_NONE && fsm_state == FSM_STATE_IDLE) {
-        if (calstore_op_pending != FSM_STATE_NONE) {
+        if (calstore_op_pending != FSM_STATE_NONE || self_test_report_pending()) {
             // A parked cal-store op hasn't executed yet (foreground, lands within tens of
             // ms): HOLD the request — do nothing this tick, re-evaluate next. Entering a law
             // state now would let a deferred RESTORE swap dir/offset/LUT under an armed
             // 32 kHz loop, and entering another cal-store state would double-park the op
-            // slot (review F1/F2).
-        } else if (get_ctrl_law_for_state(fsm_requested_state) != NULL && !inverter_get_calibrated()) {
+            // slot (review F1/F2). A parked self-test report is held the same way: it reads
+            // the encoder over SPI (needs the loop disarmed) and owns procedure_result.
+        } else if (get_ctrl_law_for_state(fsm_requested_state) != NULL && !inverter_get_calibrated()
+                   && fsm_requested_state != FSM_STATE_SELF_TEST) {
+            // (SELF_TEST is exempt: it enters report-only and says which channel is bad.)
             // Synchronous refusal: the fast-loop CALIBRATION_INVALID check can never fire if
             // the HRTIM doesn't tick — the exact failure the boot offset-cal timeout detects
             // — so arming would otherwise sit armed-and-inert with the bridge enabled and no
@@ -197,7 +207,8 @@ void fsm_exec() {
              (fsm_state == FSM_STATE_CLEAR_ERRORS ||
               fsm_state == FSM_STATE_SAVE_CALIBRATION ||
               fsm_state == FSM_STATE_ERASE_CALIBRATION ||
-              fsm_state == FSM_STATE_RESTORE_CALIBRATION)) {
+              fsm_state == FSM_STATE_RESTORE_CALIBRATION ||
+              (fsm_state == FSM_STATE_SELF_TEST && self_test_report_only))) {
         fsm_requested_state = FSM_STATE_IDLE;
     }
 }
@@ -255,6 +266,13 @@ void fsm_exit_state(fsm_state_t exit_state, bool cancelled) {
             fsm_last_state_exit_ok = false; // pessimistic until the foreground op completes
             calstore_op_pending = exit_state;
             break;
+        // Self-test: bridge half (if it ran) is over; the report half is parked for the
+        // foreground, which latches procedure_result when it finishes.
+        case FSM_STATE_SELF_TEST:
+            controller_disarm(); // idempotent; the report-only path never armed
+            self_test_exit(cancelled);
+            fsm_last_state_exit_ok = false; // pessimistic until the report lands
+            break;
         default: ;
     }
 }
@@ -263,10 +281,18 @@ void fsm_enter_state(fsm_state_t enter_state) {
     printf("Entering state %s\r\n", fsm_state_name(enter_state));
     control_law_t* ctrl_law = get_ctrl_law_for_state(enter_state);
 
+    if (enter_state == FSM_STATE_SELF_TEST) {
+        self_test_report_only = !self_test_prepare(); // false: boot shunt-offset cal is bad
+        if (self_test_report_only)
+            ctrl_law = NULL;
+    }
+
     if (ctrl_law != NULL) {
         set_tpdo_send_rate(100);
         controller_set_control_law(ctrl_law);
         controller_arm();
+        if (enter_state == FSM_STATE_SELF_TEST)
+            self_test_after_arm(); // float the bridge before the first fast-loop tick
     } else {
         // No law for this state: also drop the previous law and its latched done-flag. A stale
         // control_law_is_done (only ever cleared by installing a law) otherwise re-fires the
@@ -304,4 +330,13 @@ void fsm_run_pending_calstore_op() {
     // flash driver — that one still needs to run on the next pass.
     if (calstore_op_pending == op)
         calstore_op_pending = FSM_STATE_NONE;
+}
+
+void fsm_run_pending_self_test() {
+    if (!self_test_report_pending())
+        return;
+    // Latch the result BEFORE clearing pending: the FSM holds new requests until the clear, so
+    // no later procedure can overwrite procedure_result in between.
+    fsm_last_state_exit_ok = self_test_run_report();
+    self_test_report_clear();
 }

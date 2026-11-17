@@ -38,6 +38,7 @@ setpoint. `setpoint_2`, `reserved_1`, `reserved_2` are read but currently unused
 | `FSM_STATE_ERASE_CALIBRATION` | 19 | none (action on exit) | — | immediate | erases the cal page |
 | `FSM_STATE_RESTORE_CALIBRATION` | 20 | none (action on exit) | — | immediate | flash cal page → live offset/dir (also auto-runs at boot) |
 | `FSM_STATE_BACKEMF_CAL_BIDIR` | 21 | `backemf_cal_bidir_ctrl_law` | — (target in config.h) | fwd leg → drain → reverse leg | one-run fwd+rev coast capture — the gold-standard dataset for the offset fit |
+| `FSM_STATE_SELF_TEST` | 22 | `self_test_ctrl_law` (+ foreground report) | — | ~0.13 s armed, then the report | per-check PASS/FAIL on the debug UART; overall → `procedure_result` (see below) |
 | `FSM_STATE_NONE`/`SYSTEM_ERROR`/`CONTROLLER_ERROR` | 0/2/3 | none | — | — | error/sentinel states |
 
 Closed-loop laws (torque/vel/pos/vel-ramp) delegate their `encoder_consumer`/`current_consumer`/
@@ -105,6 +106,47 @@ zero current. Used as the primitive that the encoder-cal laws drive.
 
 **Encoder test (11).** Runs the estimator on every tick with zero PWM output. Never completes — use
 to watch the estimator without energizing the motor.
+
+**Self-test (22).** Desk bring-up check of a bare board (`self_test.c`; operator guide in
+`board-bringup.md`, host runner `can_console/bringup.py`). Added 2026-11-17, **bench-untested;
+thresholds are design guesses.** Two halves:
+
+1. *Bridge half* — a control law, armed. `fsm_enter_state` floats the bridge right after
+   `controller_arm()`, and the law's init floats it again on its first tick. Bridge off for
+   2 + 100 ms: it accumulates shunt ADC midpoints, Vbus min/mean/max, per-phase phase-voltage
+   mean and swing (PHx_V, rank 2), and encoder motion (wrapped deltas; counted as "rotating"
+   only when |net| ≥ ½ path, so magnet-less noise doesn't count). It stops there
+   (`bridge_off` FAIL, drive skipped) if a phase swings more than 0.5 V p-p (back-EMF), the
+   encoder sees > 2 rev/s, or a phase's mean is above 0.3 × Vbus (a leak to the bus: the 5 %
+   step would shoot through a shorted high side). A static offset below that is allowed: the
+   high-side driver's bias current flows through the divider when all FETs are off. Shunt
+   selection is switched off for the run and restored at exit. With all duties equal it would
+   rebuild phase A as −(B+C), and a common edge kick would then read as current to the 15 A trip.
+   Otherwise it sets **all three legs to the same duty**: 5 % for 12 ms, then 95 % for 12 ms.
+   A motor at rest sees 0 V. Each step allows 2 ms to settle, then 10 ms of measurement:
+   phase V as a fraction of Vbus (raw `JDR2/JDR1(Vbus)` ratio, same divider), Vbus minimum,
+   and the differential-mode phase current, taken from the raw samples with the 3-phase mean
+   removed (all edges share one duty, so a common switching artifact cancels). It floats the
+   bridge and stops if Vbus drops below 0.8 × the bridge-off mean, or if the current goes above
+   5 A in the 95 % step. In the 5 % step the edges fall inside the current-sample burst, so
+   only the sag abort and the fast loop's 15 A trip cover it. The pass bands are 5 % step < 25 % of bus, 95 % step > 65 % of bus, current at 95 % ≤ 1 A
+   (at 5 % the edges sit on the current sample, so that step is info only), and Vbus ≥ 0.95 ×.
+   It is skipped (report-only, no arming) when the boot shunt-offset cal was rejected or timed
+   out; the FSM exempts SELF_TEST from that arming gate for this.
+2. *Report half* — parked by `self_test_exit()` (FSM exit), run by
+   `fsm_run_pending_self_test()` in the foreground, disarmed. It checks the clock (HSE → PLL),
+   option bytes, node-ID strap vote margin, unclamped VREF+ (2.9–3.1 V pass, outside 2.5–3.4 V
+   fail), thermistors and die (−20…85 °C, ±15 °C of the median), MA732 register 0xE readback
+   == `MA732_FILTER_WINDOW_REG` (bounded HAL-free SPI under PRIMASK) plus the 0x1B field flags
+   (info), FDCAN TEC/REC/EP/BO, the bridge-half results, and latched errors. Info lines cover
+   reset cause/boot count/crash record, BOOT0 level, encoder cal and fast-loop high-water.
+   Output: `SELFTEST BEGIN …`, one `SELFTEST <PASS|FAIL|WARN|SKIP|INFO> <id>: <text>` line per
+   check, `SELFTEST END PASS|FAIL (n fail, m warn)`. Overall pass = no FAIL lines.
+
+`procedure_result` stays 0 until the report finishes (tens of ms after the state returns to
+IDLE). The FSM holds new requests until then, the same way it does for a parked cal-store op.
+Host tools should wait for `SELFTEST END` on the UART, or read `procedure_result` ≥ 0.4 s
+after IDLE.
 
 **Clear errors (13).** The only way to reset `controller_errors`. On *exit* it calls
 `controller_clear_errors()`, then the FSM auto-requests `IDLE`. Any nonzero error elsewhere forces

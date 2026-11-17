@@ -68,6 +68,12 @@ Returning `false` leaves the watchdog flag set and trips `*_USAGE_MISSING` next 
 "ramp" was a step at 50%); fixed to float arithmetic. clang-tidy's `bugprone-integer-division` (live
 via the LSP) catches this class — heed it on any `u32 / u32` feeding a `f32`.
 
+**The bus-voltage and current trips only run while armed.** The OV/UV/overcurrent checks live in
+`adc_update_callback()`, which runs inside the fast-loop ISR. `controller_disarm()` stops the HRTIM
+counters, and with them the ISR and the injected-ADC triggers. In IDLE, nothing samples Vbus or
+the phase currents, and nothing trips. A UV test must arm something first: `cli.py bringup` uses
+ENCODER_TEST (11), which runs at 50 % on all legs, so no current flows.
+
 **Measured R/L is never used by FOC.** `init_foc` uses `HARDCODE_PHASE_RESISTANCE/INDUCTANCE`
 (`config.h`); resistance/inductance cal only print. Tuning the current loop means editing `config.h`,
 not running cal. See `docs/control-laws.md`.

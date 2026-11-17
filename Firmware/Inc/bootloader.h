@@ -3,6 +3,14 @@
 #include "typedefs.h"
 #include "periphmap.h"
 
+typedef struct {
+    bool nboot0_ok, nboot1_ok, nswboot0_ok, bor_ok, all_ok;
+} option_bytes_status_t;
+
+// Quiet read of the option bytes vs. what the firmware requires (the self-test uses this).
+option_bytes_status_t get_option_bytes_status();
+
+// Same check, printing one OK/BAD line per field (boot path).
 bool check_option_bytes_ok();
 
 bool write_option_bytes();

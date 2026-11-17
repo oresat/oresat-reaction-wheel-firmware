@@ -27,6 +27,7 @@
 #include "closed_loop_controller.h"
 #include "fsm.h"
 #include "ma702.h"
+#include "self_test.h"
 
 
 #include "OD.h"
@@ -311,6 +312,8 @@ __fn_noreturn void app_main() {
 
         u8 canids[] = {CANID_WHEEL1, CANID_WHEEL2, CANID_WHEEL3, CANID_WHEEL4};
         NODE_CANID = canids[wheel_number - 1];
+
+        self_test_set_boot_info(wheel_number, NODE_CANID, addr0_high, addr1_high, rcc_csr);
     }
 
     printf("We are wheel number %u\r\n", wheel_number);
@@ -379,6 +382,7 @@ __fn_noreturn void app_main() {
         canopen_process();
         process_sdo_vals();
         fsm_run_pending_calstore_op(); // blocking flash ops live here, not in the FSM ISR
+        fsm_run_pending_self_test();   // state 22's report: UART + encoder SPI, disarmed
         ccm_scrub_run(); // every 5 s: CCM-resident control code vs its flash copy
 
         //if (HAL_GetTick() - t0 > 1) {

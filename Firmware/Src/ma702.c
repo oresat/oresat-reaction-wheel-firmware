@@ -63,7 +63,47 @@ static bool ma732_write_reg(const u8 addr, const u8 reg_val) {
     return ((u8) (rx_buf[0] >> 8)) == reg_val;
 }
 
-#define MA732_REG_FW 0xE // filter window register (datasheet Table 7)
+// ---- Bounded, HAL-free register read for runtime use (self-test) ----
+// ma732_read_reg() above blocks in HAL_SPI_TransmitReceive with a HAL_GetTick timeout: fine at
+// init, but a wedged SPI would spin forever with interrupts masked. This variant uses the same
+// direct-register pattern as the fast-read macros and update_disarmed_velocity() (can_comms.c),
+// with every wait bounded. CALLER must guarantee exclusive use of the SPI: controller disarmed
+// and interrupts masked (the fast loop's angle read must not interleave with these frames).
+static bool ma732_frame_bounded(u16 tx, u16 *rx) {
+    u32 flush = 0;
+    while (__HAL_SPI_GET_FLAG(&ENCODER_SPI_HANDLE, SPI_FLAG_RXNE) != 0u && ++flush < 8u)
+        (void) (&ENCODER_SPI_HANDLE)->Instance->DR; // drop RX residue from an earlier timeout
+    set_nCS(0);
+    CLEAR_BIT((&ENCODER_SPI_HANDLE)->Instance->CR2, SPI_RXFIFO_THRESHOLD);
+    (&ENCODER_SPI_HANDLE)->Instance->DR = tx;
+    u32 spins = 0;
+    while (__HAL_SPI_GET_FLAG(&ENCODER_SPI_HANDLE, SPI_FLAG_RXNE) == 0u && ++spins < 1500u);
+    bool ok = spins < 1500u;
+    if (ok)
+        *rx = (u16) ((&ENCODER_SPI_HANDLE)->Instance->DR);
+    set_nCS(1);
+    return ok;
+}
+
+static void ma732_idle_wait() {
+    // t_IdleReg >= 750 ns between the command frame and the read-back frame: 160 cycles at
+    // 144 MHz = 1.1 µs. DWT->CYCCNT is enabled at the top of app_main.
+    u32 t0 = DWT->CYCCNT;
+    while (DWT->CYCCNT - t0 < 160u);
+}
+
+bool ma732_read_reg_bounded(const u8 addr, u8 *val) {
+    u16 rx = 0;
+    if (!ma732_frame_bounded((u16) (((0b010 << 5) | (addr & 0x1F)) << 8), &rx))
+        return false;
+    ma732_idle_wait();
+    // Second frame = an angle-read command; its response carries the register in the MSB byte.
+    if (!ma732_frame_bounded(0x0000u, &rx))
+        return false;
+    ma732_idle_wait();
+    *val = (u8) (rx >> 8);
+    return true;
+}
 
 // Option-bytes pattern for the MA732 filter window: read FW, write only if it differs from
 // MA732_FILTER_WINDOW_REG (config.h — cutoff/noise tradeoff table there). One NVM write per

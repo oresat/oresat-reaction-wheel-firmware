@@ -72,6 +72,14 @@ __ccmram u32 aux_adc_conv_vdd_voltage_mV(u16 vdd_raw) {
     return vref_mV;
 }
 
+// Same math without the fallback to nominal: the self-test needs to see an out-of-band VREF+.
+// 0 = garbage sample (or VREFINT_CAL not loaded yet).
+u32 aux_adc_conv_vref_mV_unclamped(u16 vdd_raw) {
+    if (vdd_raw < 16384u || VREFINT_CAL == 0u)
+        return 0u;
+    return (((((u32) VREFINT_CAL) << 20) / vdd_raw) * VREFINT_CAL_VOLTAGE_mV) >> 16;
+}
+
 i32 aux_adc_conv_therm_cDegC(u16 therm_raw) {
     return NTC_THERM_ADC_TO_cDegC(therm_raw >> 4);
 }

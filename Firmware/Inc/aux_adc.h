@@ -36,6 +36,8 @@ void aux_adc_stop();
 
 u32 aux_adc_conv_vdd_voltage_mV(u16 vdd_raw);
 
+u32 aux_adc_conv_vref_mV_unclamped(u16 vdd_raw); // no nominal fallback; 0 = garbage
+
 i32 aux_adc_conv_therm_cDegC(u16 therm_raw);
 
 i32 aux_adc_conv_thermint_cDegC(u16 therm_raw);

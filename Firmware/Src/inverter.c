@@ -65,6 +65,11 @@ struct {
 
 volatile bool inverter_is_calibrated = false;
 
+// What the boot offset cal measured, kept even when it was rejected, so the self-test can report
+// a bad current-sense channel over the debug UART instead of only "arming refused".
+static inverter_offset_cal_status_t offset_cal_status = INVERTER_OFFSET_CAL_NOT_RUN;
+static i16 offset_cal_measured[3] = {0, 0, 0};
+
 
 volatile bool OFFSET_CORRECTION_FLAG = false;
 
@@ -133,6 +138,7 @@ void inverter_amp_offset_correction() {
             // CTRLR_ERR_INVERTER_CALIBRATION_INVALID. Nominal run is ~625 ms @ 32 kHz.
             if (HAL_GetTick() - t_start > 2000u) {
                 printf("Amp offset cal TIMED OUT (no HRTIM ticks) — arming will be refused\r\n");
+                offset_cal_status = INVERTER_OFFSET_CAL_TIMED_OUT;
                 goto cleanup;
             }
         }
@@ -153,6 +159,10 @@ void inverter_amp_offset_correction() {
     i16 B_accum_avg_i16 = (i16) round_f32(B_accum_avg);
     i16 C_accum_avg_i16 = (i16) round_f32(C_accum_avg);
 
+    offset_cal_measured[0] = A_accum_avg_i16;
+    offset_cal_measured[1] = B_accum_avg_i16;
+    offset_cal_measured[2] = C_accum_avg_i16;
+
     // Sane range: ±50 mV (≈62 counts at 3.3 V/4095) — a healthy INA296 mid-rails within a few
     // mV; outside that the channel is damaged. Do NOT install the offsets or mark calibrated
     // (the old code asserted-and-continued, flying ~0.8 A-per-100-counts of bias baked into
@@ -164,8 +174,10 @@ void inverter_amp_offset_correction() {
         (C_accum_avg_i16 < -offset_bound) || (C_accum_avg_i16 > offset_bound)) {
         printf("Amp offset cal REJECTED: %d/%d/%d counts (bound ±%d) — arming will be refused\r\n",
                A_accum_avg_i16, B_accum_avg_i16, C_accum_avg_i16, offset_bound);
+        offset_cal_status = INVERTER_OFFSET_CAL_REJECTED;
         goto cleanup;
     }
+    offset_cal_status = INVERTER_OFFSET_CAL_OK;
 
     INA240_offset_correction.A_offset = A_accum_avg_i16;
     INA240_offset_correction.B_offset = B_accum_avg_i16;
@@ -233,6 +245,13 @@ __ccmram void inverter_get_phase_voltages_raw(u32 *A, u32 *B, u32 *C) {
     *A = (&PHASE_A_ADC_HANDLE)->Instance->JDR2;
     *B = (&PHASE_B_ADC_HANDLE)->Instance->JDR2;
     *C = (&PHASE_C_ADC_HANDLE)->Instance->JDR2;
+}
+
+inverter_offset_cal_status_t inverter_get_boot_offset_cal(i16 *A, i16 *B, i16 *C) {
+    *A = offset_cal_measured[0];
+    *B = offset_cal_measured[1];
+    *C = offset_cal_measured[2];
+    return offset_cal_status;
 }
 
 __ccmram void inverter_get_offset_correction(i16 *A, i16 *B, i16 *C) {

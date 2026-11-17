@@ -93,7 +93,7 @@ gone. Invalid writes are answered with an **SDO abort** instead of silence.
 
 **`0x4004` validation** (SDO abort `0x0609 0030` invalid value / `0x0800 0022` device state):
 - Rejected outright: `0` (request sentinel), `2`/`3` (error states — the FSM enters those, hosts
-  don't), `6` (`POS_CONTROL` — unimplemented stub), anything > 21.
+  don't), `6` (`POS_CONTROL` — unimplemented stub), anything > 22.
 - The closed-loop states (4/5/16) and the back-EMF cal states (17/21) abort with `0x0800 0022`
   unless **encoder dir + offset cal are valid** (run/restore cal first — see commissioning below).
 - Re-requesting the state the FSM is already in is accepted and treated as an idempotent no-op
@@ -160,6 +160,11 @@ The flash op runs in the **foreground**, a few tens of ms after the state bounce
 poll `procedure_result` ~50 ms after commanding 18/19/20 (it reads 0 until the op lands).
 A failed/cancelled dir or offset cal now **rolls back** to the previous live values (and their
 validity), so a botched in-flight re-cal can't leave a probe value (dir = +1) silently armed.
+
+**Self-test** (desk bring-up): `0x4004:01` = `22` (`SELF_TEST`). It runs ~0.13 s armed and
+returns to IDLE. The per-check report goes to the debug UART only; the overall pass/fail lands in
+`procedure_result` once the report finishes, so read it ≥ 0.4 s after IDLE. Details:
+control-laws.md; operator guide: board-bringup.md (`can_console/cli.py bringup` / `selftest`).
 
 Commissioning a wheel end-to-end: `0x4004:01` = `9` (dir cal, wait done) → `15` (bootstrap offset
 cal, wait done) → `21` (bidirectional back-EMF self-cal; fits offset + LUT **on-board** and applies

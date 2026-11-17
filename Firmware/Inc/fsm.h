@@ -27,6 +27,7 @@ typedef enum fsm_state {
     FSM_STATE_ERASE_CALIBRATION = 19,
     FSM_STATE_RESTORE_CALIBRATION = 20,
     FSM_STATE_BACKEMF_CAL_BIDIR = 21, // fwd + reverse coast capture in one run (gold-standard fit)
+    FSM_STATE_SELF_TEST = 22, // desk bring-up self-test; report on the debug UART (self_test.h)
 } fsm_state_t;
 
 typedef enum fsm_status {
@@ -55,6 +56,10 @@ bool fsm_get_last_state_exit_ok();
 // loop — the ops block on flash for tens of ms and must not run in ISR context.
 void fsm_run_pending_calstore_op();
 
+// Runs a parked self-test report (state 22) and latches its result into procedure_result.
+// Foreground only: it prints synchronously over the debug UART and reads the encoder over SPI.
+void fsm_run_pending_self_test();
+
 typedef struct state_name {
     const char string[32];
 } state_name_t;
@@ -82,7 +87,8 @@ static const state_name_t state_names[] = {
         tmp(FSM_STATE_SAVE_CALIBRATION),
         tmp(FSM_STATE_ERASE_CALIBRATION),
         tmp(FSM_STATE_RESTORE_CALIBRATION),
-        tmp(FSM_STATE_BACKEMF_CAL_BIDIR)
+        tmp(FSM_STATE_BACKEMF_CAL_BIDIR),
+        tmp(FSM_STATE_SELF_TEST)
 };
 #undef tmp
 
